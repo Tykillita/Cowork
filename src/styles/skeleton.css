@@ -1,0 +1,43 @@
+/* ─── Skeleton loaders ──────────────────────────────────────────────────────
+   Placeholders that take the shape of the content they stand in for. A loading
+   view reuses the real layout classes (.taskRow, .overviewCard, .streakFriend…)
+   and only swaps the text, images and controls for .sk blocks, so nothing moves
+   when the data arrives. Neutral glass shimmer; never mint. */
+.sk {
+  display: block;
+  flex: none;
+  width: var(--w, 100%);
+  max-width: 100%;
+  height: var(--h, .8em);
+  border-radius: var(--r, 6px);
+  background: linear-gradient(90deg, var(--sk-base), var(--sk-shine), var(--sk-base)) 0 0 / 200% 100%;
+  animation: skShimmer var(--sk-speed) linear infinite;
+}
+/* A text line keeps the height of the line box it replaces. */
+.sk-line { margin-block: calc((1lh - .8em) / 2); }
+.sk-circle { --r: 50%; }
+.sk-pill { --r: 999px; }
+.skGrow { flex: 1 1 190px; }
+.skInline { display: inline-block; vertical-align: middle; margin-block: 0; }
+.skStack { display: grid; gap: 0; min-width: 0; }
+/* Covers a positioned box (a preview viewport, a scene stage). */
+.skFill { position: absolute; inset: 0; width: auto; max-width: none; height: auto; }
+
+/* Photos, avatars and icons keep their box and shimmer until the file arrives. */
+img.skImg { background: linear-gradient(90deg, var(--sk-base), var(--sk-shine), var(--sk-base)) 0 0 / 200% 100%; animation: skShimmer var(--sk-speed) linear infinite; }
+
+/* The header dock (streak, bell, profile, "Salir"); the label hides on narrow screens. */
+.skHeaderDock { --w: 250px; }
+@media (max-width: 540px) { .skHeaderDock { --w: 204px; } }
+
+/* Appears after a short delay, so a fast (cached) load never flashes a skeleton. */
+.skGroup { animation: skAppear .2s var(--ease) 150ms both; }
+.skGroup :is(button, a) { pointer-events: none; }
+
+@keyframes skShimmer { to { background-position: -200% 0; } }
+@keyframes skAppear { from { opacity: 0; } }
+
+/* The boot screen renders before the motion preference is applied to <html>. */
+@media (prefers-reduced-motion: reduce) { :is(.sk, img.skImg) { animation: none; } }
+html[data-motion="reduced"] :is(.sk, img.skImg) { animation: none; }
+html[data-motion="full"] :is(.sk, img.skImg) { animation: skShimmer var(--sk-speed) linear infinite; }

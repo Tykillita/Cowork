@@ -1,0 +1,126 @@
+/* ─── Create form sections ─────────────────────────────────────────────── */
+.formSection, .scheduleField { display: grid; min-width: 0; gap: 10px; margin: 0; padding: 14px 0 0; border: 0; border-top: 1px solid var(--line); }
+.formSectionLegend { float: left; width: 100%; margin-bottom: 10px; padding: 0; color: var(--mint); font-size: 10px; font-weight: 650; letter-spacing: .14em; text-transform: uppercase; }
+.formSectionLegend + * { clear: both; }
+.toggleRow { display: flex; align-items: flex-start; gap: 11px; padding: 12px 13px; border: 1px solid var(--line); border-radius: 13px; background: rgba(255,255,255,.03); cursor: pointer; }
+.toggleRow input { width: 17px; min-width: 17px; height: 17px; min-height: 0; margin: 2px 0 0; padding: 0; accent-color: var(--mint); }
+.toggleRow span, .scheduleMode span { display: grid; gap: 3px; }
+.toggleRow strong, .scheduleMode strong { color: var(--text); font-size: 12px; font-weight: 600; }
+.toggleRow small, .scheduleMode small { color: var(--tertiary); font-size: 11px; line-height: 1.5; }
+
+/* ─── Schedule field ───────────────────────────────────────────────────── */
+.scheduleModes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.scheduleMode { display: flex; min-width: 0; align-items: flex-start; gap: 10px; padding: 11px 12px; border: 1px solid var(--line); border-radius: 13px; background: rgba(255,255,255,.025); cursor: pointer; transition: border-color .18s var(--ease), background .18s var(--ease); }
+.scheduleMode.isActive { border-color: rgba(141,231,189,.4); background: rgba(141,231,189,.07); }
+.scheduleMode input { width: 16px; min-width: 16px; height: 16px; min-height: 0; margin: 2px 0 0; padding: 0; accent-color: var(--mint); }
+.scheduleField:disabled { opacity: .7; }
+.scheduleCalendarBlock { display: grid; min-width: 0; gap: 10px; padding: 12px; border: 1px solid var(--line); border-radius: 14px; background: rgba(0,0,0,.18); }
+:where(.scheduleCalendar) button { min-height: 0; padding: 0; border: 0; background: none; color: inherit; font-weight: inherit; transform: none; }
+.scheduleCalendar {
+  --rdp-accent-color: var(--mint);
+  --rdp-accent-background-color: rgba(141,231,189,.14);
+  --rdp-range_middle-background-color: rgba(141,231,189,.14);
+  --rdp-range_start-color: #0f1d17;
+  --rdp-range_end-color: #0f1d17;
+  --rdp-today-color: var(--amber);
+  --rdp-day-height: 38px;
+  --rdp-day-width: 38px;
+  --rdp-day_button-height: 36px;
+  --rdp-day_button-width: 36px;
+  --rdp-months-gap: 26px;
+  --rdp-nav-height: 2.4rem;
+  justify-self: center;
+  max-width: 100%;
+  overflow-x: auto;
+  color: var(--text);
+  font-size: 13px;
+}
+.scheduleCalendar .rdp-caption_label { font-size: 13px; font-weight: 600; text-transform: capitalize; }
+.scheduleCalendar .rdp-weekday { color: var(--tertiary); font-size: 10px; font-weight: 600; text-transform: uppercase; }
+.scheduleCalendar .rdp-chevron { fill: var(--secondary); }
+.scheduleCalendar .rdp-button_previous, .scheduleCalendar .rdp-button_next { border-radius: 9px; }
+.scheduleCalendar .rdp-button_previous:hover, .scheduleCalendar .rdp-button_next:hover, .scheduleCalendar .rdp-day_button:hover { background: rgba(255,255,255,.07); }
+.scheduleCalendar .rdp-day_button:focus-visible { outline: 2px solid var(--mint); outline-offset: 1px; }
+.scheduleCalendar .rdp-selected .rdp-day_button { font-weight: 700; }
+.scheduleSummary { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 14px; color: var(--secondary); font-size: 12px; }
+.scheduleSummary strong { color: var(--text); }
+.scheduleZone { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.scheduleZone small { color: var(--tertiary); font-size: 11px; }
+.scheduleZoneSelect { min-width: min(280px, 100%); }
+.scheduleZoneChange { color: var(--mint) !important; }
+
+/* ─── Access link sharing ──────────────────────────────────────────────── */
+.accessShare { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 16px; padding: 14px; border: 1px solid rgba(141,231,189,.2); border-radius: 15px; background: rgba(141,231,189,.045); }
+.accessShareQr { display: grid; width: 132px; height: 132px; place-items: center; overflow: hidden; border-radius: 12px; background: #fff; }
+.accessShareQr img { display: block; width: 100%; height: 100%; image-rendering: pixelated; }
+.accessShareQr.isPending { background: transparent; }
+.accessShareBody { display: grid; min-width: 0; gap: 8px; }
+.accessShareBody input { width: 100%; font: 11px ui-monospace, "SFMono-Regular", Consolas, monospace; }
+.accessShareHint { margin: 0; color: var(--tertiary); font-size: 11px; }
+.accessShareActions { display: flex; flex-wrap: wrap; gap: 8px; }
+.accessShareActions > button { min-height: 38px; padding: 0 14px; border-color: rgba(141,231,189,.35); background: var(--mint); color: #102019; font-size: 11px; font-weight: 650; }
+.accessShareDownload { display: inline-flex; min-height: 38px; align-items: center; padding: 0 14px; border: 1px solid var(--line-strong); border-radius: 10px; color: var(--secondary); font-size: 11px; font-weight: 600; }
+.accessShareDownload:hover { border-color: rgba(141,231,189,.4); color: var(--mint); }
+.accessShare.isCompact .accessShareQr { width: 104px; height: 104px; }
+.projectCreatedBody { margin: 12px 0 16px; }
+.projectCreatedRetry { display: grid; justify-items: start; gap: 10px; }
+.accessLinkList { display: grid; gap: 10px; margin-bottom: 18px; }
+.accessLinkItem { display: grid; gap: 6px; }
+.accessLinkRevoke { justify-self: end; color: var(--red) !important; }
+
+/* ─── Access requests ──────────────────────────────────────────────────── */
+.accessStatusChip { display: inline-flex; flex: none; align-items: center; gap: 5px; margin-right: 8px; padding: 2px 8px; border: 1px solid var(--line); border-radius: 999px; color: var(--secondary); font-size: 9px; font-weight: 650; letter-spacing: .06em; text-transform: uppercase; vertical-align: 1px; }
+.accessStatusChip[data-tone="success"] { border-color: rgba(141,231,189,.3); color: var(--mint); }
+.accessStatusChip[data-tone="error"] { border-color: rgba(255,124,135,.3); color: var(--red); }
+.accessStatusChip[data-tone="info"], .accessStatusChip[data-tone="warning"] { border-color: rgba(246,207,134,.3); color: var(--amber); }
+.accessRequestDialog { width: min(520px, calc(100vw - 32px)); }
+.accessRequestAccount { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 13px; background: rgba(255,255,255,.03); }
+.accessRequestAccount > span:last-child { display: grid; min-width: 0; }
+.accessRequestAccount strong { font-size: 12px; }
+.accessRequestAccount small { overflow: hidden; color: var(--tertiary); font-size: 11px; text-overflow: ellipsis; }
+.accessRequestStatus { margin: 0 0 14px; color: var(--secondary); font-size: 13px; line-height: 1.6; }
+.accessRequestStatus.is-error { color: #ffb3ba; }
+.accessRequestActions { display: flex; flex-wrap: wrap; gap: 8px; }
+.accessRequestActions > button.ghost { min-height: 40px; padding: 0 14px; font-size: 11px; }
+.ownAccessRequests { margin: 14px 0 0; }
+.ownAccessRequests h2 { margin-bottom: 8px; }
+.ownAccessRequests ul { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.ownAccessRequest { display: flex; min-width: 0; align-items: center; gap: 8px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 12px; background: rgba(255,255,255,.03); }
+.ownAccessRequestName { min-width: 0; flex: 1; overflow: hidden; color: var(--text); font-size: 12px; font-weight: 550; text-overflow: ellipsis; white-space: nowrap; }
+.ownAccessRequest .accessStatusChip { margin: 0; }
+.ownAccessRequest button.plain { color: var(--mint); }
+.accessRequestRow .projectMemberActions > button:not(.plain) { min-height: 30px; padding: 0 12px; background: var(--mint); color: #102019; }
+.accessHistory { margin: 4px 0 18px; color: var(--tertiary); font-size: 11px; }
+.accessHistory summary { cursor: pointer; }
+.accessHistory ul { display: grid; gap: 6px; margin: 10px 0 0; padding: 0; list-style: none; }
+.accessHistory li { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.accessHistory li span:first-child { color: var(--secondary); }
+
+/* ─── Home hero: repository action and delivery card ───────────────────── */
+.heroDescriptorRow { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin: 0 0 14px; }
+.heroDescriptorRow .heroDescriptor { margin: 0; }
+.heroRepoLink { display: inline-flex; flex: none; min-height: 30px; align-items: center; gap: 6px; padding: 0 11px; border: 1px solid var(--line-strong); border-radius: 999px; background: rgba(255,255,255,.04); color: var(--secondary); font-size: 11px; font-weight: 600; transition: border-color .18s var(--ease), color .18s var(--ease); }
+.heroRepoLink svg { width: 14px; height: 14px; }
+.heroRepoLink:hover { border-color: rgba(141,231,189,.4); color: var(--mint); }
+.deadlineCard, .ambientCard { display: flex; min-height: 220px; flex-direction: column; }
+.deadlineRange, .ambientTitle { margin-top: 2px; color: var(--text); font-size: 16px; font-weight: 600; letter-spacing: -.02em; }
+.deadlineStatus { margin-top: 12px !important; }
+.deadlineCard .digits { margin-top: auto; padding-top: 16px; }
+.deadlineCard.urgent .deadlineStatus { color: #ffb3ba; }
+.deadlineProgress { display: block; height: 3px; margin: 14px 0 12px; overflow: hidden; border-radius: 999px; background: rgba(255,255,255,.07); }
+.deadlineProgress i { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #74cea5, var(--mint)); }
+.deadlineCard.urgent .deadlineProgress i { background: var(--red); }
+.deadlineCard::after, .ambientCard::after { display: none; }
+.ambientCard { padding-bottom: 18px; }
+.ambientStage { position: relative; flex: 1; min-height: 150px; margin-top: 14px; overflow: hidden; border: 1px solid rgba(255,255,255,.08); border-radius: 14px; background: #0c1224; }
+.ambientCanvas { position: absolute; inset: 0; display: block; width: 100%; height: 100%; image-rendering: pixelated; image-rendering: crisp-edges; }
+
+@media (max-width: 640px) {
+  .scheduleModes { grid-template-columns: minmax(0, 1fr); }
+  .scheduleCalendarBlock { padding: 8px; }
+  .scheduleCalendar { --rdp-day-height: 36px; --rdp-day-width: 36px; --rdp-day_button-height: 34px; --rdp-day_button-width: 34px; }
+  .accessShare { grid-template-columns: minmax(0, 1fr); justify-items: center; }
+  .accessShareBody { width: 100%; }
+  .deadlineCard, .ambientCard { min-height: 0; }
+  .ambientStage { min-height: 132px; }
+}

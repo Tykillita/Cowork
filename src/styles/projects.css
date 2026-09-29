@@ -1,0 +1,363 @@
+/*
+ * The picker and the portal scroll with the document instead of inside a fixed
+ * box. On iOS Safari that lets the page (and its background) continue under the
+ * status bar and the floating toolbar; a fixed full-screen scroller is clipped
+ * above the toolbar and leaves flat bands painted by the browser. The large
+ * viewport height keeps the background behind the toolbars even when shown.
+ */
+.projectPicker {
+  position: relative; display: flex; width: 100%; max-width: none; min-height: 100vh; min-height: 100lvh; margin: 0; flex-direction: column;
+  overflow-x: hidden; overflow-x: clip; isolation: isolate; padding: max(27px, calc(env(safe-area-inset-top, 0px) + 12px)) clamp(24px, 5vw, 80px) max(28px, calc(env(safe-area-inset-bottom, 0px) + 12px));
+  background: var(--project-picker-background);
+  color: var(--text);
+}
+.projectPicker::before { position: absolute; z-index: -1; inset: 0; background-image: linear-gradient(rgba(255,255,255,.018) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.018) 1px, transparent 1px); background-size: 42px 42px; -webkit-mask-image: linear-gradient(to bottom, rgba(0,0,0,.42), transparent 78%); mask-image: linear-gradient(to bottom, rgba(0,0,0,.42), transparent 78%); content: ""; pointer-events: none; }
+.projectPickerHeader { display: flex; align-items: center; justify-content: space-between; gap: 20px; }
+.projectPickerBrand, .projectPickerBrand:hover { display: inline-flex; align-items: center; gap: 11px; color: var(--text); text-decoration: none; user-select: none; }
+.projectPickerMark { display: block; width: 27px; height: 27px; flex: none; color: #fff; }
+.projectPickerBrand > span:last-child { display: grid; gap: 2px; }
+.projectPickerBrand strong { font-size: 12px; letter-spacing: .16em; }
+.projectPickerBrand small { color: var(--tertiary); font-size: 9px; letter-spacing: .12em; }
+.projectPickerHeaderActions { display: flex; align-items: center; gap: 13px; }
+.projectPrivacy { display: inline-flex; align-items: center; gap: 8px; color: var(--secondary); font-size: 11px; }
+.projectPrivacy i { width: 6px; height: 6px; border-radius: 50%; background: var(--mint); box-shadow: 0 0 12px rgba(141,231,189,.8); }
+.projectSignedIn { color: var(--tertiary); font-size: 11px; }
+.projectPickerContent { display: flex; width: min(1580px, 100%); min-height: 0; margin: auto; flex: 1; flex-direction: column; justify-content: center; padding: clamp(24px, 4vh, 46px) 0 clamp(16px, 3vh, 32px); }
+.projectShowcase { display: grid; min-height: clamp(540px, 68svh, 690px); grid-template-columns: minmax(360px,.7fr) minmax(0,1.3fr); align-items: center; gap: clamp(22px, 2vw, 34px); }
+.projectShowcaseCopy { position: relative; z-index: 2; max-width: 560px; padding: 25px 0; }
+.projectShowcaseCopy > .eyebrow { margin-bottom: 14px; color: var(--mint); }
+.projectShowcaseCopy h1 { max-width: 15ch; margin: 0 0 17px; font-size: clamp(42px, 4.2vw, 68px); line-height: 1.02; letter-spacing: -.065em; }
+.projectShowcaseCopy > p:not(.eyebrow):not(.projectCatalogNotice) { max-width: 42ch; margin: 0; color: var(--secondary); font-size: 15px; line-height: 1.75; }
+.projectCatalogNotice { margin: 15px 0 0; color: var(--amber); font-size: 11px; line-height: 1.5; }
+.projectCatalogError { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; }
+.projectCatalogError .projectCatalogNotice { flex: 1 1 260px; max-width: 54ch; }
+.projectCatalogRetry { min-height: 28px; padding: 0 8px; border: 1px solid var(--line); border-radius: 8px; background: rgba(255,255,255,.035); color: var(--secondary); font-size: 10px; cursor: pointer; }
+.projectCatalogRetry:hover { background: rgba(255,255,255,.075); color: var(--text); }
+.projectCatalogRetry:focus-visible { outline: 2px solid var(--mint); outline-offset: 3px; }
+.projectPickerActions { display: flex; align-items: center; gap: 9px; margin-top: 26px; }
+.projectAddButton { min-height: 44px; }
+.projectJoinButton { width: 44px; min-width: 44px; height: 44px; padding: 0 !important; --sb-radius: 14px; }
+.projectJoinButton svg { position: relative; z-index: 2; display: block; width: 19px; height: 19px; }
+.projectJoinButton:focus-visible { outline: 2px solid var(--mint); outline-offset: 3px; }
+.projectPreviewColumn { min-width: 0; }
+.projectPreviewStage { position: relative; width: 100%; height: min(620px, 70svh); min-height: 570px; min-width: 0; overflow: hidden; isolation: isolate; background: transparent; container: preview-stage / inline-size; }
+/* The stack is ~680px wide (500px card + two 75px offsets + skew). In the
+   two-column layout the column can be narrower, so shrink it to fit instead of
+   clipping the front card. `scale` composes with the container's transform. */
+@media (min-width: 901px) {
+  @container preview-stage (max-width: 720px) { .card-swap-container { left: calc(50% - 68px); scale: .9; } }
+  @container preview-stage (max-width: 650px) { .card-swap-container { left: calc(50% - 62px); scale: .82; } }
+  @container preview-stage (max-width: 590px) { .card-swap-container { left: calc(50% - 56px); scale: .74; } }
+  @container preview-stage (max-width: 530px) { .card-swap-container { left: calc(50% - 50px); scale: .66; } }
+}
+.projectBrowserCard { display: flex; flex-direction: column; overflow: hidden; border-color: rgba(255,255,255,.5); border-radius: 12px; background: #111015; box-shadow: 0 24px 70px rgba(0,0,0,.5), inset 0 1px rgba(255,255,255,.08); color: #f4f3f8; }
+.projectBrowserBar { display: flex; height: 42px; min-height: 42px; align-items: center; gap: 10px; padding: 0 12px; border-bottom: 1px solid rgba(255,255,255,.12); background: #1b1a20; }
+.projectBrowserDots { display: flex; flex: none; gap: 4px; }
+.projectBrowserDots i { width: 7px; height: 7px; border-radius: 50%; background: rgba(255,255,255,.22); }
+.projectBrowserDots i:first-child { background: #ff6058; }
+.projectBrowserDots i:nth-child(2) { background: #ffbd2e; }
+.projectBrowserDots i:nth-child(3) { background: #28c840; }
+.projectBrowserTab { display: flex; min-width: 0; height: 30px; flex: 1; align-items: center; gap: 8px; padding: 0 9px; overflow: hidden; border: 1px solid rgba(255,255,255,.09); border-radius: 7px 7px 0 0; background: rgba(255,255,255,.045); color: rgba(255,255,255,.86); text-align: left; }
+.projectBrowserTab > span:last-child { overflow: hidden; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.projectBrowserTab:hover { background: rgba(255,255,255,.09); }
+.projectBrowserFavicon { display: grid; width: 16px; height: 16px; flex: none; place-items: center; overflow: hidden; border-radius: 4px; background: rgba(141,231,189,.15); color: var(--mint); font-size: 9px; font-weight: 700; }
+.projectBrowserFavicon.hasIcon { background: transparent; }
+.projectIconField { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: 10px; }
+.projectIconField .controlField > span small { margin-left: 5px; color: var(--tertiary); font-weight: 400; }
+.projectIconPreview { display: grid; width: 38px; height: 38px; place-items: center; overflow: hidden; border: 1px solid var(--line); border-radius: 10px; background: rgba(141,231,189,.1); color: var(--mint); font-size: 15px; font-weight: 700; }
+.projectIconPreview img { display: block; width: 24px; height: 24px; object-fit: contain; }
+.projectBrowserFavicon img { display: block; width: 100%; height: 100%; object-fit: contain; }
+.projectBrowserOpen { display: inline-flex; min-width: 47px; height: 25px; flex: none; align-items: center; justify-content: center; padding: 0 7px; border-radius: 7px; color: rgba(255,255,255,.7); font-size: 9px; text-decoration: none; }
+.projectBrowserOpen:hover { background: rgba(255,255,255,.09); color: white; }
+.projectBrowserEmptyTab { min-width: 0; overflow: hidden; color: rgba(255,255,255,.68); font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.projectBrowserViewport { position: relative; min-height: 0; flex: 1; overflow: hidden; background: #08080a; }
+.projectBrowserViewport iframe { position: absolute; top: 0; left: 0; display: block; width: 185%; height: 185%; border: 0; background: #0b0b0e; transform: scale(.54); transform-origin: top left; pointer-events: none; }
+.projectPreviewPlaceholder { position: absolute; z-index: 1; inset: 0; display: grid; align-content: start; gap: 12px; padding: 18px 20px; background: #0b0b0e; transition: opacity .3s var(--ease), visibility .3s; }
+.projectPreviewPlaceholderNav { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 6px; }
+.projectPreviewPlaceholderNav > span { display: flex; gap: 10px; }
+.projectBrowserViewport[data-loaded] > .projectPreviewPlaceholder { visibility: hidden; opacity: 0; }
+.projectPreviewSelect { position: absolute; z-index: 2; inset: 0; width: 100%; height: 100%; padding: 0; border: 0; border-radius: 0; background: transparent; cursor: pointer; }
+.projectPreviewSelect:focus-visible { outline: 2px solid var(--mint); outline-offset: -5px; }
+.projectNoPreview, .projectEmptyAction { display: grid; width: 100%; height: 100%; justify-items: center; align-content: center; gap: 10px; padding: 25px; border: 0; background: radial-gradient(240px 180px at 50% 38%, rgba(141,231,189,.08), transparent 80%), #0b0b0e; color: rgba(255,255,255,.86); text-align: center; }
+.projectNoPreview > span:last-child, .projectEmptyAction > span:last-child { max-width: 28ch; color: rgba(255,255,255,.52); font-size: 11px; line-height: 1.6; }
+.projectPreviewGlyph { display: grid; width: 46px; height: 46px; place-items: center; margin-bottom: 5px; border: 1px solid rgba(141,231,189,.28); border-radius: 14px; background: rgba(141,231,189,.1); color: var(--mint); font-size: 18px; font-weight: 650; }
+.projectNoPreview strong, .projectEmptyAction strong { font-size: 14px; font-weight: 550; }
+.projectBrowserCardEmpty { border-style: dashed; border-color: rgba(255,255,255,.32); background: #111015; }
+.projectEmptyAction { background: radial-gradient(260px 200px at 50% 45%, rgba(141,231,189,.08), transparent 78%), #101014; cursor: pointer; transition: background .2s var(--ease), color .2s var(--ease); }
+.projectEmptyAction:hover { background-color: #17171d; }
+.projectEmptyPlus { display: grid; width: 52px; height: 52px; place-items: center; border: 1px solid rgba(141,231,189,.34); border-radius: 16px; background: rgba(141,231,189,.08); color: var(--mint); font-size: 26px; font-weight: 300; }
+.projectEmptyAction:focus-visible, .projectBrowserTab:focus-visible, .projectBrowserOpen:focus-visible, .projectPagerButton:focus-visible, .newProjectButton:focus-visible { outline: 2px solid var(--mint); outline-offset: 3px; }
+.projectPager { position: relative; z-index: 5; display: flex; align-items: center; justify-content: center; gap: 13px; margin-top: -1px; color: var(--tertiary); font-size: 10px; font-variant-numeric: tabular-nums; }
+.projectPager i { padding: 0 4px; color: rgba(255,255,255,.3); font-style: normal; }
+.projectPagerButton { display: grid; width: 30px; height: 30px; place-items: center; border: 1px solid var(--line); border-radius: 9px; background: rgba(255,255,255,.045); color: var(--secondary); font-size: 15px; }
+.projectPagerButton:hover:not(:disabled) { border-color: rgba(141,231,189,.4); color: var(--text); }
+.projectPagerButton:disabled { opacity: .35; cursor: default; }
+.projectCreateCard { max-width: 680px; margin: 12px auto 0; padding: 20px; border: 1px solid var(--line); border-radius: 17px; background: rgba(25,27,29,.96); box-shadow: var(--shadow); }
+.projectCreateDialog { width: min(680px, calc(100vw - 32px)); max-width: none; max-height: min(88dvh, 760px); overflow-x: hidden; overflow-y: auto; margin: auto; padding: clamp(18px, 4vw, 24px); border-color: rgba(255,255,255,.16); background: radial-gradient(440px 250px at 100% 0%, rgba(141,231,189,.075), transparent 76%), linear-gradient(145deg, rgba(30,33,35,.99), rgba(15,17,19,.99)); color: var(--text); }
+.projectCreateDialog:focus { outline: none; }
+.projectCreateDialog::backdrop { background: rgba(4,6,7,.72); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); }
+.projectCreateDialog[open] { animation: projectCreateDialogIn .2s cubic-bezier(.2,.75,.25,1) both; }
+@keyframes projectCreateDialogIn { from { opacity: 0; transform: translateY(9px) scale(.99); } to { opacity: 1; transform: translateY(0) scale(1); } }
+.projectCreateHeading { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 16px; }
+.projectCreateHeading .eyebrow { margin-bottom: 5px; color: var(--mint); }
+.projectCreateHeading h2 { margin: 0; }
+.projectCreateForm { display: grid; gap: 13px; }
+.projectCreateForm .controlField > span small { margin-left: 5px; color: var(--tertiary); font-weight: 400; }
+.projectCreateDialog .projectCreateForm :is(input, textarea):focus,
+.projectCreateDialog .projectCreateForm :is(input, textarea):focus-visible { border-color: var(--line-strong); box-shadow: none; outline: none; }
+.projectCreateForm textarea { resize: vertical; }
+.projectCreateSubmit { min-height: 40px; justify-self: start; padding: 0 15px; border: 1px solid rgba(141,231,189,.35); border-radius: 11px; background: var(--mint); color: #102019; font-size: 11px; font-weight: 650; }
+.projectCreateSubmit:disabled { opacity: .6; cursor: wait; }
+.projectCreateSubmitButton { min-height: 44px; justify-self: start; }
+.projectCreateCancelButton { min-height: 44px; flex: none; }
+.projectFormError { margin: 0; color: var(--red); font-size: 11px; }
+.projectCreateHint { margin: 0; color: var(--secondary); font-size: 12px; }
+.projectPickerFooter { margin-top: auto; color: rgba(235,235,245,.34); font-size: 9px; letter-spacing: .13em; text-align: center; }
+.projectPickerFooter span { padding: 0 6px; color: var(--mint); }
+
+.projectJoinDialog {
+  position: fixed;
+  inset: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px);
+  width: min(480px, calc(100vw - 32px)); max-width: none;
+  max-height: calc(100dvh - 32px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+  margin: auto; padding: 22px; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain;
+  border: 1px solid rgba(255,255,255,.12); border-radius: 20px;
+  background: radial-gradient(120% 70% at 0% 0%, rgba(255,255,255,.035), transparent 60%), linear-gradient(180deg, rgba(22,26,29,.98), rgba(13,16,18,.99));
+  color: var(--text); box-shadow: inset 0 1px rgba(255,255,255,.05), 0 24px 80px rgba(0,0,0,.55);
+}
+.projectJoinDialog::backdrop { background: rgba(4,6,7,.76); -webkit-backdrop-filter: blur(9px); backdrop-filter: blur(9px); }
+.projectJoinDialog[open] { animation: projectSearchModalIn .22s var(--ease) both; }
+.projectJoinDialog[open]::backdrop { animation: projectSearchBackdropIn .22s ease both; }
+.projectJoinHeader { display: flex; min-width: 0; align-items: center; gap: 12px; }
+.projectJoinMark { display: grid; width: 38px; height: 38px; flex: none; place-items: center; border: 1px solid var(--line); border-radius: 11px; background: linear-gradient(160deg, rgba(255,255,255,.09), rgba(255,255,255,.02)); color: var(--text); box-shadow: inset 0 1px rgba(255,255,255,.06); }
+.projectJoinMark svg { width: 19px; height: 19px; }
+.projectJoinTitle { min-width: 0; flex: 1; }
+.projectJoinTitle > span { color: var(--tertiary); font-size: 9px; font-weight: 650; letter-spacing: .12em; }
+.projectJoinTitle h2 { margin: 4px 0 0; font-size: 17px; font-weight: 620; letter-spacing: -.03em; line-height: 1.2; }
+.projectJoinClose { display: grid; width: 32px; height: 32px; min-height: 32px; flex: none; place-items: center; padding: 0; border: 1px solid transparent; border-radius: 10px; background: rgba(255,255,255,.04); color: var(--secondary); cursor: pointer; transition: background .15s ease, color .15s ease, border-color .15s ease; }
+.projectJoinClose svg { width: 16px; height: 16px; }
+.projectJoinClose:hover { border-color: var(--line); background: rgba(255,255,255,.08); color: var(--text); }
+.projectJoinIntro { margin: 19px 0 20px; color: var(--secondary); font-size: 12px; line-height: 1.6; }
+.projectJoinForm { display: grid; gap: 17px; }
+.projectJoinForm .controlField { gap: 8px; }
+.projectJoinForm .controlField > span { color: var(--secondary); font-size: 11px; }
+.projectJoinForm .controlField input { min-height: 46px; padding: 0 14px; border: 1px solid var(--line-strong); border-radius: 13px; background: rgba(6,8,9,.75); color: var(--text); font-size: 13px; box-shadow: inset 0 1px 2px rgba(0,0,0,.4); }
+.projectJoinForm .controlField input:focus-visible { border-color: rgba(255,255,255,.3); outline: 2px solid rgba(255,255,255,.12); outline-offset: 2px; }
+.projectJoinFooter { display: flex; align-items: end; justify-content: space-between; gap: 16px; padding-top: 15px; border-top: 1px solid rgba(255,255,255,.06); }
+.projectJoinFooter p { max-width: 26ch; margin: 0; color: var(--tertiary); font-size: 10.5px; line-height: 1.5; }
+.projectJoinSubmit { display: inline-flex; min-height: 40px; align-items: center; justify-content: center; gap: 13px; padding: 0 14px; border: 1px solid rgba(255,255,255,.16); border-radius: 11px; background: rgba(255,255,255,.08); color: var(--text); font: inherit; font-size: 12px; font-weight: 600; white-space: nowrap; cursor: pointer; transition: border-color .15s ease, background .15s ease; }
+.projectJoinSubmit:hover { border-color: rgba(255,255,255,.3); background: rgba(255,255,255,.12); }
+.projectJoinSubmit span { color: var(--mint); font-size: 16px; line-height: 1; }
+.projectJoinDialog :is(.projectJoinClose, .projectJoinSubmit):focus-visible { outline: 2px solid rgba(255,255,255,.7); outline-offset: 2px; }
+html[data-motion="reduced"] .projectJoinDialog[open], html[data-motion="reduced"] .projectJoinDialog[open]::backdrop { animation: none; }
+
+.entryPortalContent { max-width: 1500px; }
+.entryPortalShowcase { display: grid; min-height: clamp(570px, 70svh, 720px); grid-template-columns: minmax(340px, .82fr) minmax(0, 1.18fr); align-items: center; gap: clamp(34px, 6vw, 96px); }
+.entryPortalCopy { position: relative; z-index: 2; max-width: 545px; padding: 18px 0; }
+.entryPortalCopy > .eyebrow { margin-bottom: 17px; color: var(--mint); }
+.entryPortalCopy h1 { max-width: 11ch; margin: 0 0 19px; font-size: clamp(48px, 5.1vw, 78px); line-height: .99; letter-spacing: -.07em; }
+.entryPortalCopy > p:not(.eyebrow):not(.entryPortalPrivacy) { max-width: 42ch; margin: 0; color: var(--secondary); font-size: 15px; line-height: 1.75; }
+.entryPortalActions { display: flex; align-items: center; gap: 10px; margin-top: 29px; }
+.entryPortalCreateButton { min-height: 44px; }
+.entryPortalJoinButton { width: 44px; min-width: 44px; height: 44px; padding: 0 !important; --sb-radius: 14px; }
+.entryPortalJoinButton svg { position: relative; z-index: 2; display: block; width: 19px; height: 19px; }
+.entryPortalJoinButton:focus-visible, .entryInviteForm button:focus-visible, .entryInviteForm input:focus-visible, .entryInviteClose:focus-visible { outline: 2px solid var(--mint); outline-offset: 3px; }
+.entryPortalPrivacy { max-width: 43ch; margin: 18px 0 0; color: var(--tertiary); font-size: 10px; line-height: 1.65; }
+.entryInviteOverlay { position: fixed; z-index: 1000; inset: 0; display: grid; place-items: center; overflow-y: auto; padding: max(20px, env(safe-area-inset-top, 0px)) 18px max(20px, env(safe-area-inset-bottom, 0px)); background: rgba(4,6,7,.74); -webkit-backdrop-filter: blur(13px); backdrop-filter: blur(13px); animation: entryInviteFadeIn .18s ease-out both; }
+.entryInviteDialog { width: min(100%, 470px); margin: auto; padding: clamp(20px, 5vw, 27px); border: 1px solid rgba(255,255,255,.16); border-radius: 20px; background: radial-gradient(420px 240px at 100% 0%, rgba(141,231,189,.08), transparent 76%), linear-gradient(145deg, rgba(30,33,35,.98), rgba(17,19,21,.99)); box-shadow: 0 28px 100px rgba(0,0,0,.58), inset 0 1px rgba(255,255,255,.055); animation: entryInviteDialogIn .22s cubic-bezier(.2,.75,.25,1) both; }
+.entryInviteDialogHead { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; }
+.entryInviteDialogHead .eyebrow { margin: 0 0 8px; color: var(--mint); }
+.entryInviteDialogHead h2 { margin: 0; font-size: clamp(21px, 5vw, 26px); letter-spacing: -.045em; }
+.entryInviteClose { width: 36px; min-width: 36px; height: 36px; min-height: 36px; flex: none; margin: -4px -4px 0 0; padding: 0 !important; --sb-radius: 50%; color: var(--secondary); font-size: 18px; font-weight: 400; }
+.entryInviteClose svg { display: block; width: 15px; height: 15px; }
+.entryInviteClose:hover { color: var(--text); }
+.entryInviteIntro { margin: 12px 0 20px; color: var(--secondary); font-size: 12px; line-height: 1.65; }
+.entryInviteForm { display: grid; gap: 13px; }
+.entryInviteForm .controlField { gap: 7px; }
+.entryInviteForm input { min-height: 42px; font-size: 12px; }
+.entryInviteForm #entry-invite-link:is(:focus, :focus-visible) { border-color: var(--line); box-shadow: none; outline: none; }
+.entryInviteSubmit { width: 100%; min-height: 44px; justify-self: stretch; }
+.entryInviteDialog > .projectCreateHint { margin: 14px 0 0; color: var(--tertiary); font-size: 10px; line-height: 1.55; }
+@keyframes entryInviteFadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes entryInviteDialogIn { from { opacity: 0; transform: translateY(10px) scale(.985); } to { opacity: 1; transform: translateY(0) scale(1); } }
+.entryPortalVisual { position: relative; min-width: 0; padding-top: 24px; }
+.entryPreviewStage { height: min(620px, 69svh); min-height: 540px; }
+.entryBrowserCard { display: flex; flex-direction: column; overflow: hidden; border-color: rgba(255,255,255,.46); border-radius: 13px; background: #111015; box-shadow: 0 24px 70px rgba(0,0,0,.52), inset 0 1px rgba(255,255,255,.08); color: #f4f3f8; }
+.entryBrowserBar { display: flex; height: 42px; min-height: 42px; align-items: center; gap: 10px; padding: 0 12px; border-bottom: 1px solid rgba(255,255,255,.1); background: #1b1a20; }
+.entryBrowserTitle { overflow: hidden; color: rgba(255,255,255,.63); font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.entryBrowserBody { display: grid; height: 100%; align-content: center; justify-items: start; gap: 13px; padding: 36px; background: radial-gradient(420px 280px at 86% 18%, rgba(141,231,189,.08), transparent 80%), linear-gradient(145deg, #11191a, #0b0d0f 70%); }
+.entryBrowserEyebrow { color: var(--mint); font-size: 9px; letter-spacing: .15em; }
+.entryBrowserBody > strong { max-width: 14ch; font-size: clamp(23px, 3vw, 36px); font-weight: 560; letter-spacing: -.045em; line-height: 1.07; }
+.entryBrowserBody > span:nth-of-type(2) { max-width: 34ch; color: rgba(255,255,255,.6); font-size: 12px; line-height: 1.65; }
+.entryBrowserMockButton { display: inline-flex; min-height: 34px; align-items: center; gap: 8px; margin-top: 8px; padding: 0 11px; border: 1px solid rgba(141,231,189,.3); border-radius: 9px; background: rgba(141,231,189,.09); color: rgba(255,255,255,.8); font-size: 10px; }
+.entryBrowserMockButton i { width: 6px; height: 6px; border-radius: 50%; background: var(--mint); }
+.entryBrowserMockMembers { display: flex; align-items: center; margin-top: 9px; }
+.entryBrowserMockMembers i { display: grid; width: 31px; height: 31px; place-items: center; margin-right: -6px; border: 2px solid #101416; border-radius: 50%; background: #38494a; color: #c7f5dd; font-size: 9px; font-style: normal; }
+.entryBrowserMockMembers i:nth-child(2) { background: rgba(141,231,189,.2); color: var(--mint); }
+.entryBrowserMockMembers small { margin-left: 15px; color: rgba(255,255,255,.55); font-size: 9px; }
+.entryBrowserMockRoles { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 9px; }
+.entryBrowserMockRoles span { display: inline-flex; min-height: 29px; align-items: center; gap: 8px; padding: 0 9px; border: 1px solid rgba(255,255,255,.1); border-radius: 999px; color: rgba(255,255,255,.65); font-size: 8px; letter-spacing: .08em; }
+.entryBrowserMockRoles i { width: 5px; height: 5px; border-radius: 50%; background: var(--mint); }
+
+@media (max-width: 900px) {
+  .entryPortalShowcase { min-height: 0; grid-template-columns: minmax(0, 1fr); gap: 0; }
+  .entryPortalCopy { max-width: 760px; padding-top: 17px; }
+  .entryPortalCopy h1 { max-width: 13ch; font-size: clamp(43px, 7vw, 66px); }
+  .entryPortalVisual { margin-top: 18px; }
+  .entryPortal .entryPreviewStage { height: 500px; min-height: 470px; }
+}
+@media (max-width: 768px) {
+  .entryPortalContent { flex: 0 0 auto; }
+  .entryPortalShowcase { flex: 0 0 auto; }
+  .entryPortal .projectPickerFooter { flex-shrink: 0; }
+  .entryPortalVisual { margin-top: clamp(20px, 2.5svh, 28px); padding-top: 0; }
+  .entryPortal .card-swap-container { top: calc(50% - 4px); }
+}
+@media (max-width: 540px) {
+  .entryPortalShowcase { gap: 0; }
+  .entryPortalCopy { padding-top: 5px; }
+  .entryPortalCopy > .eyebrow { margin-bottom: 10px; }
+  .entryPortalCopy h1 { max-width: 11ch; margin-bottom: 12px; font-size: clamp(37px, 10.2vw, 51px); }
+  .entryPortalCopy > p:not(.eyebrow):not(.entryPortalPrivacy) { font-size: 13px; }
+  .entryPortalActions { gap: 8px; margin-top: 17px; }
+  .entryPortalCreateButton { min-height: 44px; }
+  .entryPortalPrivacy { margin-top: 12px; font-size: 9px; }
+  .entryPortalVisual { margin: clamp(16px, 2svh, 22px) -17px 0; padding-top: 0; }
+  .entryPortal .entryPreviewStage { height: 430px; min-height: 430px; }
+  .entryPortal .card-swap-container { top: calc(50% - 44px); }
+  .entryBrowserBar { height: 36px; min-height: 36px; padding: 0 9px; }
+  .entryBrowserBody { gap: 10px; padding: 21px; }
+  .entryBrowserBody > strong { font-size: 24px; }
+  .entryBrowserBody > span:nth-of-type(2) { font-size: 10px; }
+}
+@media (min-width: 481px) and (max-width: 540px) {
+  .entryPortal .entryPreviewStage { height: 500px; min-height: 500px; }
+  .entryPortal .card-swap-container { top: calc(50% + 18px); }
+}
+@media (max-width: 380px) {
+  .entryPortal .card-swap-container { top: calc(50% - 67px); }
+}
+
+.projectSettingsPanel { max-width: 820px; padding: 23px; }
+.projectSettingsForm { display: grid; gap: 13px; }
+.projectSettingsForm input { min-height: 42px; }
+.projectSettingsHint { margin: -3px 0 0; color: var(--tertiary); font-size: 11px; line-height: 1.6; }
+.projectSettingsError, .projectSettingsSuccess { margin: 0; font-size: 11px; }
+.projectSettingsError { color: var(--red); }
+.projectSettingsSuccess { color: var(--mint); }
+.projectSettingsActions { display: flex; align-items: center; gap: 10px; margin-top: 4px; }
+.projectSettingsActions > button { min-height: 40px; padding: 0 15px; border: 1px solid rgba(141,231,189,.35); border-radius: 11px; background: var(--mint); color: #102019; font-size: 11px; font-weight: 650; }
+.projectSettingsActions > button:disabled { opacity: .6; cursor: wait; }
+.projectSettingsOpen { display: inline-flex; min-height: 38px; align-items: center; padding: 0 12px; text-decoration: none; }
+.projectSettingsPanel, .projectMembersPanel { margin-bottom: 14px; }
+.projectGitHubFacts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin: 0 0 16px; }
+.projectGitHubFacts > div { min-width: 0; padding: 10px 12px; border: 1px solid var(--line); border-radius: 12px; background: rgba(255,255,255,.025); }
+.projectGitHubFacts dt { color: var(--tertiary); font-size: 9.5px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; }
+.projectGitHubFacts dd { margin: 4px 0 0; overflow-wrap: anywhere; color: var(--secondary); font-size: 12px; }
+.projectGitHubFacts a { color: var(--text); text-decoration: none; }
+.projectGitHubFacts a:hover { text-decoration: underline; }
+@media (max-width: 640px) { .projectGitHubFacts { grid-template-columns: minmax(0, 1fr); } }
+.projectPreviewReadonly { display: flex; min-height: 42px; align-items: center; color: var(--tertiary); font-size: 11px; }
+.projectPreviewReadonly p { margin: 0; }
+.projectPreviewReadonly a { color: var(--mint); text-decoration: none; }
+.projectMembersPanel { max-width: 820px; padding: 23px; }
+.memberInviteForm { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: 10px; margin: 18px 0 9px; }
+.memberInviteForm .controlField input { min-height: 42px; }
+.memberInviteForm > button { min-height: 42px; padding: 0 15px; border: 1px solid rgba(141,231,189,.35); border-radius: 11px; background: var(--mint); color: #102019; font-size: 11px; font-weight: 650; white-space: nowrap; }
+.memberInviteForm > button:disabled { opacity: .6; cursor: wait; }
+.projectMemberList { display: grid; margin-top: 17px; }
+.projectMemberRow { display: flex; min-width: 0; align-items: center; gap: 10px; padding: 12px 0; border-top: 1px solid rgba(255,255,255,.075); }
+.projectMemberAvatar { display: grid; width: 34px; height: 34px; flex: none; place-items: center; border: 1px solid var(--line); border-radius: 50%; background: rgba(141,231,189,.1); color: var(--mint); font-size: 11px; font-weight: 650; }
+.projectMemberIdentity { display: grid; min-width: 0; flex: 1; gap: 3px; }
+.projectMemberIdentity strong { overflow: hidden; color: var(--text); font-size: 11px; font-weight: 560; text-overflow: ellipsis; white-space: nowrap; }
+.projectMemberIdentity small { overflow: hidden; color: var(--tertiary); font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
+.projectMemberRole { padding: 4px 8px; border: 1px solid var(--line); border-radius: 999px; color: var(--secondary); font-size: 9px; white-space: nowrap; }
+.projectMemberRole.isOwner { border-color: rgba(141,231,189,.22); background: rgba(141,231,189,.075); color: var(--mint); }
+.projectMemberRemove { color: var(--red); font-size: 10px; }
+.projectMemberRemove:disabled { opacity: .55; }
+.projectMemberActions { display: inline-flex; flex: none; align-items: center; gap: 11px; }
+.projectMemberTransfer { color: var(--mint); font-size: 10px; }
+.projectMemberActions button:disabled { opacity: .55; }
+.ownershipTransferNotice { max-width: 820px; margin: 0 0 14px; padding: 11px 14px; border: 1px solid rgba(141,231,189,.2); border-radius: 11px; background: rgba(141,231,189,.06); }
+.projectInvitations { margin-top: 18px; padding-top: 15px; border-top: 1px solid var(--line); }
+.projectMembersSubhead { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 4px; }
+.projectMembersSubhead h3 { margin: 0; color: var(--secondary); font-size: 11px; font-weight: 600; }
+.projectMembersSubhead > span { color: var(--tertiary); font-size: 9px; }
+.projectInvitationRow { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 12px; padding: 10px 0; border-top: 1px solid rgba(255,255,255,.06); }
+.projectInvitationEmail { overflow: hidden; color: var(--text); font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.projectInvitationExpiry { color: var(--tertiary); font-size: 9px; white-space: nowrap; }
+.projectInvitationRow > div { display: flex; align-items: center; gap: 8px; }
+.projectInvitationRow .plain { color: var(--mint); font-size: 9px; }
+.projectInvitationRow .projectInvitationCancel { color: var(--red); }
+.projectInvitationRow button:disabled { opacity: .55; }
+
+@media (max-width: 900px) {
+  .projectPickerContent { flex: 0 0 auto; justify-content: flex-start; padding-top: 25px; padding-bottom: clamp(32px, 5vh, 52px); }
+  .projectShowcase { min-height: 0; grid-template-columns: minmax(0,1fr); gap: 2px; }
+  .projectShowcaseCopy { max-width: 780px; padding: 12px 0 0; }
+  .projectShowcaseCopy h1 { max-width: 18ch; font-size: clamp(38px, 6vw, 58px); }
+  .projectPreviewStage { height: 570px; min-height: 540px; }
+  .projectPager { margin-top: -4px; }
+}
+@media (max-width: 540px) {
+  .projectJoinDialog { width: calc(100vw - 28px); padding: 18px; }
+  .projectJoinFooter { align-items: stretch; flex-direction: column; gap: 13px; }
+  .projectJoinFooter p { max-width: none; }
+  .projectJoinSubmit { width: 100%; }
+  .projectPicker { padding: max(18px, calc(env(safe-area-inset-top, 0px) + 12px)) 17px max(20px, calc(env(safe-area-inset-bottom, 0px) + 12px)); }
+  .projectSignedIn { display: none; }
+  .projectPickerHeader { gap: 9px; }
+  .projectPickerBrand small { font-size: 8px; letter-spacing: .09em; }
+  .projectPickerHeaderActions { flex: none; gap: 8px; }
+  .projectPickerHeaderActions > .projectPrivacy { display: none; }
+  .projectPickerContent { padding-top: 21px; }
+  .projectShowcaseCopy { padding-top: 8px; }
+  .projectShowcaseCopy > .eyebrow { margin-bottom: 9px; }
+  .projectShowcaseCopy h1 { max-width: 15ch; margin-bottom: 10px; font-size: clamp(32px, 8.8vw, 46px); }
+  .projectShowcaseCopy > p:not(.eyebrow):not(.projectCatalogNotice) { font-size: 13px; }
+  .projectPickerActions { margin-top: 14px; }
+  .projectPreviewStage { width: calc(100% + 34px); height: 345px; min-height: 345px; margin: 0 -17px; }
+  .projectPager { margin-top: -2px; }
+  .projectBrowserBar { height: 38px; min-height: 38px; padding: 0 9px; }
+  .projectBrowserDots i { width: 6px; height: 6px; }
+  .projectBrowserTab { height: 27px; }
+  .projectBrowserTab > span:last-child, .projectBrowserEmptyTab { font-size: 9px; }
+  .projectCreateCard { padding: 16px; }
+  .projectCreateDialog { width: calc(100vw - 28px); max-height: min(84dvh, 720px); padding: 17px; border-radius: 18px; }
+  .projectSettingsPanel { padding: 17px; }
+  .projectMembersPanel { padding: 17px; }
+  .projectMemberRow { flex-wrap: wrap; }
+  .projectMemberIdentity { flex-basis: calc(100% - 110px); }
+  .projectMemberActions { width: 100%; justify-content: flex-end; padding-left: 44px; }
+  .memberInviteForm { grid-template-columns: minmax(0, 1fr); }
+  .memberInviteForm > button { justify-self: start; }
+  .projectInvitationRow { grid-template-columns: minmax(0, 1fr) auto; gap: 6px 9px; }
+  .projectInvitationExpiry { grid-column: 1; }
+  .projectInvitationRow > div { grid-column: 2; grid-row: 1 / span 2; }
+}
+@media (max-width: 380px) {
+  .projectPicker { padding-right: 13px; padding-left: 13px; }
+  .projectPickerContent { padding-top: 15px; }
+  .projectShowcaseCopy h1 { font-size: 32px; }
+  .projectPreviewStage { width: calc(100% + 26px); margin-right: -13px; margin-left: -13px; }
+}
+@media (max-height: 780px) and (min-width: 901px) {
+  .projectPickerContent { padding-top: 16px; padding-bottom: 12px; }
+  .projectShowcase { min-height: 500px; }
+  .projectPreviewStage { height: 520px; min-height: 500px; }
+}
+
+@media (max-width: 900px) {
+  /* Keep the strip under the status bar uniform so Safari samples one colour. */
+  .projectPicker::before {
+    -webkit-mask-image: linear-gradient(to bottom, transparent 0, transparent calc(env(safe-area-inset-top, 0px) + 6px), rgba(0,0,0,.42) calc(env(safe-area-inset-top, 0px) + 120px), transparent 78%);
+    mask-image: linear-gradient(to bottom, transparent 0, transparent calc(env(safe-area-inset-top, 0px) + 6px), rgba(0,0,0,.42) calc(env(safe-area-inset-top, 0px) + 120px), transparent 78%);
+  }
+}
+
+@media (display-mode: standalone) {
+  .projectPicker::before {
+    -webkit-mask-image: linear-gradient(to bottom, rgba(0,0,0,.42), transparent 78%);
+    mask-image: linear-gradient(to bottom, rgba(0,0,0,.42), transparent 78%);
+  }
+}

@@ -1,0 +1,63 @@
+/* Activity, profile and sign-out share one pill, in every page header. On desktop
+   each opens a separate card that unfolds below the pill (like the project search
+   panel below its buttons); on phones they are centred modals (collab.css / auth.css).
+   No backdrop-filter on the pill: it would capture the modals' position: fixed.
+   Items never shrink or wrap, so zoom/font rounding can't break the row. */
+.headerDockSlot { position: relative; z-index: 30; flex: none; }
+.headerDock { display: flex; flex-wrap: nowrap; align-items: center; gap: 2px; padding: 4px; border: 1px solid rgba(255,255,255,.09); border-radius: 999px; background: linear-gradient(180deg, rgba(255,255,255,.055), rgba(255,255,255,.02)); box-shadow: inset 0 1px rgba(255,255,255,.06), 0 12px 32px -14px rgba(0,0,0,.7); }
+.headerDock > * { flex: none; }
+/* Outside the pill these wrappers stack themselves (activity 31, profile 30). Inside
+   it that made the bell paint over the profile modal on phones, so let the panels'
+   own z-index decide against the rest of the pill. */
+.headerDock :is(.activityCenter, .accountAccess) { z-index: auto; }
+@media (min-width: 641px) {
+  /* Anchor both panels to the slot so they line up with the pill's right edge. */
+  .headerDock :is(.activityCenter, .accountAccess) { position: static; }
+  .headerDock :is(.activityPanel, .accountAccessPanel) {
+    top: calc(100% + 12px); right: 0; padding: 17px; border: 1px solid rgba(255,255,255,.09); border-radius: 20px;
+    background: radial-gradient(120% 70% at 100% 0%, rgba(255,255,255,.035), transparent 60%), linear-gradient(180deg, rgba(22,26,29,.97), rgba(13,16,18,.98));
+    box-shadow: inset 0 1px rgba(255,255,255,.05), 0 18px 50px -20px rgba(0,0,0,.7);
+    transform-origin: top right; animation: headerDockCardIn .32s cubic-bezier(.16,1,.3,1) both;
+  }
+  /* Content settles a beat after the card, so the reveal reads as one motion. */
+  .headerDock :is(.activityPanel, .accountAccessPanel)[data-state="open"] > * { animation: headerDockContentIn .3s .07s cubic-bezier(.16,1,.3,1) both; }
+  /* Exit: quicker, accelerating, folding back up into the pill. */
+  .headerDock :is(.activityPanel, .accountAccessPanel)[data-state="closing"] { animation: headerDockCardOut .2s cubic-bezier(.5,0,.75,0) both; }
+  .headerDock .activityPanel { width: 400px; }
+  .headerDock .accountAccessPanel { width: 350px; }
+  html[data-motion="reduced"] .headerDock :is(.activityPanel, .accountAccessPanel),
+  html[data-motion="reduced"] .headerDock :is(.activityPanel, .accountAccessPanel) > * { animation: none; }
+}
+/* Unfolds downward from the pill, like the search panel growing below its buttons. */
+@keyframes headerDockCardIn {
+  from { opacity: 0; clip-path: inset(0 0 100% 0 round 20px); translate: 0 -8px; scale: .97; }
+  to { opacity: 1; clip-path: inset(0 0 0 0 round 20px); translate: 0 0; scale: 1; }
+}
+@keyframes headerDockCardOut {
+  from { opacity: 1; clip-path: inset(0 0 0 0 round 20px); translate: 0 0; scale: 1; }
+  to { opacity: 0; clip-path: inset(0 0 100% 0 round 20px); translate: 0 -6px; scale: .98; }
+}
+@keyframes headerDockContentIn { from { opacity: 0; translate: 0 -4px; } to { opacity: 1; translate: 0 0; } }
+.headerDock .activityButton, .headerDock .accountAccessTrigger { display: inline-grid; width: 36px; min-width: 36px; height: 36px; min-height: 36px; place-items: center; padding: 0; border: 0; border-radius: 999px; background: transparent; color: var(--secondary); transition: background .15s ease, color .15s ease; }
+.headerDock .activityButton svg { width: 17px; height: 17px; }
+.headerDock .activityButton:hover, .headerDock .accountAccessTrigger:hover { background: rgba(255,255,255,.07); color: var(--text); }
+.headerDock .activityButton[aria-expanded="true"], .headerDock .accountAccessTrigger[aria-expanded="true"] { background: rgba(255,255,255,.1); color: var(--text); }
+/* Neutral avatar (same glass as the profile card's badge) so the pill doesn't add more green. */
+.headerDock .accountAccessTrigger .identityMark { width: 28px; height: 28px; border: 1px solid rgba(255,255,255,.16); background: linear-gradient(160deg, rgba(255,255,255,.14), rgba(255,255,255,.04)); color: var(--text); font-size: 10px; box-shadow: inset 0 1px rgba(255,255,255,.1); transition: border-color .15s ease; }
+.headerDock .accountAccessTrigger:hover .identityMark, .headerDock .accountAccessTrigger[aria-expanded="true"] .identityMark { border-color: rgba(255,255,255,.4); }
+.headerDock .activityCount { top: -3px; right: -3px; min-width: 16px; height: 16px; font-size: 9px; box-shadow: 0 0 0 2px #15191b; }
+.headerDock .activityDot { top: 7px; right: 8px; bottom: auto; width: 8px; height: 8px; border-color: #15191b; }
+.headerDockDivider { flex: none; width: 1px; height: 18px; margin: 0 4px; background: rgba(255,255,255,.1); }
+.headerDockSignOut { display: inline-flex; flex: none; width: 70px; justify-content: center; height: 36px; min-height: 36px; align-items: center; gap: 7px; padding: 0 13px 0 10px; border: 0; border-radius: 999px; background: transparent; color: var(--secondary); font: inherit; font-size: 11px; font-weight: 550; cursor: pointer; transition: background .15s ease, color .15s ease; }
+.headerDockSignOut svg { width: 16px; height: 16px; flex: none; }
+.headerDockSignOut:hover { background: rgba(255,120,110,.1); color: #ffb3ab; }
+.headerDock :is(.activityButton, .accountAccessTrigger, .headerDockSignOut):focus-visible { outline: 2px solid var(--mint); outline-offset: 2px; }
+/* Phones: the panels are full-screen modals (z-index 1000). Without its own
+   stacking layer the slot lets them rise above the fixed project nav too. */
+@media (max-width: 640px) {
+  .headerDockSlot { z-index: auto; }
+}
+@media (max-width: 540px) {
+  .headerDockSignOut { width: 36px; padding: 0; }
+  .headerDockSignOut span { display: none; }
+}

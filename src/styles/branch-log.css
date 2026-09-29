@@ -1,0 +1,23 @@
+.branchPanel, .techPanel { margin-top: 14px; }
+.branchGrid { display: grid; grid-template-columns: minmax(220px, .8fr) minmax(0, 1.2fr); gap: 22px; }
+.branchForm { padding-right: 21px; border-right: 1px solid var(--line); }
+form.bf { display: grid; gap: 9px; margin: 0; }
+form.bf input, form.bf textarea { width: 100%; background: rgba(0, 0, 0, .22); font-size: 10px; }
+form.bf textarea { min-height: 82px; resize: vertical; }
+form.bf .add { align-items: center; margin: 0; }
+form.bf .add button { flex: 0 0 auto; }
+.branchList { min-width: 0; }
+.branch { padding: 11px 0; border-bottom: 1px solid rgba(255, 255, 255, .075); }
+.branch:first-child { padding-top: 0; }
+.branch:last-child { border-bottom: 0; }
+.branch code { display: inline-block; max-width: 100%; overflow-wrap: anywhere; padding: 5px 8px; border: 1px solid rgba(141, 231, 189, .15); border-radius: 8px; background: rgba(141, 231, 189, .07); color: var(--mint); font: 550 10px/1.4 ui-monospace, "SFMono-Regular", Consolas, monospace; }
+.branch p { margin: 7px 0 0; color: var(--secondary); font-size: 10px; line-height: 1.55; }
+.branch p.tag { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; color: var(--tertiary); font-size: 9px; }
+.branch .plain { margin-left: auto; }
+.empty { padding: 15px 0; color: var(--tertiary); font-size: 10px; line-height: 1.6; }
+.branchGitHubCreate { display: grid; gap: 9px; }
+.branchGitHubCreate .toggleRow input { width: 17px; min-height: 0; background: transparent; }
+form.bf select { width: 100%; background: rgba(0, 0, 0, .22); font-size: 10px; }
+.branchGitHubNote { margin: 0; color: var(--tertiary); font-size: 10px; line-height: 1.55; }
+.branchGitHubNote .plain { min-height: 0; padding: 0; color: var(--secondary); font-size: 10px; text-decoration: underline; text-underline-offset: 2px; }
+.branchGitHubTag { display: inline-block; margin-left: 7px; padding: 2px 7px; border: 1px solid var(--line); border-radius: 999px; color: var(--secondary); font-size: 8.5px; vertical-align: middle; }

@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 440" width="960" height="440" role="img" aria-labelledby="t d" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">
+  <title id="t">Capas de pruebas</title>
+  <desc id="d">Pirámide de pruebas: unitarias con Vitest en la base, backend Spark, reglas de Firestore y recorridos e2e con Playwright en la cima, todas contra emuladores locales.</desc>
+  
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#08090b"/><stop offset=".55" stop-color="#14181a"/><stop offset="1" stop-color="#090b0d"/></linearGradient>
+    <linearGradient id="glass" x1="0" y1="0" x2=".9" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".09"/><stop offset=".5" stop-color="#fff" stop-opacity=".025"/><stop offset="1" stop-color="#b9c7ca" stop-opacity=".06"/></linearGradient>
+    
+  </defs>
+  <rect width="960" height="440" rx="28" fill="url(#bg)"/>
+  <rect x="1" y="1" width="958" height="438" rx="27" fill="url(#glass)" stroke="#fff" stroke-opacity=".14"/>
+  <text x="40" y="58" font-size="12" font-weight="600" fill="#f5f5f7" fill-opacity="0.6" text-anchor="start" letter-spacing="1.6">PRUEBAS</text>
+  <text x="40" y="88" font-size="22" font-weight="650" fill="#f5f5f7" text-anchor="start">Cuatro capas, siempre contra emuladores locales</text>
+  <rect x="170.0" y="114" width="620" height="54" rx="15" fill="#fff" fill-opacity=".10" stroke="#fff" stroke-opacity=".1"/>
+  <text x="190.0" y="138" font-size="15" font-weight="600" fill="#f5f5f7" text-anchor="start">Recorridos completos</text>
+  <text x="190.0" y="156" font-size="12.5" font-weight="400" fill="#ebebf5" fill-opacity="0.62" text-anchor="start">Playwright · Chromium, Firefox, WebKit y móviles</text>
+  <rect x="600.0" y="129" width="172" height="24" rx="8" fill="#000" fill-opacity=".28"/>
+  <text x="686.0" y="145.5" font-size="12" fill="#8de7bd" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Consolas, monospace">npm run test:e2e</text>
+  <rect x="125.0" y="176" width="710" height="54" rx="15" fill="#fff" fill-opacity=".08" stroke="#fff" stroke-opacity=".1"/>
+  <text x="145.0" y="200" font-size="15" font-weight="600" fill="#f5f5f7" text-anchor="start">Reglas de Firestore</text>
+  <text x="145.0" y="218" font-size="12.5" font-weight="400" fill="#ebebf5" fill-opacity="0.62" text-anchor="start">Accesos, eventos y aislamiento entre cuentas</text>
+  <rect x="645.0" y="191" width="172" height="24" rx="8" fill="#000" fill-opacity=".28"/>
+  <text x="731.0" y="207.5" font-size="12" fill="#8de7bd" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Consolas, monospace">npm run test:rules</text>
+  <rect x="80.0" y="238" width="800" height="54" rx="15" fill="#fff" fill-opacity=".065" stroke="#fff" stroke-opacity=".1"/>
+  <text x="100.0" y="262" font-size="15" font-weight="600" fill="#f5f5f7" text-anchor="start">Backend Spark</text>
+  <text x="100.0" y="280" font-size="12.5" font-weight="400" fill="#ebebf5" fill-opacity="0.62" text-anchor="start">SDK cliente contra las reglas reales</text>
+  <rect x="690.0" y="253" width="172" height="24" rx="8" fill="#000" fill-opacity=".28"/>
+  <text x="776.0" y="269.5" font-size="12" fill="#8de7bd" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Consolas, monospace">npm run test:streaks</text>
+  <rect x="40.0" y="300" width="880" height="54" rx="15" fill="#fff" fill-opacity=".05" stroke="#fff" stroke-opacity=".1"/>
+  <text x="60.0" y="324" font-size="15" font-weight="600" fill="#f5f5f7" text-anchor="start">Lógica pura</text>
+  <text x="60.0" y="342" font-size="12.5" font-weight="400" fill="#ebebf5" fill-opacity="0.62" text-anchor="start">Vitest · rachas, puntos, hitos, búsqueda y escena</text>
+  <rect x="730.0" y="315" width="172" height="24" rx="8" fill="#000" fill-opacity=".28"/>
+  <text x="816.0" y="331.5" font-size="12" fill="#8de7bd" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Consolas, monospace">npm run test:unit</text>
+  <rect x="302.0" y="376" width="356" height="32" rx="16" fill="#8de7bd" fill-opacity=".07" stroke="#8de7bd" stroke-opacity=".25"/>
+  <circle cx="324.0" cy="392" r="4" fill="#8de7bd"/>
+  <text x="488.0" y="396.5" font-size="12.5" font-weight="500" fill="#f5f5f7" fill-opacity="0.85" text-anchor="middle">Proyectos demo-* o emuladores · nunca producción</text>
+</svg>

@@ -1,0 +1,18 @@
+.overviewCard .bar { width: 100%; margin: 2px 0 0; }
+.overviewCard .overviewCardCopy { display: block; }
+.localNote { display: flex; align-items: center; gap: 8px; margin: 16px 0 0; color: var(--amber); font-size: 11px; }
+.localNote span { color: var(--mint); }
+.challengeFlow { margin-top: 14px; }
+.flowSteps { display: grid; grid-template-columns: 1fr auto 1fr auto 1fr auto 1fr; align-items: center; gap: 12px; padding: 6px 2px 2px; }
+.flowSteps > div { display: grid; gap: 5px; }
+.flowSteps > div > span { color: var(--mint); font: 600 10px ui-monospace, "SFMono-Regular", Consolas, monospace; }
+.flowSteps strong { color: var(--text); font-size: 11px; font-weight: 600; }
+.flowSteps small { color: var(--tertiary); font-size: 10px; line-height: 1.4; }
+.flowSteps > i { width: 22px; height: 1px; background: var(--line-strong); }
+#toast.is-visible { position: fixed; z-index: 20; right: 22px; bottom: 22px; left: auto; max-width: min(420px, calc(100vw - 32px)); transform: none; padding: 13px 16px; border: 1px solid var(--line-strong); border-radius: 13px; background: rgba(23, 25, 27, .96); box-shadow: var(--shadow); color: var(--text); font-size: 12px; line-height: 1.5; backdrop-filter: blur(20px); }
+@media (max-width: 640px) {
+  .flowSteps { grid-template-columns: 1fr; gap: 11px; }
+  .flowSteps > i { width: 1px; height: 15px; margin-left: 4px; }
+  .topActions { align-items: center; flex-wrap: wrap; }
+  #toast.is-visible { right: 15px; bottom: 15px; }
+}

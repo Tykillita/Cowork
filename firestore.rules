@@ -1,0 +1,1480 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Spark reward ledger: immutable work receipts and daily proof documents.
+    // Private stock, wallet and work references stay under users/{uid}.
+    // streakPresence exposes only validated daily coverage to accepted friends.
+    // streakFriendCodes/{8charCode}: {uid,name,photoURL}; exact authenticated get only.
+    // users/{uid}/friendCode/current: {code}; private immutable binding, created with code profile.
+    // streakInvites/{48hexId}: v2 ownerUid/person + recipientUid/recipientPerson/recipientCode,
+    // status, createdAt, optional decidedAt. Expiry is exactly createdAt + seven days.
+    // streakRequestLocks/{uid}/peers/{peer}: {inviteId}; symmetric atomic reservation.
+    // Request closure and social capacity counters always commit together.
+    function utcDay(time) { return int(time.toMillis() / 86400000); }
+    function maximum(a, b) { return a > b ? a : b; }
+    function userPath(uid, group, id) { return /databases/$(database)/documents/users/$(uid)/$(group)/$(id); }
+    function statePath(uid) { return userPath(uid, 'streak', 'state'); }
+    function activePath(uid, day) { return userPath(uid, 'activeDays', string(day)); }
+    function protectedPath(uid, day) { return userPath(uid, 'protectedDays', string(day)); }
+    function pointPath(uid, key) { return userPath(uid, 'pointEvents', key); }
+    function dailyPath(uid, day) { return userPath(uid, 'pointDays', string(day)); }
+    function receiptPath(uid, key) { return userPath(uid, 'workReceipts', key); }
+    function presencePath(uid) { return /databases/$(database)/documents/streakPresence/$(uid); }
+    function visiblePath(uid, day) { return /databases/$(database)/documents/streakPresence/$(uid)/days/$(string(day)); }
+    function covered(uid, day) { return exists(activePath(uid, day)) || exists(protectedPath(uid, day)); }
+    function countsAsWork(event) {
+      return (event.kind == 'created' && event.targetType in ['task', 'branch', 'project'])
+        || (event.kind == 'updated' && event.targetType == 'task' && 'status' in event.changes
+          && event.changes.status.from != event.changes.status.to);
+    }
+    // A created project activates the day but never touches points or the wallet.
+    function earnsPoints(event) { return countsAsWork(event) && event.targetType != 'project'; }
+    function rewardKey(data, event) {
+      return event.targetType == 'branch'
+        ? data.projectId + '__branch~' + event.targetTitle.trim().lower().replace('/', '~')
+        : data.projectId + '__' + data.eventId;
+    }
+    function validWorkReference(uid, key, data) {
+      let event = get(eventPath(data.projectId, data.eventId)).data;
+      let state = get(statePath(uid)).data;
+      return data.projectId is string && data.projectId.size() <= 100
+        && data.eventId is string && data.eventId.size() <= 150
+        && data.day is int && data.day >= state.managedFrom && data.day > state.lastSettledDay
+        && event.actorUid == uid && countsAsWork(event) && data.day == utcDay(event.createdAt)
+        && key == rewardKey(data, event)
+        && (event.targetType != 'branch' || !exists(pointPath(uid, key)) || get(pointPath(uid, key)).data.eventId == data.eventId);
+    }
+    function validReceipt(uid, key) {
+      let data = request.resource.data;
+      let count = exists(dailyPath(uid, data.day)) ? get(dailyPath(uid, data.day)).data.points : 0;
+      return isSelf(uid) && data.keys().hasAll(['projectId','eventId','day']) && data.keys().hasOnly(['projectId','eventId','day'])
+        && validWorkReference(uid, key, data) && existsAfter(activePath(uid, data.day))
+        && (!earnsPoints(get(eventPath(data.projectId, data.eventId)).data)
+          || count >= 3 || exists(pointPath(uid, key)) || existsAfter(pointPath(uid, key)));
+    }
+    function validActive(uid, day) {
+      let data = request.resource.data;
+      let event = get(eventPath(data.projectId, data.eventId)).data;
+      return isSelf(uid) && data.keys().hasAll(['day','projectId','eventId','recordedAt','key'])
+        && data.keys().hasOnly(['day','projectId','eventId','recordedAt','key']) && day == string(data.day)
+        && validWorkReference(uid, data.key, data) && data.recordedAt == event.createdAt
+        && !exists(receiptPath(uid, data.key)) && getAfter(receiptPath(uid, data.key)).data.eventId == data.eventId
+        && (resource == null
+          ? getAfter(progressPath(uid)).data.activeDays == (exists(progressPath(uid)) ? get(progressPath(uid)).data.activeDays : 0) + 1
+          : data.recordedAt < resource.data.recordedAt)
+        && getAfter(visiblePath(uid, data.day)).data.kind == 'active'
+        && (data.day != utcDay(request.time) || getAfter(presencePath(uid)).data.from == data.day + 1);
+    }
+    function validProgress(uid) {
+      let data = request.resource.data;
+      let previousCount = resource == null ? 0 : resource.data.activeDays;
+      let previousDay = resource == null ? -1 : resource.data.lastRecordedDay;
+      return isSelf(uid) && data.keys().hasAll(['activeDays','lastRecordedDay','lastCreditDay','updatedAt'])
+        && data.keys().hasOnly(['activeDays','lastRecordedDay','lastCreditDay','updatedAt'])
+        && data.activeDays == previousCount + 1 && data.lastCreditDay is int
+        && data.lastRecordedDay == maximum(previousDay, data.lastCreditDay) && data.updatedAt == request.time
+        && !exists(activePath(uid, data.lastCreditDay)) && existsAfter(activePath(uid, data.lastCreditDay));
+    }
+    function validPoint(uid, key) {
+      let data = request.resource.data;
+      let before = exists(dailyPath(uid, data.day)) ? get(dailyPath(uid, data.day)).data.points : 0;
+      let after = getAfter(dailyPath(uid, data.day)).data;
+      return isSelf(uid) && data.keys().hasAll(['projectId','eventId','day','recordedAt'])
+        && data.keys().hasOnly(['projectId','eventId','day','recordedAt']) && data.recordedAt == request.time
+        && validWorkReference(uid, key, data) && earnsPoints(get(eventPath(data.projectId, data.eventId)).data)
+        && !exists(receiptPath(uid, key))
+        && getAfter(receiptPath(uid, key)).data.eventId == data.eventId
+        && after.points == before + 1 && after.points <= 3 && after.lastAward == key
+        && getAfter(walletPath(uid)).data.lastAward == key && getAfter(walletPath(uid)).data.updatedAt == request.time;
+    }
+    function validPointDay(uid, day) {
+      let data = request.resource.data;
+      let count = resource == null ? 0 : resource.data.points;
+      return isSelf(uid) && data.keys().hasAll(['day','points','lastAward','updatedAt'])
+        && data.keys().hasOnly(['day','points','lastAward','updatedAt']) && day == string(data.day)
+        && data.day is int && data.points == count + 1 && data.points <= 3 && data.updatedAt == request.time
+        && data.lastAward is string && data.lastAward.size() <= 300
+        && !exists(pointPath(uid, data.lastAward)) && getAfter(pointPath(uid, data.lastAward)).data.day == data.day;
+    }
+    function walletAward(uid, old, data) {
+      return data.earned == old.earned + 1 && data.spent == old.spent && data.lastPurchase == old.lastPurchase
+        && !exists(pointPath(uid, data.lastAward))
+        && getAfter(pointPath(uid, data.lastAward)).data.recordedAt == request.time;
+    }
+    function protectionPrice(product) { return product == 'single' ? 3 : 15; }
+    function walletProtection(uid, old, data) {
+      let id = data.lastPurchase.split(':')[1];
+      let path = userPath(uid, 'protectionPurchases', id);
+      return data.lastPurchase.matches('^protection:[a-zA-Z0-9_-]{1,80}$')
+        && data.earned == old.earned && data.lastAward == old.lastAward && !exists(path)
+        && getAfter(path).data.acquiredAt == request.time
+        && data.spent == old.spent + getAfter(path).data.price;
+    }
+    function initialState() {
+      let d = request.resource.data;
+      let today = utcDay(request.time);
+      return d.keys().hasAll(['version','managedFrom','lastSettledDay','protectors','shieldStart','shieldEnd','current','best','evaluatedDay','badges'])
+        && d.keys().hasOnly(['version','managedFrom','lastSettledDay','protectors','shieldStart','shieldEnd','current','best','evaluatedDay','badges'])
+        && d.version == 1 && d.managedFrom == today && d.lastSettledDay == today - 1
+        && d.protectors == 0 && d.shieldStart == -1 && d.shieldEnd == -1
+        && d.current == 0 && d.best == 0 && d.evaluatedDay == today && d.badges == [];
+    }
+    function needsProtection(uid, day, old) {
+      return !exists(activePath(uid, day)) && covered(uid, day - 1)
+        && ((day >= old.shieldStart && day <= old.shieldEnd) || old.protectors > 0);
+    }
+    function closeStreakDay(uid, old, data) {
+      let day = old.lastSettledDay + 1;
+      let shield = day >= old.shieldStart && day <= old.shieldEnd;
+      let protect = needsProtection(uid, day, old);
+      return data.diff(old).affectedKeys().hasOnly(['lastSettledDay','protectors'])
+        && data.lastSettledDay is int && data.lastSettledDay >= day && data.lastSettledDay < utcDay(request.time)
+        && (data.lastSettledDay == day || (!covered(uid, day - 1) && !exists(activePath(uid, day))
+          && (!exists(progressPath(uid)) || get(progressPath(uid)).data.lastRecordedDay < day)))
+        && data.protectors == old.protectors - (protect && !shield ? 1 : 0)
+        && (!protect || (getAfter(protectedPath(uid, day)).data.source == (shield ? 'shield' : 'single')))
+        && (!exists(activePath(uid, day)) || getAfter(visiblePath(uid, day)).data.kind == 'active');
+    }
+    function purchaseState(uid, old, data) {
+      let path = userPath(uid, 'protectionPurchases', data.lastPurchase);
+      let product = getAfter(path).data.product;
+      let today = utcDay(request.time);
+      return data.diff(old).affectedKeys().hasOnly(['protectors','shieldStart','shieldEnd','lastPurchase'])
+        && data.lastPurchase is string && data.lastPurchase.matches('^[a-zA-Z0-9_-]{1,80}$')
+        && !exists(path) && getAfter(path).data.day == today && old.lastSettledDay == today - 1
+        && (product == 'single'
+          ? (data.protectors == old.protectors + 1 && data.protectors <= 2 && data.shieldStart == old.shieldStart && data.shieldEnd == old.shieldEnd)
+          : (product == 'shield' && old.shieldEnd < today && data.shieldStart == today && data.shieldEnd == today + 6 && data.protectors == old.protectors))
+        && getAfter(presencePath(uid)).data.asOf == today;
+    }
+    function validProtectionPurchase(uid, id) {
+      let data = request.resource.data;
+      return isSelf(uid) && id.matches('^[a-zA-Z0-9_-]{1,80}$')
+        && data.keys().hasAll(['product','price','day','acquiredAt']) && data.keys().hasOnly(['product','price','day','acquiredAt'])
+        && data.product in ['single','shield'] && data.price == protectionPrice(data.product)
+        && data.day == utcDay(request.time) && data.acquiredAt == request.time
+        && getAfter(statePath(uid)).data.lastPurchase == id
+        && getAfter(statePath(uid)).data != get(statePath(uid)).data
+        && getAfter(walletPath(uid)).data.lastPurchase == 'protection:' + id
+        && getAfter(walletPath(uid)).data.spent == get(walletPath(uid)).data.spent + data.price;
+    }
+    function validProtectedDay(uid, day) {
+      let data = request.resource.data;
+      let old = get(statePath(uid)).data;
+      let shield = data.day >= old.shieldStart && data.day <= old.shieldEnd;
+      return isSelf(uid) && data.keys().hasAll(['day','source']) && data.keys().hasOnly(['day','source'])
+        && data.day is int && day == string(data.day) && data.day == old.lastSettledDay + 1 && data.day < utcDay(request.time)
+        && needsProtection(uid, data.day, old) && data.source == (shield ? 'shield' : 'single')
+        && getAfter(statePath(uid)).data.lastSettledDay == data.day
+        && getAfter(statePath(uid)).data.protectors == old.protectors - (shield ? 0 : 1)
+        && getAfter(visiblePath(uid, data.day)).data.kind == 'protected';
+    }
+    function validPresence(uid) {
+      let data = request.resource.data;
+      let state = getAfter(statePath(uid)).data;
+      let today = utcDay(request.time);
+      let active = existsAfter(activePath(uid, today));
+      let alive = active || covered(uid, today - 1);
+      let start = active ? today + 1 : today;
+      return isSelf(uid) && data.keys().hasAll(['asOf','from','through']) && data.keys().hasOnly(['asOf','from','through'])
+        && state.lastSettledDay == today - 1 && data.asOf == today && data.from == start
+        && data.through == start - 1 + (alive ? maximum(0, state.shieldEnd - start + 1) + state.protectors : 0);
+    }
+    match /{path=**}/events/{eventId} {
+      // Collection-group catch-up returns only this account's confirmed work.
+      allow read: if emailAccount() && resource.data.actorUid == request.auth.uid;
+    }
+    match /users/{uid}/streakClock/time {
+      allow read: if isSelf(uid);
+      allow create, update: if isSelf(uid) && request.resource.data.keys().hasOnly(['at']) && request.resource.data.at == request.time;
+    }
+    match /users/{uid}/streak/state {
+      allow read: if isSelf(uid);
+      allow create: if isSelf(uid) && initialState();
+      allow update: if isSelf(uid) && (closeStreakDay(uid, resource.data, request.resource.data) || purchaseState(uid, resource.data, request.resource.data));
+    }
+    match /users/{uid}/workReceipts/{key} {
+      allow read: if isSelf(uid);
+      allow create: if validReceipt(uid, key);
+    }
+    match /users/{uid}/protectedDays/{day} {
+      allow read: if isSelf(uid);
+      allow create: if validProtectedDay(uid, day);
+    }
+    match /users/{uid}/protectionPurchases/{id} {
+      allow read: if isSelf(uid);
+      allow create: if validProtectionPurchase(uid, id);
+    }
+    match /users/{uid}/streakCelebrations/{day} {
+      allow read: if isSelf(uid);
+      allow create: if isSelf(uid) && request.resource.data.keys().hasAll(['day','claimedAt'])
+        && request.resource.data.keys().hasOnly(['day','claimedAt']) && day == string(request.resource.data.day)
+        && request.resource.data.day == utcDay(request.time) && request.resource.data.claimedAt == request.time
+        && exists(activePath(uid, request.resource.data.day));
+    }
+    match /streakPresence/{uid} {
+      allow get: if isSelf(uid) || canReadPresence(uid);
+      allow create, update: if validPresence(uid);
+      match /days/{day} {
+        allow get: if isSelf(uid) || (canReadPresence(uid) && int(day) >= friendship(uid).since);
+        allow list: if isSelf(uid) || (canReadPresence(uid) && resource.data.day >= friendship(uid).since);
+        allow create, update: if isSelf(uid)
+          && request.resource.data.keys().hasAll(['day','kind']) && request.resource.data.keys().hasOnly(['day','kind'])
+          && request.resource.data.day is int && day == string(request.resource.data.day) && request.resource.data.day <= utcDay(request.time)
+          && ((request.resource.data.kind == 'active' && existsAfter(activePath(uid, request.resource.data.day)))
+            || (request.resource.data.kind == 'protected' && existsAfter(protectedPath(uid, request.resource.data.day))))
+          && (resource == null || request.resource.data == resource.data || request.resource.data.kind == 'active');
+      }
+    }
+    // Accepted pairs share profiles and day coverage only. Social counters are
+    // private, and every change is tied to an invite or pair in the same commit.
+    function pairPath(id) { return /databases/$(database)/documents/streakPairs/$(id); }
+    function invitePath(id) { return /databases/$(database)/documents/streakInvites/$(id); }
+    function socialPath(uid) { return /databases/$(database)/documents/streakSocial/$(uid); }
+    function linkPath(uid, peer) { return /databases/$(database)/documents/streakLinks/$(uid)/peers/$(peer); }
+    function friendship(uid) {
+      return get(pairPath(get(linkPath(request.auth.uid, uid)).data.pairId)).data;
+    }
+    function canReadPresence(uid) {
+      return emailAccount() && exists(linkPath(request.auth.uid, uid))
+        && friendship(uid).status == 'active' && request.auth.uid in friendship(uid).memberUids && uid in friendship(uid).memberUids;
+    }
+    function publicPerson(person, uid) {
+      return person is map && person.keys().hasAll(['uid','name','photoURL']) && person.keys().hasOnly(['uid','name','photoURL'])
+        && person.uid == uid && person.name is string && person.name.size() > 0 && person.name.size() <= 100
+        && person.photoURL is string && person.photoURL.size() <= 1500 && (person.photoURL == '' || person.photoURL.matches('^https://[^\\s]+$'));
+    }
+    function myPublicPerson(person) {
+      return publicPerson(person, request.auth.uid)
+        && person.name == request.auth.token.get('name', 'Persona de Cowork')
+        && person.photoURL == request.auth.token.get('picture', '');
+    }
+    function indexCount(uid, field) {
+      return get(socialPath(uid)).data[field];
+    }
+    function inviteCreated(uid, old, data) {
+      return isSelf(uid) && data.diff(old).affectedKeys().hasOnly(['pendingCount','lastInvite'])
+        && old.activeCount < 5 && data.pendingCount == old.pendingCount + 1
+        && !exists(invitePath(data.lastInvite)) && getAfter(invitePath(data.lastInvite)).data.ownerUid == uid;
+    }
+    function inviteClosed(uid, old, data) {
+      let previous = get(invitePath(data.lastInvite)).data;
+      let next = getAfter(invitePath(data.lastInvite)).data;
+      return data.diff(old).affectedKeys().hasOnly(['pendingCount','lastInvite'])
+        && data.pendingCount == old.pendingCount - 1 && previous.ownerUid == uid
+        && previous.status == 'pending' && next.status in ['cancelled','rejected','expired'];
+    }
+    function pairJoined(uid, old, data) {
+      let pair = getAfter(pairPath(data.lastPair)).data;
+      let owner = pair.memberUids[0];
+      return data.diff(old).affectedKeys().hasOnly(['activeCount','pendingCount','lastPair','lastInvite'])
+        && !exists(pairPath(data.lastPair)) && pair.status == 'active' && uid in pair.memberUids
+        && request.auth.uid == pair.memberUids[1] && data.activeCount == old.activeCount + 1
+        && data.pendingCount == old.pendingCount - (uid == owner ? 1 : 0)
+        && data.lastInvite == (uid == owner ? data.lastPair : old.lastInvite);
+    }
+    function pairLeft(uid, old, data) {
+      let before = get(pairPath(data.lastPair)).data;
+      let after = getAfter(pairPath(data.lastPair)).data;
+      return data.diff(old).affectedKeys().hasOnly(['activeCount','lastPair'])
+        && uid in before.memberUids && request.auth.uid in before.memberUids && before.status == 'active' && after.status == 'ended'
+        && data.activeCount == old.activeCount - 1;
+    }
+    function validSocial(uid) {
+      let data = request.resource.data;
+      return emailAccount() && data.keys().hasAll(['activeCount','pendingCount','lastPair','lastInvite'])
+        && data.keys().hasOnly(['activeCount','pendingCount','lastPair','lastInvite'])
+        && data.activeCount is int && data.activeCount >= 0 && data.activeCount <= 5
+        && data.pendingCount is int && data.pendingCount >= 0 && data.pendingCount <= 5
+        && data.lastPair is string && data.lastPair.size() <= 256 && data.lastInvite is string && data.lastInvite.size() <= 48
+        && ((isSelf(uid) && (resource == null || !('activeCount' in resource.data))
+            && data.activeCount == (resource == null ? 0 : resource.data.active.size())
+            && data.pendingCount == (resource == null ? 0 : resource.data.pending.size())
+            && data.lastPair == '' && data.lastInvite == '')
+          || (resource != null && 'activeCount' in resource.data
+            && (data.activeCount > resource.data.activeCount ? pairJoined(uid, resource.data, data)
+              : (data.activeCount < resource.data.activeCount ? pairLeft(uid, resource.data, data)
+                : (data.pendingCount > resource.data.pendingCount ? inviteCreated(uid, resource.data, data) : inviteClosed(uid, resource.data, data))))));
+    }
+    // v2 requests are addressed to a fixed recipient. Legacy links can only be cancelled by their owner.
+    function codePath(code) { return /databases/$(database)/documents/streakFriendCodes/$(code); }
+    function assignmentPath(uid) { return /databases/$(database)/documents/users/$(uid)/friendCode/current; }
+    function requestLockPath(uid, peer) { return /databases/$(database)/documents/streakRequestLocks/$(uid)/peers/$(peer); }
+    function validCode(code) { return code is string && code.matches('^[2-9A-HJ-NP-Z]{8}$'); }
+    function validCodeProfile(code) {
+      let data = request.resource.data;
+      return emailAccount() && validCode(code) && myPublicPerson(data)
+        && getAfter(assignmentPath(request.auth.uid)).data.code == code
+        && (resource == null || resource.data.uid == request.auth.uid);
+    }
+    function validCodeAssignment(uid) {
+      let data = request.resource.data;
+      return isSelf(uid) && data.keys().hasAll(['code']) && data.keys().hasOnly(['code'])
+        && validCode(data.code) && getAfter(codePath(data.code)).data.uid == uid
+        && !exists(codePath(data.code));
+    }
+    function noActivePair(uid, peer) {
+      return !exists(linkPath(uid, peer)) || get(pairPath(get(linkPath(uid, peer)).data.pairId)).data.status == 'ended';
+    }
+    function validRequestLock(uid, peer) {
+      let data = request.resource.data;
+      let invite = getAfter(invitePath(data.inviteId)).data;
+      return emailAccount() && (isSelf(uid) || isSelf(peer)) && uid != peer
+        && data.keys().hasAll(['inviteId']) && data.keys().hasOnly(['inviteId'])
+        && data.inviteId is string && data.inviteId.matches('^[a-f0-9]{48}$')
+        && invite.version == 2 && invite.status == 'pending' && invite.ownerUid == request.auth.uid
+        && ((invite.ownerUid == uid && invite.recipientUid == peer) || (invite.ownerUid == peer && invite.recipientUid == uid))
+        && !exists(invitePath(data.inviteId))
+        && (resource == null || get(invitePath(resource.data.inviteId)).data.status != 'pending');
+    }
+    function validInvite(token) {
+      let data = request.resource.data;
+      return emailAccount() && token.matches('^[a-f0-9]{48}$')
+        && data.keys().hasAll(['version','ownerUid','person','status','recipientUid','recipientPerson','recipientCode','createdAt'])
+        && data.keys().hasOnly(['version','ownerUid','person','status','recipientUid','recipientPerson','recipientCode','createdAt'])
+        && data.version == 2 && data.ownerUid == request.auth.uid && myPublicPerson(data.person)
+        && data.recipientUid is string && data.recipientUid != data.ownerUid && publicPerson(data.recipientPerson, data.recipientUid)
+        && validCode(data.recipientCode) && get(codePath(data.recipientCode)).data == data.recipientPerson
+        && data.status == 'pending' && data.createdAt == request.time
+        && getAfter(socialPath(data.ownerUid)).data.lastInvite == token
+        && getAfter(socialPath(data.ownerUid)).data.pendingCount == indexCount(data.ownerUid, 'pendingCount') + 1
+        && getAfter(requestLockPath(data.ownerUid, data.recipientUid)).data.inviteId == token
+        && getAfter(requestLockPath(data.recipientUid, data.ownerUid)).data.inviteId == token
+        && noActivePair(data.ownerUid, data.recipientUid);
+    }
+    function decideInvite(token) {
+      let old = resource.data;
+      let data = request.resource.data;
+      return emailAccount() && old.status == 'pending'
+        && data.diff(old).affectedKeys().hasOnly(['status','decidedAt']) && data.decidedAt == request.time
+        && ((data.status == 'cancelled' && request.auth.uid == old.ownerUid)
+          || (old.get('version', 1) == 2 && data.status in ['accepted','rejected']
+            && request.auth.uid == old.recipientUid && request.time < old.createdAt + duration.value(7, 'd'))
+          || (old.get('version', 1) == 2 && data.status == 'expired' && request.time >= old.createdAt + duration.value(7, 'd')
+            && request.auth.uid in [old.ownerUid, old.recipientUid]))
+        && getAfter(socialPath(old.ownerUid)).data.lastInvite == token
+        && getAfter(socialPath(old.ownerUid)).data.pendingCount == indexCount(old.ownerUid, 'pendingCount') - 1
+        && (data.status != 'accepted' || getAfter(pairPath(token)).data.memberUids == [old.ownerUid, old.recipientUid]);
+    }
+    function validPairShape(data) {
+      return data.memberUids is list && data.memberUids.size() == 2
+        && data.memberUids[0] is string && data.memberUids[0].size() > 0 && data.memberUids[0].size() <= 128
+        && data.memberUids[1] is string && data.memberUids[1].size() > 0 && data.memberUids[1].size() <= 128
+        && data.memberUids[0] != data.memberUids[1] && data.people is map && data.people.keys().hasOnly(data.memberUids)
+        && publicPerson(data.people[data.memberUids[0]], data.memberUids[0]) && publicPerson(data.people[data.memberUids[1]], data.memberUids[1])
+        && data.since is int && data.status in ['active','ended'] && data.muted is list && data.muted.size() <= 2
+        && data.muted.toSet().size() == data.muted.size() && data.muted.hasOnly(data.memberUids);
+    }
+    function joiningIndex(uid, id) {
+      return getAfter(socialPath(uid)).data.lastPair == id
+        && getAfter(socialPath(uid)).data.activeCount == indexCount(uid, 'activeCount') + 1;
+    }
+    function validNewPair(id) {
+      let data = request.resource.data;
+      let invite = getAfter(invitePath(id)).data;
+      return emailAccount() && id.matches('^[a-f0-9]{48}$') && validPairShape(data)
+        && data.keys().hasAll(['memberUids','people','since','status','muted','createdAt','token'])
+        && data.keys().hasOnly(['memberUids','people','since','status','muted','createdAt','token'])
+        && data.token == id && data.status == 'active' && data.since == utcDay(request.time) && data.createdAt == request.time && data.muted == []
+        && get(invitePath(id)).data.version == 2 && get(invitePath(id)).data.status == 'pending' && invite.status == 'accepted' && invite.recipientUid == request.auth.uid
+        && data.memberUids == [invite.ownerUid, request.auth.uid]
+        && data.people[invite.ownerUid] == invite.person && myPublicPerson(data.people[request.auth.uid])
+        && joiningIndex(invite.ownerUid, id) && joiningIndex(request.auth.uid, id)
+        && getAfter(linkPath(invite.ownerUid, request.auth.uid)).data.pairId == id
+        && getAfter(linkPath(request.auth.uid, invite.ownerUid)).data.pairId == id;
+    }
+    function leavingIndex(uid, id) {
+      return getAfter(socialPath(uid)).data.lastPair == id
+        && getAfter(socialPath(uid)).data.activeCount == indexCount(uid, 'activeCount') - 1;
+    }
+    function validPairUpdate(id) {
+      let data = request.resource.data;
+      let old = resource.data;
+      return emailAccount() && request.auth.uid in old.memberUids && old.status == 'active' && validPairShape(data)
+        && ((data.diff(old).affectedKeys().hasOnly(['muted'])
+            && data.muted.removeAll([request.auth.uid]) == old.muted.removeAll([request.auth.uid]))
+          || (data.diff(old).affectedKeys().hasOnly(['status']) && data.status == 'ended'
+            && leavingIndex(old.memberUids[0], id) && leavingIndex(old.memberUids[1], id)));
+    }
+    function validLink(uid, peer) {
+      let data = request.resource.data;
+      let pair = getAfter(pairPath(data.pairId)).data;
+      return emailAccount() && data.keys().hasAll(['pairId']) && data.keys().hasOnly(['pairId'])
+        && data.pairId is string && data.pairId.size() <= 256 && pair.status == 'active'
+        && request.auth.uid in pair.memberUids && uid in pair.memberUids && peer in pair.memberUids && uid != peer
+        && (resource == null || resource.data.pairId == data.pairId || get(pairPath(resource.data.pairId)).data.status == 'ended');
+    }
+    function nudgePath(pairId, day) {
+      return /databases/$(database)/documents/streakPairs/$(pairId)/nudges/$(string(day));
+    }
+    // Preset phrases and replies; keep in sync with src/features/streaks/nudgeCatalog.ts.
+    function nudgeMessages() {
+      return ['friendly','you_can','our_streak','waiting','team','still_time'];
+    }
+    function nudgeReplies() {
+      return ['on_it','thanks','today','later'];
+    }
+    // Only the recipient answers a nudge: "seen" once (server time) and one preset reply.
+    function validNudgeResponse(pairId) {
+      let old = resource.data;
+      let data = request.resource.data;
+      let changed = data.diff(old).affectedKeys();
+      return emailAccount() && request.auth.uid in get(pairPath(pairId)).data.memberUids && request.auth.uid != old.fromUid
+        && changed.hasOnly(['seenAt','reply']) && changed.size() > 0
+        && (!changed.hasAny(['seenAt']) || (!('seenAt' in old) && data.seenAt == request.time))
+        && (!changed.hasAny(['reply']) || (!('reply' in old) && data.reply in nudgeReplies()));
+    }
+    function validNudgeReceipt(pairId, day) {
+      let data = request.resource.data;
+      let pair = get(pairPath(pairId)).data;
+      let other = pair.memberUids[0] == request.auth.uid ? pair.memberUids[1] : pair.memberUids[0];
+      return emailAccount() && request.auth.uid in pair.memberUids && pair.status == 'active'
+        && data.keys().hasAll(['fromUid','day','message']) && data.keys().hasOnly(['fromUid','day','message'])
+        && data.message in nudgeMessages()
+        && data.fromUid == request.auth.uid && data.day == utcDay(request.time) && day == string(data.day)
+        && !(other in pair.muted) && !exists(activePath(other, data.day))
+        && getAfter(userPath(other, 'streakNudges', pairId + '_' + day)).data.createdAt == request.time;
+    }
+    function validNudge(uid, id) {
+      let data = request.resource.data;
+      let pair = get(pairPath(data.pairId)).data;
+      return emailAccount() && uid != request.auth.uid && uid in pair.memberUids && request.auth.uid in pair.memberUids && pair.status == 'active'
+        && data.keys().hasAll(['pairId','fromUid','name','day','read','message','createdAt'])
+        && data.keys().hasOnly(['pairId','fromUid','name','day','read','message','createdAt'])
+        && data.message in nudgeMessages() && getAfter(nudgePath(data.pairId, data.day)).data.message == data.message
+        && data.pairId is string && data.pairId.size() <= 256 && data.fromUid == request.auth.uid
+        && data.name == pair.people[request.auth.uid].name && data.day == utcDay(request.time) && id == data.pairId + '_' + string(data.day)
+        && data.read == false && data.createdAt == request.time && !(uid in pair.muted)
+        && !exists(nudgePath(data.pairId, data.day)) && getAfter(nudgePath(data.pairId, data.day)).data.fromUid == request.auth.uid;
+    }
+    // Code directory: public identity only, exact authenticated lookup; assignments stay private.
+    match /streakFriendCodes/{code} {
+      allow get: if emailAccount() && validCode(code);
+      allow create, update: if validCodeProfile(code);
+    }
+    match /users/{uid}/friendCode/{id} {
+      allow read: if isSelf(uid);
+      allow create: if id == 'current' && validCodeAssignment(uid);
+    }
+    match /streakRequestLocks/{uid}/peers/{peer} {
+      allow read: if isSelf(uid) || isSelf(peer);
+      allow create, update: if validRequestLock(uid, peer);
+    }
+    match /streakSocial/{uid} {
+      allow read: if isSelf(uid);
+      allow create, update: if validSocial(uid);
+    }
+    match /streakInvites/{token} {
+      allow get, list: if isSelf(resource.data.ownerUid) || isSelf(resource.data.recipientUid);
+      allow create: if validInvite(token);
+      allow update: if decideInvite(token);
+    }
+    match /streakPairs/{id} {
+      allow read: if emailAccount() && request.auth.uid in resource.data.memberUids;
+      allow create: if validNewPair(id);
+      allow update: if validPairUpdate(id);
+      match /nudges/{day} {
+        allow read: if emailAccount() && request.auth.uid in get(pairPath(id)).data.memberUids;
+        allow create: if validNudgeReceipt(id, day);
+        allow update: if validNudgeResponse(id);
+      }
+    }
+    match /streakLinks/{uid}/peers/{peer} {
+      allow read: if isSelf(uid) || isSelf(peer);
+      allow create, update: if validLink(uid, peer);
+    }
+    match /users/{uid}/streakRequests/{id} {
+      allow read: if isSelf(uid);
+      allow create: if isSelf(uid) && id.matches('^[a-zA-Z0-9_-]{1,80}$')
+        && request.resource.data.keys().hasAll(['token','recipientUid','direction','createdAt']) && request.resource.data.keys().hasOnly(['token','recipientUid','direction','createdAt'])
+        && request.resource.data.token is string && request.resource.data.token.matches('^[a-f0-9]{48}$')
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.direction in ['incoming','outgoing']
+        && getAfter(invitePath(request.resource.data.token)).data.version == 2
+        && getAfter(invitePath(request.resource.data.token)).data.status == 'pending'
+        && ((request.resource.data.direction == 'outgoing'
+            && getAfter(invitePath(request.resource.data.token)).data.ownerUid == uid
+            && getAfter(invitePath(request.resource.data.token)).data.recipientUid == request.resource.data.recipientUid)
+          || (request.resource.data.direction == 'incoming'
+            && getAfter(invitePath(request.resource.data.token)).data.recipientUid == uid
+            && getAfter(invitePath(request.resource.data.token)).data.ownerUid == request.resource.data.recipientUid));
+    }
+    match /users/{uid}/streakNudges/{id} {
+      allow read: if isSelf(uid);
+      allow create: if validNudge(uid, id);
+      allow update: if isSelf(uid) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read']) && request.resource.data.read == true;
+    }
+    // ─── Identity ──────────────────────────────────────────────────────────
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function emailAccount() {
+      return signedIn()
+        && request.auth.token.email is string;
+    }
+
+    function verifiedAccount() {
+      return emailAccount()
+        && request.auth.token.email_verified == true;
+    }
+
+    function isSelf(uid) {
+      return emailAccount() && request.auth.uid == uid;
+    }
+
+    // ─── Paths ─────────────────────────────────────────────────────────────
+    function projectPath(projectId) {
+      return /databases/$(database)/documents/projects/$(projectId);
+    }
+
+    function memberPath(projectId, uid) {
+      return /databases/$(database)/documents/projects/$(projectId)/members/$(uid);
+    }
+
+    function accessPath(uid, projectId) {
+      return /databases/$(database)/documents/users/$(uid)/projectAccess/$(projectId);
+    }
+
+    function accessLinkPath(projectId, linkId) {
+      return /databases/$(database)/documents/projects/$(projectId)/accessLinks/$(linkId);
+    }
+
+    function accessRequestPath(projectId, uid) {
+      return /databases/$(database)/documents/projects/$(projectId)/accessRequests/$(uid);
+    }
+
+    function accessHistoryPath(projectId, entryId) {
+      return /databases/$(database)/documents/projects/$(projectId)/accessRequestHistory/$(entryId);
+    }
+
+    function directoryPath(projectId, uid) {
+      return /databases/$(database)/documents/projects/$(projectId)/directory/$(uid);
+    }
+
+    function taskPath(projectId, taskId) {
+      return /databases/$(database)/documents/projects/$(projectId)/tasks/$(taskId);
+    }
+
+    function branchPath(projectId, branchId) {
+      return /databases/$(database)/documents/projects/$(projectId)/branches/$(branchId);
+    }
+
+    function milestonePath(projectId, milestoneId) {
+      return /databases/$(database)/documents/projects/$(projectId)/milestones/$(milestoneId);
+    }
+
+    function eventPath(projectId, eventId) {
+      return /databases/$(database)/documents/projects/$(projectId)/events/$(eventId);
+    }
+
+
+    function progressPath(uid) {
+      return /databases/$(database)/documents/users/$(uid)/progress/summary;
+    }
+
+    function walletPath(uid) {
+      return /databases/$(database)/documents/users/$(uid)/progress/wallet;
+    }
+
+
+
+    function inventoryPath(uid, itemId) {
+      return /databases/$(database)/documents/users/$(uid)/inventory/$(itemId);
+    }
+
+    // ─── Membership ────────────────────────────────────────────────────────
+    function isProjectMember(projectId) {
+      return emailAccount()
+        && exists(memberPath(projectId, request.auth.uid))
+        && get(memberPath(projectId, request.auth.uid)).data.uid == request.auth.uid
+        && get(memberPath(projectId, request.auth.uid)).data.status == 'active';
+    }
+
+    function isProjectOwner(projectId) {
+      return isProjectMember(projectId)
+        && get(memberPath(projectId, request.auth.uid)).data.role == 'owner'
+        && get(projectPath(projectId)).data.ownerUid == request.auth.uid;
+    }
+
+    function isActiveMemberAfter(projectId, uid) {
+      return existsAfter(memberPath(projectId, uid))
+        && getAfter(memberPath(projectId, uid)).data.status == 'active';
+    }
+
+    // ─── Projects ──────────────────────────────────────────────────────────
+    // Whole calendar days in an IANA zone plus the UTC instants derived from them.
+    function validSchedule(schedule) {
+      return schedule is map
+        && schedule.keys().hasAll(['startDate', 'endDate', 'timeZone', 'startsAt', 'endsAt'])
+        && schedule.keys().hasOnly(['startDate', 'endDate', 'timeZone', 'startsAt', 'endsAt'])
+        && schedule.startDate is string && schedule.startDate.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+        && schedule.endDate is string && schedule.endDate.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+        && schedule.endDate >= schedule.startDate
+        && schedule.timeZone is string && schedule.timeZone.size() > 0 && schedule.timeZone.size() <= 64
+        && schedule.startsAt is string && schedule.startsAt.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9:.]+Z$')
+        && schedule.endsAt is string && schedule.endsAt.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9:.]+Z$')
+        && schedule.endsAt > schedule.startsAt;
+    }
+
+    // Coordination rule for the team; GitHub itself enforces repository permissions.
+    function validGitHubPolicy(policy) {
+      return policy is map
+        && policy.keys().hasAll(['branchWrite'])
+        && policy.keys().hasOnly(['branchWrite'])
+        && policy.branchWrite in ['owner', 'members'];
+    }
+
+    function validProject(projectId) {
+      let data = request.resource.data;
+      return data.keys().hasAll(['id', 'name', 'description', 'repositoryUrl', 'previewUrl', 'kind', 'createdAt', 'ownerUid'])
+        && data.keys().hasOnly(['id', 'name', 'description', 'repositoryUrl', 'previewUrl', 'kind', 'createdAt', 'ownerUid', 'schedule', 'iconUrl', 'githubPolicy'])
+        && (!('schedule' in data) || validSchedule(data.schedule))
+        && (!('githubPolicy' in data) || validGitHubPolicy(data.githubPolicy))
+        && (!('iconUrl' in data) || (data.iconUrl is string && data.iconUrl.size() <= 500 && data.iconUrl.matches('^https://[^\\s]+$')))
+        && data.id == projectId
+        && data.name is string && data.name.size() > 0 && data.name.size() <= 80
+        && data.description is string && data.description.size() <= 400
+        && data.repositoryUrl is string && data.repositoryUrl.size() <= 300
+        && data.previewUrl is string && data.previewUrl.size() <= 500
+        && (data.previewUrl == '' || data.previewUrl.matches('^https://[^\\s]+$'))
+        && data.kind is string && data.kind.size() > 0 && data.kind.size() <= 40
+        && data.createdAt is string && data.createdAt.size() <= 40
+        && data.ownerUid is string && data.ownerUid.size() > 0 && data.ownerUid.size() <= 128;
+    }
+
+    function ownerDocumentsCreated(projectId, ownerUid) {
+      let member = getAfter(memberPath(projectId, ownerUid));
+      let access = getAfter(accessPath(ownerUid, projectId));
+      return existsAfter(memberPath(projectId, ownerUid))
+        && member.data.uid == ownerUid
+        && member.data.role == 'owner'
+        && member.data.status == 'active'
+        && existsAfter(accessPath(ownerUid, projectId))
+        && access.data.projectId == projectId
+        && access.data.role == 'owner';
+    }
+
+    function validProjectAccessWrite(uid, projectId) {
+      let member = getAfter(memberPath(projectId, uid));
+      return emailAccount()
+        && uid == request.auth.uid
+        && request.resource.data.keys().hasAll(['projectId', 'role', 'joinedAt'])
+        && request.resource.data.keys().hasOnly(['projectId', 'role', 'joinedAt'])
+        && request.resource.data.projectId == projectId
+        && request.resource.data.role in ['owner', 'member']
+        && request.resource.data.joinedAt is string
+        && existsAfter(memberPath(projectId, uid))
+        && member.data.uid == uid
+        && member.data.role == request.resource.data.role
+        && member.data.status == 'active';
+    }
+
+    function validApprovedAccessWrite(uid, projectId) {
+      let member = getAfter(memberPath(projectId, uid));
+      let accessRequest = getAfter(accessRequestPath(projectId, uid));
+      return isProjectOwner(projectId)
+        && uid != request.auth.uid
+        && request.resource.data.keys().hasAll(['projectId', 'role', 'joinedAt'])
+        && request.resource.data.keys().hasOnly(['projectId', 'role', 'joinedAt'])
+        && request.resource.data.projectId == projectId
+        && request.resource.data.role == 'member'
+        && request.resource.data.joinedAt is string
+        && existsAfter(memberPath(projectId, uid))
+        && member.data.uid == uid
+        && member.data.role == 'member'
+        && member.data.status == 'active'
+        && member.data.accessRequestId == uid
+        && existsAfter(accessRequestPath(projectId, uid))
+        && accessRequest.data.status == 'approved';
+    }
+
+    function validOwnershipTransferAccessWrite(uid, projectId) {
+      let project = getAfter(projectPath(projectId));
+      let member = getAfter(memberPath(projectId, uid));
+      return isProjectOwner(projectId)
+        && uid != request.auth.uid
+        && request.resource.data.keys().hasAll(['projectId', 'role', 'joinedAt'])
+        && request.resource.data.keys().hasOnly(['projectId', 'role', 'joinedAt'])
+        && request.resource.data.projectId == projectId
+        && request.resource.data.role == 'owner'
+        && request.resource.data.joinedAt is string
+        && existsAfter(projectPath(projectId))
+        && project.data.ownerUid == uid
+        && existsAfter(memberPath(projectId, uid))
+        && member.data.uid == uid
+        && member.data.role == 'owner'
+        && member.data.status == 'active';
+    }
+
+    function validProjectOwnershipTransfer(projectId) {
+      let nextProject = request.resource.data;
+      let previousOwner = getAfter(memberPath(projectId, request.auth.uid));
+      let nextOwner = getAfter(memberPath(projectId, nextProject.ownerUid));
+      let previousAccess = getAfter(accessPath(request.auth.uid, projectId));
+      let nextAccess = getAfter(accessPath(nextProject.ownerUid, projectId));
+      return isProjectOwner(projectId)
+        && validProject(projectId)
+        && nextProject.ownerUid is string
+        && nextProject.ownerUid != request.auth.uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['ownerUid'])
+        && existsAfter(memberPath(projectId, request.auth.uid))
+        && previousOwner.data.uid == request.auth.uid
+        && previousOwner.data.role == 'member'
+        && previousOwner.data.status == 'active'
+        && existsAfter(memberPath(projectId, nextProject.ownerUid))
+        && nextOwner.data.uid == nextProject.ownerUid
+        && nextOwner.data.role == 'owner'
+        && nextOwner.data.status == 'active'
+        && existsAfter(accessPath(request.auth.uid, projectId))
+        && previousAccess.data.role == 'member'
+        && existsAfter(accessPath(nextProject.ownerUid, projectId))
+        && nextAccess.data.role == 'owner';
+    }
+
+    function validMemberOwnershipTransfer(projectId, uid) {
+      let nextProject = getAfter(projectPath(projectId));
+      return isProjectOwner(projectId)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['role'])
+        && request.resource.data.uid == resource.data.uid
+        && request.resource.data.status == resource.data.status
+        && resource.data.status == 'active'
+        && ((uid == request.auth.uid
+            && resource.data.role == 'owner'
+            && request.resource.data.role == 'member'
+            && existsAfter(projectPath(projectId))
+            && nextProject.data.ownerUid != uid)
+          || (uid != request.auth.uid
+            && resource.data.role == 'member'
+            && request.resource.data.role == 'owner'
+            && existsAfter(projectPath(projectId))
+            && nextProject.data.ownerUid == uid));
+    }
+
+    function validOwnerMemberCreate(projectId, uid, data) {
+      let project = getAfter(projectPath(projectId));
+      let access = getAfter(accessPath(uid, projectId));
+      return emailAccount()
+        && uid == request.auth.uid
+        && data.uid == uid
+        && data.emailLower == request.auth.token.email.lower()
+        && data.role == 'owner'
+        && data.status == 'active'
+        && !data.keys().hasAny(['accessRequestId'])
+        && existsAfter(projectPath(projectId))
+        && project.data.ownerUid == uid
+        && existsAfter(accessPath(uid, projectId))
+        && access.data.role == 'owner';
+    }
+
+    // Only the owner adds members, and only by approving that person's pending request.
+    function validApprovedMemberCreate(projectId, uid, data) {
+      let pending = get(accessRequestPath(projectId, uid));
+      let decided = getAfter(accessRequestPath(projectId, uid));
+      let access = getAfter(accessPath(uid, projectId));
+      return isProjectOwner(projectId)
+        && uid != request.auth.uid
+        && data.keys().hasAll(['accessRequestId'])
+        && data.accessRequestId == uid
+        && data.uid == uid
+        && data.role == 'member'
+        && data.status == 'active'
+        && exists(accessRequestPath(projectId, uid))
+        && pending.data.status == 'pending'
+        && pending.data.emailLower == data.emailLower
+        && decided.data.status == 'approved'
+        && existsAfter(accessPath(uid, projectId))
+        && access.data.role == 'member';
+    }
+
+    function validMemberCreate(projectId, uid) {
+      let data = request.resource.data;
+      return data.keys().hasAll(['uid', 'email', 'emailLower', 'name', 'role', 'status', 'joinedAt'])
+        && data.keys().hasOnly(['uid', 'email', 'emailLower', 'name', 'role', 'status', 'joinedAt', 'accessRequestId'])
+        && uid == data.uid
+        && data.email is string && data.email.size() <= 254
+        && data.emailLower is string && data.emailLower.size() <= 254
+        && data.emailLower == data.email.lower()
+        && data.name is string && data.name.size() > 0 && data.name.size() <= 100
+        && data.role in ['owner', 'member']
+        && data.status == 'active'
+        && data.joinedAt is string
+        && ((data.role == 'owner' && validOwnerMemberCreate(projectId, uid, data))
+          || (data.role == 'member' && validApprovedMemberCreate(projectId, uid, data)));
+    }
+
+    // ─── Team directory: name and avatar only, readable by members ─────────
+    function validDirectoryEntry(uid) {
+      let data = request.resource.data;
+      return data.keys().hasAll(['uid', 'name', 'photoURL', 'active', 'updatedAt'])
+        && data.keys().hasOnly(['uid', 'name', 'photoURL', 'active', 'updatedAt'])
+        && data.uid == uid
+        && data.name is string && data.name.size() > 0 && data.name.size() <= 100
+        && data.photoURL is string && data.photoURL.size() <= 1000
+        && (data.photoURL == '' || data.photoURL.matches('^https://[^\\s]+$'))
+        && data.active is bool
+        && data.updatedAt is string && data.updatedAt.size() <= 40;
+    }
+
+    function validDirectoryWrite(projectId, uid) {
+      return validDirectoryEntry(uid)
+        && ((isSelf(uid) && request.resource.data.active == true && isActiveMemberAfter(projectId, uid))
+          || (isProjectOwner(projectId) && request.resource.data.active == isActiveMemberAfter(projectId, uid)));
+    }
+
+    // ─── Access links and requests ─────────────────────────────────────────
+    function validAccessLink(projectId, linkId) {
+      let data = request.resource.data;
+      return data.keys().hasAll(['id', 'projectId', 'projectName', 'status', 'createdAt', 'expiresAt', 'createdByUid'])
+        && data.keys().hasOnly(['id', 'projectId', 'projectName', 'status', 'createdAt', 'expiresAt', 'createdByUid'])
+        && data.id == linkId
+        && linkId.matches('^[a-f0-9]{32,64}$')
+        && data.projectId == projectId
+        && data.projectName == get(projectPath(projectId)).data.name
+        && data.status == 'active'
+        && data.createdAt is string && data.createdAt.size() <= 40
+        && data.expiresAt is timestamp
+        && data.expiresAt > request.time
+        && data.expiresAt <= request.time + duration.value(31, 'd')
+        && data.createdByUid == request.auth.uid;
+    }
+
+    function ownerRevokesAccessLink() {
+      return resource.data.status == 'active'
+        && request.resource.data.status == 'revoked'
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'revokedAt'])
+        && request.resource.data.revokedAt is string;
+    }
+
+    function historyId(uid, attempt, suffix) {
+      return uid + '-' + string(attempt) + '-' + suffix;
+    }
+
+    // A new attempt written by the requester: identity from the token, a live
+    // link, no active membership, and the matching "requested" history entry.
+    function validAccessRequest(projectId, uid, attempt) {
+      let data = request.resource.data;
+      let link = get(accessLinkPath(projectId, data.linkId));
+      return verifiedAccount()
+        && uid == request.auth.uid
+        && data.keys().hasAll(['uid', 'email', 'emailLower', 'name', 'linkId', 'status', 'createdAt', 'attempt', 'retryAllowed', 'grantVersion'])
+        && data.keys().hasOnly(['uid', 'email', 'emailLower', 'name', 'linkId', 'status', 'createdAt', 'attempt', 'retryAllowed', 'grantVersion'])
+        && data.uid == uid
+        && data.email is string && data.email.size() <= 254
+        && data.emailLower == request.auth.token.email.lower()
+        && data.email.lower() == data.emailLower
+        && data.name is string && data.name.size() > 0 && data.name.size() <= 100
+        && data.linkId is string && data.linkId.matches('^[a-f0-9]{32,64}$')
+        && data.status == 'pending'
+        && data.createdAt is string && data.createdAt.size() <= 40
+        && data.attempt == attempt
+        && data.retryAllowed == false
+        && data.grantVersion == 0
+        && exists(accessLinkPath(projectId, data.linkId))
+        && link.data.projectId == projectId
+        && link.data.status == 'active'
+        && link.data.expiresAt > request.time
+        && !exists(memberPath(projectId, uid))
+        && existsAfter(accessHistoryPath(projectId, historyId(uid, attempt, 'requested')));
+    }
+
+    // A rejection is final until the owner allows a new request; someone approved
+    // and later removed may ask again. Each retry consumes the authorization.
+    function requesterRetries(projectId, uid) {
+      let previousAttempt = resource.data.get('attempt', 1);
+      return ((resource.data.status == 'rejected' && resource.data.get('retryAllowed', false) == true)
+          || resource.data.status == 'approved')
+        && validAccessRequest(projectId, uid, previousAttempt + 1);
+    }
+
+    function ownerDecidesRequest(projectId, uid) {
+      let member = getAfter(memberPath(projectId, uid));
+      let decision = request.resource.data;
+      return isProjectOwner(projectId)
+        && resource.data.status == 'pending'
+        && decision.diff(resource.data).affectedKeys().hasOnly(['status', 'decidedAt', 'decidedByUid'])
+        && decision.decidedByUid == request.auth.uid
+        && decision.decidedAt is string && decision.decidedAt.size() <= 40
+        && existsAfter(accessHistoryPath(projectId, historyId(uid, resource.data.get('attempt', 1), decision.status)))
+        && (decision.status == 'rejected'
+          || (decision.status == 'approved'
+            && existsAfter(memberPath(projectId, uid))
+            && member.data.status == 'active'
+            && member.data.role == 'member'
+            && member.data.accessRequestId == uid
+            && existsAfter(accessPath(uid, projectId))));
+    }
+
+    // Allow or withdraw a new attempt after a rejection, while none was sent yet.
+    function ownerTogglesRetry(projectId, uid) {
+      let next = request.resource.data;
+      return isProjectOwner(projectId)
+        && resource.data.status == 'rejected'
+        && next.diff(resource.data).affectedKeys().hasOnly(['retryAllowed', 'grantVersion'])
+        && next.retryAllowed is bool
+        && next.retryAllowed != resource.data.get('retryAllowed', false)
+        && next.grantVersion == resource.data.get('grantVersion', 0) + 1
+        && existsAfter(accessHistoryPath(projectId, historyId(uid, resource.data.get('attempt', 1), 'g' + string(next.grantVersion))));
+    }
+
+    function validAccessHistory(projectId, entryId) {
+      let data = request.resource.data;
+      let current = getAfter(accessRequestPath(projectId, data.requesterUid));
+      return data.keys().hasAll(['id', 'requesterUid', 'requesterName', 'attempt', 'action', 'actorUid', 'actorName', 'at'])
+        && data.keys().hasOnly(['id', 'requesterUid', 'requesterName', 'attempt', 'action', 'actorUid', 'actorName', 'at'])
+        && data.id == entryId
+        && data.requesterUid is string && data.requesterUid.size() > 0 && data.requesterUid.size() <= 128
+        && data.requesterName is string && data.requesterName.size() <= 100
+        && data.actorUid == request.auth.uid
+        && data.actorName is string && data.actorName.size() <= 100
+        && data.at == request.time
+        && data.attempt is int
+        && existsAfter(accessRequestPath(projectId, data.requesterUid))
+        && current.data.get('attempt', 1) == data.attempt
+        && ((data.action == 'requested'
+            && data.actorUid == data.requesterUid
+            && current.data.status == 'pending'
+            && entryId == historyId(data.requesterUid, data.attempt, 'requested'))
+          || (data.action in ['approved', 'rejected']
+            && isProjectOwner(projectId)
+            && current.data.status == data.action
+            && entryId == historyId(data.requesterUid, data.attempt, data.action))
+          || (data.action in ['retry-allowed', 'retry-withdrawn']
+            && isProjectOwner(projectId)
+            && current.data.retryAllowed == (data.action == 'retry-allowed')
+            && entryId == historyId(data.requesterUid, data.attempt, 'g' + string(current.data.grantVersion))));
+    }
+
+    function validOwnRequestIndex(uid, projectId) {
+      let data = request.resource.data;
+      return emailAccount()
+        && uid == request.auth.uid
+        && data.keys().hasAll(['projectId', 'projectName', 'linkId', 'createdAt'])
+        && data.keys().hasOnly(['projectId', 'projectName', 'linkId', 'createdAt'])
+        && data.projectId == projectId
+        && data.projectName is string && data.projectName.size() <= 80
+        && data.linkId is string && data.linkId.size() <= 64
+        && data.createdAt is string && data.createdAt.size() <= 40
+        && existsAfter(accessRequestPath(projectId, uid))
+        && getAfter(accessRequestPath(projectId, uid)).data.uid == uid;
+    }
+
+    // ─── Work items: every write carries exactly one activity event ────────
+    function revisionOf(data) {
+      return data.get('revision', 0);
+    }
+
+    function taskEventId(taskId, revision) {
+      return 'task-' + taskId + '-' + string(revision);
+    }
+
+    function milestoneEventId(milestoneId, revision) {
+      return 'milestone-' + milestoneId + '-' + string(revision);
+    }
+
+    function validTask(taskId) {
+      let data = request.resource.data;
+      return data.keys().hasAll(['id', 'order', 'phase', 'title', 'status', 'assignee', 'assigneeUid', 'milestoneId', 'revision', 'updatedByUid'])
+        && data.keys().hasOnly(['id', 'order', 'phase', 'title', 'status', 'assignee', 'assigneeUid', 'milestoneId', 'revision', 'updatedByUid'])
+        && data.id == taskId
+        && data.order is int && data.order > 0
+        && data.phase is string && data.phase.size() > 0 && data.phase.size() <= 60
+        && data.title is string && data.title.size() > 0 && data.title.size() <= 300
+        && data.status in ['Pendiente', 'En curso', 'Hecha']
+        && data.assignee is string && data.assignee.size() <= 100
+        && data.assigneeUid is string && data.assigneeUid.size() <= 128
+        && data.milestoneId is string && data.milestoneId.size() <= 128
+        && data.revision is int
+        && data.updatedByUid == request.auth.uid;
+    }
+
+    // A person already referenced stays valid after leaving (history); new
+    // assignments must point to an active member of this project.
+    function assigneeAllowed(projectId, previousUid) {
+      let uid = request.resource.data.assigneeUid;
+      return uid == ''
+        || uid == previousUid
+        || (exists(memberPath(projectId, uid)) && get(memberPath(projectId, uid)).data.status == 'active');
+    }
+
+    function milestoneAllowed(projectId, previousId) {
+      let milestoneId = request.resource.data.milestoneId;
+      return milestoneId == ''
+        || milestoneId == previousId
+        || (exists(milestonePath(projectId, milestoneId)) && get(milestonePath(projectId, milestoneId)).data.archived == false);
+    }
+
+    function taskEventWritten(projectId, taskId, revision, kind) {
+      return existsAfter(eventPath(projectId, taskEventId(taskId, revision)))
+        && getAfter(eventPath(projectId, taskEventId(taskId, revision))).data.kind == kind;
+    }
+
+    // ─── Transition ─────────────────────────────────────────────────────────
+    // Tabs opened with the previous version write tasks and branches without
+    // activity events. Until the cutoff those writes are accepted, but only on
+    // documents that never had a revision (so new data is never downgraded).
+    // After the cutoff the rules are strict with no redeploy needed.
+    function transitionOpen() {
+      return request.time < timestamp.value('2026-10-10T00:00:00Z');
+    }
+
+    function validLegacyTask(taskId) {
+      let data = request.resource.data;
+      return transitionOpen()
+        && data.keys().hasAll(['id', 'order', 'phase', 'title', 'status', 'assignee'])
+        && data.keys().hasOnly(['id', 'order', 'phase', 'title', 'status', 'assignee'])
+        && data.id == taskId
+        && data.order is int && data.order > 0
+        && data.phase is string && data.phase.size() > 0 && data.phase.size() <= 60
+        && data.title is string && data.title.size() > 0 && data.title.size() <= 300
+        && data.status in ['Pendiente', 'En curso', 'Hecha']
+        && data.assignee is string && data.assignee.size() <= 60
+        && (resource == null || !('revision' in resource.data));
+    }
+
+    function validBranch(branchId) {
+      let data = request.resource.data;
+      return data.keys().hasAll(['id', 'name', 'reason', 'by', 'createdAt'])
+        && data.keys().hasOnly(['id', 'name', 'reason', 'by', 'createdAt', 'createdByUid', 'githubCreated'])
+        && (!('githubCreated' in data) || data.githubCreated is bool)
+        && data.id == branchId
+        && data.name is string && data.name.size() > 0 && data.name.size() <= 120
+        && data.reason is string && data.reason.size() > 0 && data.reason.size() <= 600
+        && data.by is string && data.by.size() <= 100
+        && data.createdAt is string && data.createdAt.size() <= 40
+        && (!('createdByUid' in data) || data.createdByUid == request.auth.uid);
+    }
+
+    function validMilestone(milestoneId) {
+      let data = request.resource.data;
+      return data.keys().hasAll(['id', 'title', 'description', 'dueDate', 'timeZone', 'dueAt', 'archived', 'createdAt', 'createdByUid', 'revision', 'updatedByUid'])
+        && data.keys().hasOnly(['id', 'title', 'description', 'dueDate', 'timeZone', 'dueAt', 'archived', 'createdAt', 'createdByUid', 'revision', 'updatedByUid'])
+        && data.id == milestoneId
+        && milestoneId.size() <= 60
+        && data.title is string && data.title.size() > 0 && data.title.size() <= 120
+        && data.description is string && data.description.size() <= 600
+        && data.dueDate is string && data.dueDate.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+        && data.timeZone is string && data.timeZone.size() > 0 && data.timeZone.size() <= 64
+        && data.dueAt is string && data.dueAt.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9:.]+Z$')
+        && data.archived is bool
+        && data.createdAt is string && data.createdAt.size() <= 40
+        && data.revision is int
+        && data.updatedByUid == request.auth.uid;
+    }
+
+    // ─── Activity events: immutable, server-timed, tied to one revision ────
+    function taskChangesConsistent(projectId, before, after, changes) {
+      return changes.keys().hasOnly(['status', 'assignee', 'milestone', 'title', 'migration'])
+        && (('status' in changes) == (before.status != after.status))
+        && (!('status' in changes) || (changes.status.from == before.status && changes.status.to == after.status))
+        && (('assignee' in changes) == (before.get('assigneeUid', '') != after.assigneeUid))
+        && (!('assignee' in changes) || (changes.assignee.fromUid == before.get('assigneeUid', '') && changes.assignee.toUid == after.assigneeUid))
+        && (('milestone' in changes) == (before.get('milestoneId', '') != after.milestoneId))
+        && (!('title' in changes) || changes.title.to == after.title)
+        && (!('migration' in changes) || (changes.migration == true && isProjectOwner(projectId)));
+    }
+
+    function taskEventConsistent(projectId, event) {
+      let path = taskPath(projectId, event.targetId);
+      return event.id == taskEventId(event.targetId, event.revision)
+        && ((event.kind == 'created'
+            && event.revision == 1
+            && !exists(path)
+            && existsAfter(path)
+            && getAfter(path).data.revision == 1
+            && event.changes.size() == 0)
+          || (event.kind == 'updated'
+            && exists(path)
+            && existsAfter(path)
+            && getAfter(path).data.revision == event.revision
+            && revisionOf(get(path).data) + 1 == event.revision
+            && taskChangesConsistent(projectId, get(path).data, getAfter(path).data, event.changes))
+          || (event.kind == 'deleted'
+            && exists(path)
+            && !existsAfter(path)
+            && revisionOf(get(path).data) + 1 == event.revision
+            && event.changes.size() == 0));
+    }
+
+    function milestoneEventConsistent(projectId, event) {
+      let path = milestonePath(projectId, event.targetId);
+      return event.id == milestoneEventId(event.targetId, event.revision)
+        && isProjectOwner(projectId)
+        && existsAfter(path)
+        && getAfter(path).data.revision == event.revision
+        && event.changes.keys().hasOnly(['title', 'dueAt', 'archived'])
+        && ((event.kind == 'created' && event.revision == 1 && !exists(path))
+          || (event.kind == 'updated'
+            && exists(path)
+            && get(path).data.revision + 1 == event.revision
+            && (('archived' in event.changes) == (get(path).data.archived != getAfter(path).data.archived))
+            && (('dueAt' in event.changes) == (get(path).data.dueAt != getAfter(path).data.dueAt))));
+    }
+
+    function branchEventConsistent(projectId, event) {
+      let path = branchPath(projectId, event.targetId);
+      return event.id == 'branch-' + event.targetId
+        && event.kind == 'created'
+        && event.revision == 1
+        && event.changes.size() == 0
+        && !exists(path)
+        && existsAfter(path)
+        && event.targetTitle == getAfter(path).data.name;
+    }
+
+    // Only the owner, only in the batch that creates the project: never added to an existing one.
+    function projectEventConsistent(projectId, event) {
+      let project = getAfter(projectPath(projectId)).data;
+      return event.id == 'project-' + projectId
+        && event.kind == 'created'
+        && event.revision == 1
+        && event.changes.size() == 0
+        && event.targetId == projectId
+        && !exists(projectPath(projectId))
+        && existsAfter(projectPath(projectId))
+        && project.ownerUid == request.auth.uid
+        && event.targetTitle == project.name
+        && isActiveMemberAfter(projectId, request.auth.uid);
+    }
+
+    function validEvent(projectId, eventId) {
+      let event = request.resource.data;
+      return event.keys().hasAll(['id', 'projectId', 'kind', 'targetType', 'targetId', 'targetTitle', 'revision', 'actorUid', 'actorName', 'createdAt', 'changes'])
+        && event.keys().hasOnly(['id', 'projectId', 'kind', 'targetType', 'targetId', 'targetTitle', 'revision', 'actorUid', 'actorName', 'createdAt', 'changes'])
+        && event.id == eventId
+        && event.projectId == projectId
+        && event.kind in ['created', 'updated', 'deleted']
+        && event.targetId is string && event.targetId.size() > 0 && event.targetId.size() <= 60
+        && event.targetTitle is string && event.targetTitle.size() <= 300
+        && event.revision is int && event.revision > 0
+        && event.actorUid == request.auth.uid
+        && event.actorName is string && event.actorName.size() <= 100
+        && event.createdAt == request.time
+        && event.changes is map
+        && ((event.targetType == 'task' && taskEventConsistent(projectId, event))
+          || (event.targetType == 'milestone' && milestoneEventConsistent(projectId, event))
+          || (event.targetType == 'branch' && branchEventConsistent(projectId, event))
+          || (event.targetType == 'project' && projectEventConsistent(projectId, event)));
+    }
+
+    // Real work that counts for the personal collection.
+
+    // ─── Personal data ─────────────────────────────────────────────────────
+    // Milestone items, unlocked by accumulated active days.
+    function unlockThresholds() {
+      return {
+        'farolero': 0,
+        'valle-nocturno': 0,
+        'valle-amanecer': 1,
+        'gato-explorador': 3,
+        'bosque-luciernagas': 7,
+        'robot-jardinero': 14,
+        'jardin-lunar': 30
+      };
+    }
+
+    // Shop items and their price in points (común 10, rara 25, épica 40).
+    function shopPrices() {
+      return {
+        'farolero-invernal': 10,
+        'gato-medianoche': 10,
+        'valle-nevado': 10,
+        'dunas-crepusculo': 25,
+        'pinar-aurora': 25,
+        'espiritu-bosque': 40,
+        'cerezal-flor': 40,
+        'capibara': 40,
+        'laguna-capibaras': 40,
+        'zorro': 25,
+        'pinguino': 25,
+        'conejo': 10,
+        'fantasmita': 10,
+        'seta-andante': 25,
+        'dragoncito': 40,
+        'glaciar-pinguinos': 25,
+        'pradera-conejos': 25,
+        'bosque-setas': 40,
+        'nido-dragon': 40,
+        'onsen-capibaras': 40,
+        'club-capibaras': 40,
+        'granja-amanecer': 25,
+        'aldea-valle': 25,
+        'calle-kioto': 40,
+        'tokio-neon': 40,
+        'puerto-pesquero': 25,
+        'pueblo-navideno': 25,
+        'castillo-medieval': 40,
+        'oasis-desierto': 25,
+        'estacion-tren': 25,
+        'huerto-halloween': 25,
+        'templo-montana': 40,
+        'mercado-nocturno': 40,
+        'ciudad-nubes': 40,
+        'puerto-espacial': 40,
+        'montanas-guilin': 40
+      };
+    }
+
+    function unlocked(uid, itemId) {
+      return itemId in unlockThresholds()
+        && (unlockThresholds()[itemId] == 0
+          || (exists(progressPath(uid)) && get(progressPath(uid)).data.activeDays >= unlockThresholds()[itemId]));
+    }
+
+    function owned(uid, itemId) {
+      return itemId in shopPrices() && exists(inventoryPath(uid, itemId));
+    }
+
+    function available(uid, itemId) {
+      return unlocked(uid, itemId) || owned(uid, itemId);
+    }
+
+    function validPreferences() {
+      let data = request.resource.data;
+      return data.keys().hasOnly(['favorites', 'order', 'sort', 'filter', 'motion', 'updatedAt'])
+        && (!('favorites' in data) || (data.favorites is list && data.favorites.size() <= 300))
+        && (!('order' in data) || (data.order is list && data.order.size() <= 300))
+        && (!('sort' in data) || data.sort in ['recent', 'name', 'custom'])
+        && (!('filter' in data) || data.filter in ['all', 'favorites'])
+        && (!('motion' in data) || data.motion in ['system', 'full', 'reduced'])
+        && (!('updatedAt' in data) || data.updatedAt is string);
+    }
+
+    function validSceneSelection(uid) {
+      let data = request.resource.data;
+      return data.keys().hasAll(['characterId', 'landscapeId'])
+        && data.keys().hasOnly(['characterId', 'landscapeId', 'updatedAt'])
+        && data.characterId in ['farolero', 'gato-explorador', 'robot-jardinero', 'farolero-invernal', 'gato-medianoche', 'espiritu-bosque', 'capibara', 'zorro', 'pinguino', 'conejo', 'fantasmita', 'seta-andante', 'dragoncito']
+        && data.landscapeId in ['valle-nocturno', 'valle-amanecer', 'bosque-luciernagas', 'jardin-lunar', 'valle-nevado', 'dunas-crepusculo', 'pinar-aurora', 'cerezal-flor', 'laguna-capibaras', 'glaciar-pinguinos', 'pradera-conejos', 'bosque-setas', 'nido-dragon', 'onsen-capibaras', 'club-capibaras', 'granja-amanecer', 'aldea-valle', 'calle-kioto', 'tokio-neon', 'puerto-pesquero', 'pueblo-navideno', 'castillo-medieval', 'oasis-desierto', 'estacion-tren', 'huerto-halloween', 'templo-montana', 'mercado-nocturno', 'ciudad-nubes', 'puerto-espacial', 'montanas-guilin']
+        && available(uid, data.characterId)
+        && available(uid, data.landscapeId);
+    }
+
+    function validReadState(projectId) {
+      let data = request.resource.data;
+      return data.keys().hasOnly(['projectId', 'lastReadAt', 'readIds'])
+        && data.projectId == projectId
+        && data.lastReadAt is timestamp
+        && data.lastReadAt <= request.time
+        && data.readIds is list && data.readIds.size() <= 200;
+    }
+
+    // Client transactions require immutable receipts and matching ledger writes.
+    function walletPurchase(uid, old, data) {
+      return data.earned == old.earned
+        && data.lastAward == old.lastAward
+        && data.lastPurchase in shopPrices()
+        && data.spent == old.spent + shopPrices()[data.lastPurchase]
+        && !exists(inventoryPath(uid, data.lastPurchase))
+        && existsAfter(inventoryPath(uid, data.lastPurchase));
+    }
+
+    // The balance starts at 0, always equals earned minus spent and never goes negative.
+    function validWallet(uid) {
+      let data = request.resource.data;
+      let old = resource == null ? { 'earned': 0, 'spent': 0, 'lastAward': '', 'lastPurchase': '' } : resource.data;
+      return isSelf(uid)
+        && data.keys().hasAll(['balance', 'earned', 'spent', 'lastAward', 'lastPurchase', 'updatedAt'])
+        && data.keys().hasOnly(['balance', 'earned', 'spent', 'lastAward', 'lastPurchase', 'updatedAt'])
+        && data.balance is int && data.earned is int && data.spent is int
+        && data.lastAward is string && data.lastPurchase is string
+        && data.balance == data.earned - data.spent
+        && data.balance >= 0
+        && data.updatedAt == request.time
+        && data.lastAward.size() <= 300 && data.lastPurchase.size() <= 100 && data.earned >= 0 && data.spent >= 0
+        && (data.earned == old.earned + 1 ? walletAward(uid, old, data)
+          : (data.lastPurchase in shopPrices() ? walletPurchase(uid, old, data) : walletProtection(uid, old, data)));
+    }
+
+    function validInventoryItem(uid, itemId) {
+      let data = request.resource.data;
+      return isSelf(uid)
+        && data.keys().hasAll(['itemId', 'price', 'acquiredAt'])
+        && data.keys().hasOnly(['itemId', 'price', 'acquiredAt'])
+        && data.itemId == itemId
+        && itemId in shopPrices()
+        && data.price == shopPrices()[itemId]
+        && data.acquiredAt == request.time
+        && exists(walletPath(uid))
+        && getAfter(walletPath(uid)).data.lastPurchase == itemId
+        && getAfter(walletPath(uid)).data.spent == get(walletPath(uid)).data.spent + data.price;
+    }
+
+    // ─── Matches ───────────────────────────────────────────────────────────
+    match /projects/{projectId} {
+      allow get: if isProjectMember(projectId);
+      allow list: if false;
+      allow create: if emailAccount()
+        && validProject(projectId)
+        && request.resource.data.ownerUid == request.auth.uid
+        && ownerDocumentsCreated(projectId, request.auth.uid);
+      allow update: if (isProjectOwner(projectId)
+          && validProject(projectId)
+          && request.resource.data.ownerUid == resource.data.ownerUid
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'description', 'repositoryUrl', 'previewUrl', 'kind', 'schedule', 'iconUrl', 'githubPolicy']))
+        // Cheap guard first: ordinary edits never pay for the transfer's getAfter() checks.
+        || (request.resource.data.ownerUid != resource.data.ownerUid && validProjectOwnershipTransfer(projectId));
+      allow delete: if false;
+
+      match /members/{uid} {
+        allow get: if isProjectOwner(projectId) || (signedIn() && request.auth.uid == uid && isProjectMember(projectId));
+        allow list: if isProjectOwner(projectId);
+        allow create: if validMemberCreate(projectId, uid);
+        allow update: if validMemberOwnershipTransfer(projectId, uid);
+        allow delete: if isProjectOwner(projectId) && uid != request.auth.uid && resource.data.role == 'member';
+      }
+
+      match /directory/{uid} {
+        allow get, list: if isProjectMember(projectId);
+        allow create, update: if validDirectoryWrite(projectId, uid);
+        allow delete: if false;
+      }
+
+      // Email invitations are retired: existing records stay readable to the owner only.
+      match /invitations/{invitationId} {
+        allow get, list: if isProjectOwner(projectId);
+        allow create, update, delete: if false;
+      }
+
+      // Knowing a link id (128 random bits) lets a signed-in person read the
+      // project name and ask for access; it never grants access by itself.
+      match /accessLinks/{linkId} {
+        allow get: if emailAccount();
+        allow list: if isProjectOwner(projectId);
+        allow create: if isProjectOwner(projectId) && validAccessLink(projectId, linkId);
+        allow update: if isProjectOwner(projectId) && ownerRevokesAccessLink();
+        allow delete: if false;
+      }
+
+      // One current-state document per account (id = uid), so two requests can
+      // never be pending at once. Emails and decisions stay between the owner
+      // and the person concerned.
+      match /accessRequests/{uid} {
+        allow get: if isSelf(uid) || isProjectOwner(projectId);
+        allow list: if isProjectOwner(projectId);
+        allow create: if validAccessRequest(projectId, uid, 1);
+        allow update: if ownerDecidesRequest(projectId, uid)
+          || ownerTogglesRetry(projectId, uid)
+          || requesterRetries(projectId, uid);
+        allow delete: if false;
+      }
+
+      match /accessRequestHistory/{entryId} {
+        allow get: if isProjectOwner(projectId) || (signedIn() && resource.data.requesterUid == request.auth.uid);
+        allow list: if isProjectOwner(projectId) || (signedIn() && resource.data.requesterUid == request.auth.uid);
+        allow create: if validAccessHistory(projectId, entryId);
+        allow update, delete: if false;
+      }
+
+      match /tasks/{taskId} {
+        allow read: if isProjectMember(projectId);
+        allow create: if isProjectMember(projectId)
+          && validTask(taskId)
+          && request.resource.data.revision == 1
+          && assigneeAllowed(projectId, '')
+          && milestoneAllowed(projectId, '')
+          && taskEventWritten(projectId, taskId, 1, 'created');
+        allow create, update: if isProjectMember(projectId) && validLegacyTask(taskId);
+        allow update: if isProjectMember(projectId)
+          && validTask(taskId)
+          && request.resource.data.revision == revisionOf(resource.data) + 1
+          && assigneeAllowed(projectId, resource.data.get('assigneeUid', ''))
+          && milestoneAllowed(projectId, resource.data.get('milestoneId', ''))
+          && taskEventWritten(projectId, taskId, request.resource.data.revision, 'updated');
+        allow delete: if isProjectMember(projectId)
+          && (taskEventWritten(projectId, taskId, revisionOf(resource.data) + 1, 'deleted')
+            || (transitionOpen() && !('revision' in resource.data)));
+      }
+
+      match /milestones/{milestoneId} {
+        allow read: if isProjectMember(projectId);
+        allow create: if isProjectOwner(projectId)
+          && validMilestone(milestoneId)
+          && request.resource.data.revision == 1
+          && request.resource.data.archived == false
+          && request.resource.data.createdByUid == request.auth.uid
+          && existsAfter(eventPath(projectId, milestoneEventId(milestoneId, 1)));
+        allow update: if isProjectOwner(projectId)
+          && validMilestone(milestoneId)
+          && request.resource.data.revision == resource.data.revision + 1
+          && request.resource.data.createdAt == resource.data.createdAt
+          && request.resource.data.createdByUid == resource.data.createdByUid
+          && existsAfter(eventPath(projectId, milestoneEventId(milestoneId, request.resource.data.revision)));
+        allow delete: if false;
+      }
+
+      match /events/{eventId} {
+        allow read: if isProjectMember(projectId);
+        // Membership is only visible after the commit for the project's own creation event.
+        allow create: if (isProjectMember(projectId) || request.resource.data.targetType == 'project')
+          && validEvent(projectId, eventId);
+        allow update, delete: if false;
+      }
+
+      match /branches/{branchId} {
+        allow read: if isProjectMember(projectId);
+        allow create: if isProjectMember(projectId)
+          && validBranch(branchId)
+          && (existsAfter(eventPath(projectId, 'branch-' + branchId)) || transitionOpen());
+        allow update: if isProjectMember(projectId) && validBranch(branchId);
+        allow delete: if isProjectMember(projectId);
+      }
+    }
+
+    match /users/{uid}/projectAccess/{projectId} {
+      allow get, list: if isSelf(uid);
+      allow create, update: if validProjectAccessWrite(uid, projectId)
+        || validApprovedAccessWrite(uid, projectId)
+        || validOwnershipTransferAccessWrite(uid, projectId);
+      allow delete: if isProjectOwner(projectId) && uid != request.auth.uid;
+    }
+
+    match /users/{uid}/accessRequests/{projectId} {
+      allow get, list: if isSelf(uid);
+      allow create, update: if validOwnRequestIndex(uid, projectId);
+      allow delete: if isSelf(uid);
+    }
+
+    match /users/{uid}/preferences/{docId} {
+      allow get, list: if isSelf(uid);
+      allow create, update: if isSelf(uid)
+        && ((docId == 'main' && validPreferences())
+          || (docId == 'scene' && validSceneSelection(uid)));
+      allow delete: if false;
+    }
+
+    match /users/{uid}/readState/{projectId} {
+      allow get, list: if isSelf(uid);
+      allow create, update: if isSelf(uid) && validReadState(projectId);
+      allow delete: if isSelf(uid);
+    }
+
+    match /users/{uid}/activeDays/{dayId} {
+      allow get, list: if isSelf(uid);
+      allow create, update: if validActive(uid, dayId);
+    }
+
+    match /users/{uid}/progress/{docId} {
+      allow get: if isSelf(uid);
+      allow create, update: if (docId == 'wallet' && validWallet(uid)) || (docId == 'summary' && validProgress(uid));
+      allow delete: if false;
+    }
+
+    match /users/{uid}/pointEvents/{key} {
+      allow get, list: if isSelf(uid);
+      allow create: if validPoint(uid, key);
+    }
+
+    match /users/{uid}/pointDays/{dayId} {
+      allow get, list: if isSelf(uid);
+      allow create, update: if validPointDay(uid, dayId);
+    }
+
+    match /users/{uid}/inventory/{itemId} {
+      allow get, list: if isSelf(uid);
+      allow create: if validInventoryItem(uid, itemId);
+      allow update, delete: if false;
+    }
+  }
+}

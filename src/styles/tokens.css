@@ -1,0 +1,87 @@
+:root {
+  color-scheme: dark;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", system-ui, sans-serif;
+  font-synthesis: none;
+  --bg: #08090b;
+  --surface: rgba(30, 30, 32, .68);
+  --surface-solid: #17181b;
+  --surface-raised: rgba(48, 49, 53, .72);
+  --line: rgba(255, 255, 255, .1);
+  --line-strong: rgba(255, 255, 255, .18);
+  --text: #f5f5f7;
+  --secondary: rgba(235, 235, 245, .7);
+  --tertiary: rgba(235, 235, 245, .45);
+  --mint: #8de7bd;
+  --mint-wash: rgba(141, 231, 189, .1);
+  --amber: #f6cf86;
+  --red: #ff7c87;
+  --tile: rgba(255, 255, 255, .025);
+  --tile-line: rgba(255, 255, 255, .07);
+  --rule: rgba(255, 255, 255, .06);
+  --sk-base: rgba(255, 255, 255, .05);
+  --sk-shine: rgba(255, 255, 255, .1);
+  --sk-speed: 1.2s;
+  --page-background: radial-gradient(900px 560px at 74% -18%, rgba(141, 231, 189, .075), transparent 62%), radial-gradient(560px 540px at 12% 78%, rgba(126, 180, 255, .035), transparent 70%);
+  --project-picker-background: radial-gradient(780px 500px at 52% 4%, rgba(141,231,189,.09), transparent 68%), linear-gradient(145deg, #101315 0%, #090a0c 54%, #101214 100%);
+  --safe-area-background: var(--page-background);
+  --safe-area-fill: var(--bg);
+  --radius: 20px;
+  --shadow: 0 22px 70px rgba(0, 0, 0, .3);
+  --ease: cubic-bezier(.2, .8, .2, 1);
+  box-sizing: border-box;
+  min-height: 100%;
+  background-color: var(--safe-area-fill);
+  background-image: var(--safe-area-background);
+}
+*, *::before, *::after { box-sizing: inherit; }
+html { position: relative; isolation: isolate; min-height: 100%; scroll-padding-top: 24px; scroll-behavior: smooth; background-color: var(--safe-area-fill); background-image: var(--safe-area-background); }
+html[data-safe-surface="projects"] { --safe-area-background: var(--project-picker-background); --safe-area-fill: #101315; }
+
+/*
+ * iOS Safari does not show the page under the notch: it paints the status bar
+ * with a colour sampled from the top of the page, or with theme-color /
+ * background-color when that strip is not uniform (a glow or grid). On touch
+ * screens the top strip is therefore a solid colour that fades into the
+ * background, and theme-color (set in App.tsx) and the fallback fill use the
+ * same value, so the status bar continues the app instead of a darker band.
+ */
+@media (max-width: 900px) {
+  :root {
+    --status-bar-app: #0c1011;
+    --status-bar-projects: #151c1c;
+    --page-background: linear-gradient(to bottom, #0c1011 0, #0c1011 calc(env(safe-area-inset-top, 0px) + 4px), rgba(12, 16, 17, 0) calc(env(safe-area-inset-top, 0px) + 150px)), radial-gradient(900px 560px at 74% -18%, rgba(141, 231, 189, .075), transparent 62%), radial-gradient(560px 540px at 12% 78%, rgba(126, 180, 255, .035), transparent 70%);
+    --project-picker-background: linear-gradient(to bottom, #151c1c 0, #151c1c calc(env(safe-area-inset-top, 0px) + 4px), rgba(21, 28, 28, 0) calc(env(safe-area-inset-top, 0px) + 170px)), radial-gradient(780px 500px at 52% 4%, rgba(141,231,189,.09), transparent 68%), linear-gradient(145deg, #101315 0%, #090a0c 54%, #101214 100%);
+    --safe-area-fill: #0c1011;
+  }
+  html[data-safe-surface="projects"] { --safe-area-fill: #151c1c; }
+}
+body {
+  position: relative; z-index: 1;
+  min-width: 320px;
+  min-height: 100%;
+  min-height: 100vh;
+  min-height: 100dvh;
+  margin: 0;
+  overflow-x: hidden;
+  background-color: var(--safe-area-fill);
+  background-image: var(--safe-area-background);
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+  font-size: 14px;
+  line-height: 1.55;
+}
+#root { min-height: 100vh; min-height: 100dvh; background: transparent; }
+button, input, select, textarea { font: inherit; }
+button, select { cursor: pointer; }
+a { color: var(--mint); text-decoration: none; }
+a:hover { color: #c0f4d9; }
+:focus-visible { outline: 2px solid var(--mint); outline-offset: 3px; }
+
+/* Installed app: nothing is painted over the status bar, so the real background
+   (glow and grid included) shows under the notch instead of the flat strip. */
+@media (display-mode: standalone) {
+  :root {
+    --page-background: radial-gradient(900px 560px at 74% -18%, rgba(141, 231, 189, .075), transparent 62%), radial-gradient(560px 540px at 12% 78%, rgba(126, 180, 255, .035), transparent 70%);
+    --project-picker-background: radial-gradient(780px 500px at 52% 4%, rgba(141,231,189,.09), transparent 68%), linear-gradient(145deg, #101315 0%, #090a0c 54%, #101214 100%);
+  }
+}

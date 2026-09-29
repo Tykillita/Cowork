@@ -1,0 +1,39 @@
+.card-swap-container {
+  position: absolute;
+  top: calc(50% + 70px);
+  left: calc(50% - 75px);
+  overflow: visible;
+  transform: translate(-50%, -50%);
+  transform-origin: center;
+  perspective: 900px;
+}
+
+.card {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  border: 1px solid #fff;
+  border-radius: 12px;
+  background: #000;
+  transform-origin: center center;
+  transform-style: preserve-3d;
+  will-change: transform;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+@media (max-width: 768px) {
+  .card-swap-container { top: calc(50% + 52px); left: calc(50% - 36px); transform: translate(-50%, -50%) scale(.75); }
+}
+
+@media (max-width: 480px) {
+  .card-swap-container { top: calc(50% + 38px); left: calc(50% - 8px); transform: translate(-50%, -50%) scale(.55); }
+}
+
+@media (max-width: 380px) {
+  .card-swap-container { top: calc(50% + 34px); left: calc(50% - 3px); transform: translate(-50%, -50%) scale(.48); }
+}
+
+@media (max-height: 780px) and (min-width: 769px) {
+  .card-swap-container { top: calc(50% + 62px); left: calc(50% - 66px); transform: translate(-50%, -50%) scale(.88); }
+}

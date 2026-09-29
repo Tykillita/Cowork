@@ -1,0 +1,92 @@
+#overview, #task-board, #brief, #branch-log, #architecture { scroll-margin-top: 68px; }
+.page-view[hidden] { display: none !important; }
+main { width: min(1280px, 100%); min-width: 0; margin: 0 auto; padding: 26px clamp(22px, 3vw, 42px) 64px; }
+.app-shell { grid-template-columns: 230px minmax(0, 1fr); }
+.hero { grid-template-columns: minmax(0, 1.1fr) minmax(350px, .9fr); gap: 34px; margin-bottom: 20px; }
+.overviewGrid { display: grid; width: 100%; max-width: none; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.overviewCard { display: grid; min-height: 190px; align-content: start; gap: 10px; padding: 19px; color: var(--text); text-decoration: none; transition: transform .18s var(--ease), border-color .18s var(--ease), background .18s var(--ease); }
+.overviewCard:hover { transform: translateY(-2px); border-color: var(--line-strong); background: var(--surface-raised); color: var(--text); }
+.cardEyebrow { color: var(--mint); font-size: 9px; font-weight: 650; letter-spacing: .13em; }
+.overviewCardTitle { font-size: 17px; font-weight: 620; letter-spacing: -.025em; }
+.overviewCardCopy { max-width: 38ch; color: var(--tertiary); font-size: 11px; line-height: 1.6; }
+.cardAction { display: flex; align-items: center; gap: 8px; margin-top: auto; padding-top: 8px; color: var(--mint); font-size: 10px; font-weight: 600; }
+.pageHeading { max-width: 960px; margin: 4px 0 20px; }
+.pageHeading .eyebrow { margin-bottom: 8px; color: var(--mint); }
+.pageHeading h1 { margin-bottom: 7px; font-size: clamp(30px, 3vw, 40px); }
+.pageDescription { max-width: 64ch; margin: 0; color: var(--tertiary); font-size: 12px; line-height: 1.65; }
+.projectHomeRepo { display: grid; min-height: 210px; align-content: center; gap: 11px; padding: clamp(20px, 3vw, 30px); background: radial-gradient(260px 180px at 92% 10%, rgba(141,231,189,.09), transparent 78%), var(--surface); }
+.projectHomeRepo > strong { font-size: clamp(17px, 1.8vw, 22px); font-weight: 600; letter-spacing: -.025em; overflow-wrap: anywhere; }
+.projectHomeRepo > a, .projectHomeRepo > span:last-child { color: var(--secondary); font-size: 11px; text-decoration: none; }
+.projectHomeRepo > a:hover { color: var(--mint); }
+#task-board, #brief, #branch-log, #architecture { max-width: 1080px; }
+.facts { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.fact, .fact:first-child, .fact:nth-child(2) { min-height: 92px; padding: 14px; border: 1px solid var(--line); border-radius: 14px; background: rgba(255, 255, 255, .025); }
+.factWide { grid-column: auto; }
+.branchGrid { grid-template-columns: minmax(280px, .85fr) minmax(0, 1.15fr); gap: 18px; }
+.branchForm { padding-right: 18px; }
+.repoCards { display: grid; max-width: 1080px; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 12px; }
+.repoCard { display: flex; min-width: 0; min-height: 0; flex-direction: column; margin: 0; }
+.repoCard .panelHead { align-items: flex-start; gap: 12px; }
+.repoCard .panelHead h2 { margin: 0; }
+.repoStatus { display: inline-flex; align-items: center; gap: 7px; color: var(--tertiary); font-size: 9px; white-space: nowrap; }
+.repoStatus::before { width: 6px; height: 6px; border-radius: 50%; background: #e6b96f; content: ""; }
+.repoStatus[data-state="ready"]::before { background: var(--mint); box-shadow: 0 0 8px rgba(141, 231, 189, .42); }
+.repoStatus[data-state="error"]::before { background: #e58b89; }
+.repoRefresh { flex: none; min-height: 30px; padding: 0 9px; font-size: 9px; }
+.repoRefresh:disabled { opacity: .58; }
+.repoCardMeta { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: -4px 0 8px; color: var(--tertiary); font-size: 9px; }
+.repoCardMeta a { color: var(--mint); text-decoration: none; }
+.repoList { min-width: 0; max-height: 360px; overflow: auto; scrollbar-color: rgba(255,255,255,.16) transparent; scrollbar-width: thin; }
+.repoBranchItem { display: flex; flex-wrap: wrap; min-width: 0; align-items: center; justify-content: space-between; gap: 8px 12px; padding: 10px 0; border-top: 1px solid rgba(255,255,255,.075); }
+.repoBranchItem:first-child, .repoCommitItem:first-child { border-top: 0; }
+.repoBranchLink { min-width: 0; overflow-wrap: anywhere; color: var(--mint); font: 550 10px/1.5 ui-monospace, "SFMono-Regular", Consolas, monospace; text-decoration: none; }
+.repoBranchLink:hover, .repoCardMeta a:hover { text-decoration: underline; }
+.repoDefault { flex: none; padding: 3px 7px; border: 1px solid rgba(141,231,189,.16); border-radius: 999px; color: var(--mint); font-size: 8px; }
+.repoProtected { flex: none; padding: 3px 7px; border: 1px solid var(--line); border-radius: 999px; color: var(--secondary); font-size: 8px; }
+.repoBranchDelete { flex: none; min-height: 24px; padding: 0 4px; color: var(--tertiary); font-size: 9px; }
+.repoBranchDelete:hover { color: var(--text); }
+.repoBranchConfirm { display: grid; flex-basis: 100%; gap: 8px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: rgba(255,255,255,.035); color: var(--secondary); font-size: 10px; line-height: 1.5; }
+.repoBranchConfirm p { margin: 0; }
+.repoBranchConfirm code { color: var(--text); font: 9.5px ui-monospace, "SFMono-Regular", Consolas, monospace; overflow-wrap: anywhere; }
+.repoBranchConfirm > div { display: flex; justify-content: flex-end; gap: 8px; }
+.repoBranchConfirm button { min-height: 28px; padding: 0 10px; font-size: 10px; }
+.repoBranchConfirm button:disabled { opacity: .58; cursor: wait; }
+.repoSha { flex: none; color: var(--tertiary); font: 9px ui-monospace, "SFMono-Regular", Consolas, monospace; }
+.repoCommitItem { display: grid; gap: 6px; padding: 11px 0; border-top: 1px solid rgba(255,255,255,.075); }
+.repoCommitMessage { display: -webkit-box; overflow: hidden; color: var(--secondary); font-size: 10px; font-weight: 550; line-height: 1.5; text-decoration: none; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+.repoCommitMessage:hover { color: var(--mint); }
+.repoCommitMeta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; color: var(--tertiary); font-size: 9px; }
+.repoCommitMeta code { color: var(--mint); font: 9px ui-monospace, "SFMono-Regular", Consolas, monospace; }
+.repoEmpty { padding: 13px 0; color: var(--tertiary); font-size: 10px; line-height: 1.6; }
+.repoEmpty p { margin: 0; }
+.repoConnect { min-height: 30px; margin-top: 10px; padding: 0 11px; font-size: 10px; }
+.repoConnect:disabled { opacity: .58; cursor: wait; }
+.techGrid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.tech { min-height: 0; border-radius: 16px; }
+.tech summary { min-height: 0; gap: 7px; padding: 13px 42px 13px 16px; }
+@media (max-width: 1120px) {
+  main { padding-right: 30px; padding-left: 30px; }
+  .app-shell { grid-template-columns: 218px minmax(0, 1fr); }
+  .hero { grid-template-columns: minmax(0, 1fr) minmax(310px, .9fr); gap: 24px; }
+  .techGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 900px) {
+  main { width: 100%; padding: 22px 24px 52px; }
+  .hero { grid-template-columns: minmax(0, 1fr) minmax(290px, .9fr); }
+  #task-board, #brief, #branch-log, #architecture { max-width: none; }
+  .repoCards { max-width: none; }
+}
+@media (max-width: 640px) {
+  main { padding: 18px 15px 42px; }
+  .hero { grid-template-columns: minmax(0, 1fr); gap: 19px; }
+  .overviewGrid { grid-template-columns: minmax(0, 1fr); }
+  .overviewCard { min-height: 160px; }
+  .facts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .fact, .fact:first-child, .fact:nth-child(2) { min-height: 0; padding: 11px; }
+  .branchGrid { grid-template-columns: minmax(0, 1fr); }
+  .repoCards { grid-template-columns: minmax(0, 1fr); }
+  .repoCard .panelHead { flex-wrap: wrap; }
+  .repoCardMeta { align-items: flex-start; flex-direction: column; }
+  .techGrid { grid-template-columns: minmax(0, 1fr); }
+  .tech, .tech summary { min-height: 84px; }
+}

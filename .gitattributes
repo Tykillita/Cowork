@@ -1,0 +1,6 @@
+# Keep LF in the repository and working trees on every OS.
+* text=auto eol=lf
+*.png binary
+*.jpg binary
+*.ico binary
+*.webp binary

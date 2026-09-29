@@ -1,0 +1,14 @@
+node_modules/
+dist/
+.firebase/
+.firebaserc
+.claude/
+.agents/
+skills-lock.json
+.kilo/
+.env*
+!.env.example
+*.tsbuildinfo
+*-debug.log
+test-results/
+playwright-report/
