@@ -1,0 +1,128 @@
+.projectPickerActionGroup { width: 100%; }
+.projectPickerActionGroup:not([data-search-phase="closed"]) ~ .projectNoResults { display: none; }
+.projectPickerActionGroup .projectPickerActions { flex-wrap: nowrap; }
+.projectPickerActionGroup .projectAddButton { flex: none; white-space: nowrap; }
+/* Reserve the short extension so Team and the search icon never change rows. */
+.projectSearchControl { flex: 1 1 0; min-width: 44px; max-width: 136px; height: 44px; }
+.projectSearchDockToggle {
+  width: 44px; min-width: 44px; height: 44px; padding: 0 !important;
+  justify-content: flex-start; transition: width .28s cubic-bezier(.2,.75,.25,1);
+}
+.projectSearchControl[data-expanded="true"] .projectSearchDockToggle { width: 100%; }
+/* Desktop: the open trigger stretches to the end of the row, so its right edge
+   lines up with the search card below (both span the action group). */
+@media (min-width: 641px) {
+  .projectSearchControl { max-width: none; }
+}
+.projectSearchDockToggle .specular-button__label { display: flex; width: 100%; height: 100%; align-items: center; gap: 9px; padding: 0 12.5px; overflow: hidden; white-space: nowrap; }
+.projectSearchDockToggle .specular-button__label > svg { display: block; width: 19px; height: 19px; flex: none; }
+.projectSearchDockToggle:active { transform: none; }
+.projectSearchDockTriggerText { opacity: 0; font-size: 12px; transition: opacity .18s ease; }
+.projectSearchControl[data-expanded="true"] .projectSearchDockTriggerText { opacity: 1; }
+.projectSearchDockPanel { display: grid; grid-template-rows: 1fr; min-width: 0; margin-top: 14px; }
+.projectSearchDockPanel[data-phase="opening"] { animation: projectSearchPanelIn .24s var(--ease) both; }
+.projectSearchDockPanel[data-phase="closing"] { animation: projectSearchPanelOut .2s var(--ease) both; }
+.projectSearchDockClip { min-height: 0; overflow: hidden; border-radius: 20px; }
+.projectSearchDockInner {
+  position: relative; display: flex; min-height: 0; flex-direction: column; gap: 14px; padding: 18px;
+  border: 1px solid rgba(255,255,255,.09); border-radius: 20px;
+  background:
+    radial-gradient(120% 70% at 0% 0%, rgba(255,255,255,.035), transparent 60%),
+    linear-gradient(180deg, rgba(22,26,29,.94), rgba(13,16,18,.96));
+  color: var(--text);
+  box-shadow: inset 0 1px rgba(255,255,255,.05), 0 18px 50px -20px rgba(0,0,0,.7);
+}
+.projectSearchDockMeta { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.projectSearchDockHeading { display: flex; min-width: 0; align-items: center; gap: 10px; }
+.projectSearchDockMeta h2 { margin: 0; font-size: 15px; font-weight: 600; letter-spacing: -.025em; white-space: nowrap; }
+.projectSearchDockCount { margin: 0; padding: 3px 8px; border: 1px solid var(--line); border-radius: 999px; background: rgba(255,255,255,.04); color: var(--secondary); font-size: 10.5px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.projectSearchDockClose { display: grid; width: 32px; height: 32px; flex: none; place-items: center; padding: 0; border: 1px solid transparent; border-radius: 10px; background: rgba(255,255,255,.04); color: var(--secondary); cursor: pointer; transition: background .15s ease, color .15s ease, border-color .15s ease; }
+.projectSearchDockClose svg { width: 16px; height: 16px; }
+.projectSearchDockClose:hover { border-color: var(--line); background: rgba(255,255,255,.08); color: var(--text); }
+.projectSearchField { display: flex; min-width: 0; align-items: center; gap: 10px; padding: 0 8px 0 14px; border: 1px solid var(--line-strong); border-radius: 13px; background: rgba(6,8,9,.75); box-shadow: inset 0 1px 2px rgba(0,0,0,.4); transition: border-color .15s ease, box-shadow .15s ease; }
+.projectSearchField:focus-within { border-color: rgba(255,255,255,.3); box-shadow: inset 0 1px 2px rgba(0,0,0,.4), 0 0 0 4px rgba(255,255,255,.05); }
+.projectSearchField > svg { width: 17px; height: 17px; flex: none; color: var(--tertiary); transition: color .15s ease; }
+.projectSearchField:focus-within > svg { color: var(--text); }
+.projectSearchField input[type="search"] { width: 100%; min-width: 0; min-height: 46px; padding: 0; border: 0; outline: none; box-shadow: none; background: transparent; color: var(--text); font: inherit; font-size: 13.5px; }
+.projectSearchField input::placeholder { color: var(--tertiary); }
+.projectSearchField input::-webkit-search-cancel-button { display: none; }
+.projectSearchDockClear { min-height: 30px; padding: 0 10px; border: 0; border-radius: 8px; background: rgba(255,255,255,.07); color: var(--text); font-size: 11px; cursor: pointer; }
+.projectSearchDockClear:hover { background: rgba(255,255,255,.12); }
+.projectSearchDockInner .projectToolbar { display: grid; gap: 12px; margin: 0; }
+.projectToolbarRow { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.projectSearchDockInner .projectSort { flex: 1; min-width: 160px; }
+.projectSort select { width: 100%; min-height: 36px; padding: 5px 26px 5px 10px; font-size: 12px; }
+.projectOrderButton { border-color: var(--line) !important; color: var(--text) !important; }
+.projectSearchDockResults { display: grid; min-height: 0; max-height: min(40dvh, 310px); flex: 0 1 auto; gap: 6px; margin: 0; padding: 12px 2px 2px; overflow-y: auto; overscroll-behavior: contain; border-top: 1px solid rgba(255,255,255,.06); list-style: none; scrollbar-color: rgba(255,255,255,.2) transparent; scrollbar-width: thin; }
+.projectSearchDockResults li { min-width: 0; }
+.projectSearchDockResult { display: flex; width: 100%; min-height: 60px; align-items: center; gap: 12px; padding: 10px 12px 10px 10px; border: 1px solid transparent; border-radius: 13px; background: rgba(255,255,255,.025); color: var(--text); text-align: left; cursor: pointer; transition: background .15s ease, border-color .15s ease; }
+.projectSearchDockResult:hover, .projectSearchDockResult[data-active="true"] { border-color: rgba(255,255,255,.16); background: rgba(255,255,255,.06); }
+.projectSearchDockResult[data-active="true"] { box-shadow: inset 2px 0 0 rgba(255,255,255,.7); }
+.projectSearchDockResultCopy mark { padding: 0 1px; border-radius: 3px; background: rgba(255,255,255,.16); color: var(--text); }
+.projectSearchDockResult:focus-visible, .projectSearchDockToggle:focus-visible, .projectSearchDockClose:focus-visible, .projectSearchDockClear:focus-visible { outline: 2px solid rgba(255,255,255,.7); outline-offset: 2px; }
+.projectSearchDockMark { display: grid; width: 36px; height: 36px; flex: none; place-items: center; border: 1px solid var(--line); border-radius: 11px; background: linear-gradient(160deg, rgba(255,255,255,.09), rgba(255,255,255,.02)); color: var(--text); font-size: 14px; font-weight: 650; box-shadow: inset 0 1px rgba(255,255,255,.06); }
+.projectSearchDockIcon { display: grid; width: 20px; height: 20px; place-items: center; overflow: hidden; border-radius: 5px; }
+.projectSearchDockIcon img { display: block; width: 100%; height: 100%; object-fit: contain; }
+.projectSearchDockResultCopy { display: grid; min-width: 0; flex: 1; gap: 3px; }
+.projectSearchDockResultCopy strong, .projectSearchDockResultCopy span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.projectSearchDockResultCopy strong { font-size: 13px; font-weight: 600; letter-spacing: -.01em; }
+.projectSearchDockResultCopy span { color: var(--tertiary); font-size: 11.5px; }
+.projectSearchDockFavorite { color: var(--amber); font-size: 12px; }
+.projectSearchDockArrow { width: 16px; height: 16px; flex: none; color: var(--tertiary); transition: transform .18s ease, color .15s ease; }
+.projectSearchDockResult:hover .projectSearchDockArrow, .projectSearchDockResult[data-active="true"] .projectSearchDockArrow, .projectSearchDockResult:focus-visible .projectSearchDockArrow { color: var(--text); transform: translateX(3px); }
+.projectSearchDockEmpty { padding: 20px 4px 8px; border-top: 1px solid rgba(255,255,255,.06); color: var(--secondary); font-size: 12px; line-height: 1.6; text-align: center; }
+.projectSearchDockEmpty p { margin: 0 0 12px; }
+.projectSearchDockEmptyIcon { display: grid; width: 40px; height: 40px; margin: 0 auto 10px; place-items: center; border: 1px solid var(--line); border-radius: 12px; background: rgba(255,255,255,.03); color: var(--tertiary); }
+.projectSearchDockEmptyIcon svg { width: 20px; height: 20px; }
+.projectSearchDockHints { display: flex; justify-content: flex-end; gap: 14px; margin: -4px -2px -4px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,.05); color: var(--tertiary); font-size: 10.5px; }
+.projectSearchDockHints span { display: inline-flex; align-items: center; gap: 4px; }
+.projectSearchDockHints kbd { display: inline-grid; min-width: 18px; height: 18px; place-items: center; padding: 0 4px; border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 5px; font-family: inherit; font-size: 10px; line-height: 1; }
+.projectSearchDockDialog {
+  position: fixed; width: min(480px, calc(100vw - 28px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px)));
+  max-width: none; max-height: calc(100dvh - 32px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+  inset: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px);
+  margin: auto; padding: 0; overflow: hidden; border: 0; border-radius: 20px; background: #101315; color: var(--text);
+  box-shadow: 0 24px 80px rgba(0,0,0,.5);
+}
+.projectSearchDockDialog .projectSearchDockInner { border: 0; }
+.projectSearchDockDialog[open] { display: flex; flex-direction: column; }
+.projectSearchDockDialog::backdrop { background: rgba(4,6,7,.76); backdrop-filter: blur(9px); }
+.projectSearchDockDialog[data-phase="opening"] { animation: projectSearchModalIn .22s var(--ease) both; }
+.projectSearchDockDialog[data-phase="closing"] { animation: projectSearchModalOut .18s ease-in both; }
+.projectSearchDockDialog[data-phase="opening"]::backdrop { animation: projectSearchBackdropIn .22s ease both; }
+.projectSearchDockDialog[data-phase="closing"]::backdrop { animation: projectSearchBackdropOut .18s ease both; }
+.projectSearchDockDialog .projectSearchDockInner { max-height: inherit; overflow-y: auto; overscroll-behavior: contain; }
+.projectSearchDockDialog .projectSearchDockResults { max-height: min(42dvh, 360px); flex-shrink: 0; }
+.projectPickerActionGroup[data-reduced-motion="true"] .projectSearchDockToggle,
+.projectPickerActionGroup[data-reduced-motion="true"] .projectSearchDockTriggerText { transition: none; }
+.projectPickerActionGroup[data-reduced-motion="true"] :is(.projectSearchDockPanel, .projectSearchDockDialog),
+.projectPickerActionGroup[data-reduced-motion="true"] .projectSearchDockDialog::backdrop { animation: none; }
+@keyframes projectSearchPanelIn { from { grid-template-rows: 0fr; opacity: 0; margin-top: 0; } to { grid-template-rows: 1fr; opacity: 1; margin-top: 14px; } }
+@keyframes projectSearchPanelOut { from { grid-template-rows: 1fr; opacity: 1; margin-top: 14px; } to { grid-template-rows: 0fr; opacity: 0; margin-top: 0; } }
+@keyframes projectSearchModalIn { from { opacity: 0; transform: translateY(18px) scale(.98); } to { opacity: 1; transform: none; } }
+@keyframes projectSearchModalOut { from { opacity: 1; transform: none; } to { opacity: 0; transform: translateY(12px) scale(.98); } }
+@keyframes projectSearchBackdropIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes projectSearchBackdropOut { from { opacity: 1; } to { opacity: 0; } }
+/* Anchor the heading/actions while the desktop panel grows in document flow. */
+@media (min-width: 901px) { .projectPicker .projectPickerContent { justify-content: flex-start; } .projectShowcase .projectPreviewColumn { align-self: start; } .projectShowcase .projectShowcaseCopy { align-self: start; padding-top: clamp(70px, 12svh, 128px); } }
+@media (max-width: 640px) {
+  .projectSearchControl { max-width: 116px; }
+  .projectSearchDockInner { padding: 15px; }
+  .projectSearchField input[type="search"] { font-size: 16px; }
+  .projectSearchDockClose { width: 40px; height: 40px; }
+  .projectSearchDockInner .segmented button, .projectSort select { min-height: 40px; }
+}
+@media (max-width: 380px) {
+  .projectPickerActionGroup .projectAddButton { padding-right: 14px; padding-left: 14px; font-size: 12px; }
+  .projectSearchDockToggle .specular-button__label { gap: 7px; }
+}
+/* Neutral accents inside the dock, matching the action buttons above it: the
+   shared toggle and select otherwise bring the app's mint highlight. */
+.projectSearchDockInner .segmented > button.isActive { background: rgba(255,255,255,.1); color: var(--text); }
+.projectSearchDockInner select:focus { border-color: rgba(255,255,255,.3); box-shadow: 0 0 0 3px rgba(255,255,255,.05); }
+@supports (appearance: base-select) {
+  .projectSearchDockInner select:open { border-color: rgba(255,255,255,.3); background: rgba(255,255,255,.05); }
+  .projectSearchDockInner select:open::picker-icon { color: var(--text); }
+  .projectSearchDockInner select option:checked { background: rgba(255,255,255,.08); color: var(--text); }
+  .projectSearchDockInner select option::checkmark { color: var(--text); }
+}

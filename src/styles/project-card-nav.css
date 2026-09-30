@@ -1,0 +1,65 @@
+.app-shell {
+  display: block;
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+/*
+ * The wrapper reserves only the closed bar (top offset + 60px). The Argus card
+ * keeps its size and expands over the page, so opening it never moves content.
+ */
+.projectCardNav {
+  --card-nav-top: 20px;
+  --card-nav-gutter: clamp(24px, 3.5vw, 58px);
+  position: relative;
+  z-index: 40;
+  width: min(1500px, 100%);
+  --card-nav-offset: max(var(--card-nav-top), calc(env(safe-area-inset-top, 0px) + 8px));
+  height: calc(var(--card-nav-offset) + 60px);
+  margin: 0 auto;
+  padding: 0 var(--card-nav-gutter);
+}
+
+.projectCardNav .card-nav-container {
+  position: absolute;
+  top: max(var(--card-nav-top), calc(env(safe-area-inset-top, 0px) + 8px));
+  left: 50%;
+  width: calc((100% - 2 * var(--card-nav-gutter)) * 0.9);
+  max-width: 800px;
+  margin: 0;
+  transform: translateX(-50%);
+}
+
+.projectCardNav .nav-card-link-icon { display: block; width: 1em; height: 1em; flex: none; }
+.projectCardNav .card-nav-cta-mobile-label { display: none; }
+
+.app-shell main {
+  width: min(1500px, 100%);
+  min-width: 0;
+  margin: 0 auto;
+  padding: 18px clamp(24px, 3.5vw, 58px) max(64px, calc(env(safe-area-inset-bottom, 0px) + 24px));
+}
+
+.app-shell main .topbar { margin-bottom: 30px; }
+
+@media (max-width: 1120px) {
+  .projectCardNav { --card-nav-gutter: 28px; }
+  .app-shell main { padding-right: 28px; padding-left: 28px; }
+}
+
+@media (max-width: 900px) {
+  .projectCardNav { --card-nav-top: 12px; --card-nav-gutter: 20px; }
+  .app-shell main { width: 100%; padding: 16px max(20px, calc(env(safe-area-inset-right, 0px) + 12px)) max(52px, calc(env(safe-area-inset-bottom, 0px) + 24px)) max(20px, calc(env(safe-area-inset-left, 0px) + 12px)); }
+  .app-shell main .topbar { margin-bottom: 25px; }
+}
+
+@media (max-width: 640px) {
+  .projectCardNav { --card-nav-top: 8px; --card-nav-gutter: 12px; }
+  .projectCardNav .card-nav-cta-desktop-label { display: none; }
+  .projectCardNav .card-nav-cta-mobile-label { display: inline; }
+  .app-shell main { padding: 15px max(15px, calc(env(safe-area-inset-right, 0px) + 10px)) max(42px, calc(env(safe-area-inset-bottom, 0px) + 24px)) max(15px, calc(env(safe-area-inset-left, 0px) + 10px)); }
+  .app-shell main .topbar { align-items: center; flex-direction: row; gap: 8px; margin-bottom: 22px; }
+  .app-shell main .topbarStatus { min-width: 0; flex: 1; }
+  .app-shell main .topbarStatus .pill { max-width: 100%; }
+  .app-shell main .topActions { width: auto; flex: none; align-items: center; gap: 7px; }
+}

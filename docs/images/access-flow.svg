@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 330" width="960" height="330" role="img" aria-labelledby="t d" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">
+  <title id="t">Cómo entra alguien a un proyecto</title>
+  <desc id="d">Cuatro pasos: el propietario genera un enlace o QR que caduca a los 7 días; la persona inicia sesión y solicita acceso; el propietario recibe un aviso en Para ti; y la solicitud se aprueba, y el proyecto aparece en su lista, o se rechaza, con la opción de permitir otro intento y un historial de decisiones.</desc>
+  
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#08090b"/><stop offset=".55" stop-color="#14181a"/><stop offset="1" stop-color="#090b0d"/></linearGradient>
+    <linearGradient id="glass" x1="0" y1="0" x2=".9" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".09"/><stop offset=".5" stop-color="#fff" stop-opacity=".025"/><stop offset="1" stop-color="#b9c7ca" stop-opacity=".06"/></linearGradient>
+    
+  </defs>
+  <rect width="960" height="330" rx="28" fill="url(#bg)"/>
+  <rect x="1" y="1" width="958" height="328" rx="27" fill="url(#glass)" stroke="#fff" stroke-opacity=".14"/>
+  <text x="40" y="58" font-size="12" font-weight="600" fill="#f5f5f7" fill-opacity="0.6" text-anchor="start" letter-spacing="1.6">ACCESO A UN PROYECTO</text>
+  <text x="40" y="88" font-size="22" font-weight="650" fill="#f5f5f7" text-anchor="start">Un enlace solo permite pedir acceso; el propietario decide</text>
+  <rect x="40" y="116" width="196" height="176" rx="18" fill="#fff" fill-opacity=".045" stroke="#fff" stroke-opacity=".08"/>
+  <rect x="58" y="134" width="38" height="38" rx="12" fill="#fff" fill-opacity=".07"/>
+  <g transform="translate(65 141) scale(1.0)" fill="none" stroke="#f5f5f7" stroke-opacity="0.85" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></g>
+  <text x="216" y="158" font-size="13" font-weight="600" fill="#f5f5f7" fill-opacity="0.4" text-anchor="end">1</text>
+  <text x="58" y="200" font-size="16" font-weight="600" fill="#f5f5f7" text-anchor="start">Enlace o QR</text>
+  <text x="58" y="226" font-size="13" font-weight="400" fill="#ebebf5" fill-opacity="0.66" text-anchor="start">El propietario lo genera</text>
+  <text x="58" y="245" font-size="13" font-weight="400" fill="#ebebf5" fill-opacity="0.66" text-anchor="start">desde Configuración.</text>
+  <text x="58" y="264" font-size="13" font-weight="400" fill="#ebebf5" fill-opacity="0.66" text-anchor="start">Caduca a los 7 días.</text>
+  <path d="M242 204.0h24m-7-6 7 6-7 6" fill="none" stroke="#fff" stroke-opacity=".4" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="272" y="116" width="196" height="176" rx="18" fill="#fff" fill-opacity=".045" stroke="#fff" stroke-opacity=".08"/>
+  <rect x="290" y="134" width="38" height="38" rx="12" fill="#fff" fill-opacity=".07"/>
+  <g transform="translate(297 141) scale(1.0)" fill="none" stroke="#f5f5f7" stroke-opacity="0.85" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="9.5" cy="8" r="3.5"/><path d="M3.5 19.5c.6-3.3 3-5 6-5s5.4 1.7 6 5M18.5 8.5v6M15.5 11.5h6"/></g>
+  <text x="448" y="158" font-size="13" font-weight="600" fill="#f5f5f7" fill-opacity="0.4" text-anchor="end">2</text>
+  <text x="290" y="200" font-size="16" font-weight="600" fill="#f5f5f7" text-anchor="start">Solicitud</text>
+  <text x="290" y="226" font-size="13" font-weight="400" fill="#ebebf5" fill-opacity="0.66" text-anchor="start">La persona inicia sesión</text>
+  <text x="290" y="245" font-size="13" font-weight="400" fill="#ebebf5" fill-opacity="0.66" text-anchor="start">y pide entrar. No ve nada</text>
+  <text x="290" y="264" font-size="13" font-weight="400" fill="#ebebf5" fill-opacity="0.66" text-anchor="start">del proyecto todavía.</text>
+  <path d="M474 204.0h24m-7-6 7 6-7 6" fill="none" stroke="#fff" stroke-opacity=".4" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="504" y="116" width="196" height="176" rx="18" fill="#fff" fill-opacity=".045" stroke="#fff" stroke-opacity=".08"/>
+  <rect x="522" y="134" width="38" height="38" rx="12" fill="#fff" fill-opacity=".07"/>
+  <g transform="translate(529 141) scale(1.0)" fill="none" stroke="#f5f5f7" stroke-opacity="0.85" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9a6 6 0 0 1 12 0c0 6 2.5 8 2.5 8h-17S6 15 6 9"/><path d="M10.3 20a1.9 1.9 0 0 0 3.4 0"/></g>
+  <text x="680" y="158" font-size="13" font-weight="600" fill="#f5f5f7" fill-opacity="0.4" text-anchor="end">3</text>
+  <text x="522" y="200" font-size="16" font-weight="600" fill="#f5f5f7" text-anchor="start">Aviso en «Para ti»</text>
+  <text x="522" y="226" font-size="13" font-weight="400" fill="#ebebf5" fill-opacity="0.66" text-anchor="start">El propietario revisa</text>
+  <text x="522" y="245" font-size="13" font-weight="400" fill="#ebebf5" fill-opacity="0.66" text-anchor="start">quién lo pide y cuántas</text>
+  <text x="522" y="264" font-size="13" font-weight="400" fill="#ebebf5" fill-opacity="0.66" text-anchor="start">veces lo ha intentado.</text>
+  <path d="M706 204.0h24m-7-6 7 6-7 6" fill="none" stroke="#fff" stroke-opacity=".4" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="736" y="116.0" width="184" height="82.0" rx="16" fill="#8de7bd" fill-opacity=".07" stroke="#8de7bd" stroke-opacity=".3"/>
+  <g transform="translate(752 130.0) scale(0.8333333333333334)" fill="none" stroke="#8de7bd" stroke-opacity="0.95" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12.5 4.5 4.5L19 7.5"/></g>
+  <text x="780" y="145.0" font-size="15" font-weight="600" fill="#f5f5f7" text-anchor="start">Aprobada</text>
+  <text x="752" y="168.0" font-size="12.5" font-weight="400" fill="#ebebf5" fill-opacity="0.66" text-anchor="start">Entra al equipo y ve el</text>
+  <text x="752" y="185.0" font-size="12.5" font-weight="400" fill="#ebebf5" fill-opacity="0.66" text-anchor="start">proyecto en su lista.</text>
+  <rect x="736" y="210.0" width="184" height="82.0" rx="16" fill="#ebebf5" fill-opacity=".04" stroke="#ebebf5" stroke-opacity=".1"/>
+  <g transform="translate(752 224.0) scale(0.8333333333333334)" fill="none" stroke="#ebebf5" stroke-opacity="0.95" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M7 7l10 10M17 7 7 17"/></g>
+  <text x="780" y="239.0" font-size="15" font-weight="600" fill="#f5f5f7" text-anchor="start">Rechazada</text>
+  <text x="752" y="262.0" font-size="12.5" font-weight="400" fill="#ebebf5" fill-opacity="0.66" text-anchor="start">Con historial y opción de</text>
+  <text x="752" y="279.0" font-size="12.5" font-weight="400" fill="#ebebf5" fill-opacity="0.66" text-anchor="start">otro intento.</text>
+</svg>

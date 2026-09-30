@@ -1,0 +1,48 @@
+{
+  "name": "cowork-panel",
+  "version": "0.1.0",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": "22"
+  },
+  "scripts": {
+    "dev": "npm run build:emulators && npx firebase-tools emulators:start --only hosting,auth,firestore",
+    "test:streaks": "npx firebase-tools emulators:exec --only firestore --project demo-cowork-spark \"node --experimental-strip-types --test tests/spark-backend.test.mjs\"",
+    "build:emulators": "tsc --noEmit && cross-env VITE_USE_FIREBASE_EMULATORS=true vite build",
+    "dev:vite": "vite --host 0.0.0.0",
+    "dev:emulators": "npm run dev",
+    "build": "tsc --noEmit && cross-env VITE_USE_FIREBASE_EMULATORS=false vite build",
+    "deploy": "npm run build && npx firebase-tools deploy --only hosting:cowork,firestore:rules,firestore:indexes",
+    "preview": "vite preview --host 0.0.0.0",
+    "test:rules": "npx firebase-tools emulators:exec --only firestore --project demo-cowork-rules \"node --test tests/firestore.rules.test.mjs\"",
+    "test:unit": "vitest run",
+    "test:e2e": "npm run build:emulators && cross-env E2E_USE_PREVIEW=true firebase emulators:exec --only auth,firestore --project vigilia-panel \"npx playwright test\"",
+    "test": "npm run test:unit && npm run test:streaks && npm run test:rules && npm run test:e2e",
+    "test:smoke": "npm run build:emulators && firebase emulators:exec --only auth,firestore --project vigilia-panel \"node tests/spark-ui-smoke.mjs\""
+  },
+  "dependencies": {
+    "@date-fns/tz": "^1.5.0",
+    "date-fns": "^4.4.0",
+    "firebase": "^12.0.0",
+    "gsap": "^3.15.0",
+    "ogl": "^1.0.11",
+    "qrcode": "^1.5.4",
+    "react": "^19.3.0",
+    "react-day-picker": "^10.0.1",
+    "react-dom": "^19.3.0"
+  },
+  "devDependencies": {
+    "@firebase/rules-unit-testing": "^5.0.2",
+    "@playwright/test": "^1.63.0",
+    "@types/qrcode": "^1.5.6",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "cross-env": "^10.1.0",
+    "firebase-tools": "^15.31.0",
+    "typescript": "^5.9.3",
+    "vite": "^7.3.6",
+    "vitest": "^4.1.11"
+  }
+}

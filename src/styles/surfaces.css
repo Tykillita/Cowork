@@ -1,0 +1,21 @@
+.panel, .clock { min-width: 0; border: 1px solid var(--line); background: var(--surface); box-shadow: inset 0 1px rgba(255, 255, 255, .075), var(--shadow); backdrop-filter: blur(24px) saturate(145%); -webkit-backdrop-filter: blur(24px) saturate(145%); }
+.clock { position: relative; overflow: hidden; align-self: stretch; padding: 22px 23px 9px; border-radius: var(--radius); }
+.clock::after { position: absolute; inset: auto 0 0; height: 1px; background: linear-gradient(90deg, transparent, rgba(141, 231, 189, .5), transparent); content: ""; }
+.clockHead { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.clockHead .eyebrow { color: var(--mint); }
+.clock .when { margin: 6px 0 0; color: var(--tertiary); font-size: 11px; }
+.clockLabel { flex: none; padding: 5px 8px; border: 1px solid var(--line); border-radius: 999px; color: var(--secondary); font-size: 9px; }
+.digits { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-top: 23px; }
+.digits div { display: grid; min-width: 0; gap: 4px; }
+.digits b { color: var(--text); font-size: clamp(26px, 3.1vw, 43px); font-weight: 570; font-variant-numeric: tabular-nums; letter-spacing: -.05em; line-height: 1; }
+.digits span { color: var(--tertiary); font-size: 9px; letter-spacing: .06em; text-transform: uppercase; }
+.clock.urgent .digits b { color: var(--red); }
+.ecg { display: block; width: 100%; height: 31px; margin-top: 15px; opacity: .82; }
+.ecg polyline { fill: none; stroke: var(--mint); stroke-width: 1.7; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
+.workspaceGrid { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(280px, .78fr); align-items: start; gap: 14px; }
+.panel { padding: 21px; border-radius: var(--radius); }
+.panelHead { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; margin-bottom: 17px; }
+.panelHead > div { display: grid; gap: 6px; }
+.panelHead .eyebrow { margin-bottom: 1px; }
+.panelIntro { margin: -7px 0 17px; color: var(--tertiary); font-size: 12px; line-height: 1.55; }
+.rightRail { display: grid; gap: 14px; }
