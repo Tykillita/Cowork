@@ -44,6 +44,27 @@ export const NEXT: Upcoming = { summary: { es: "", en: "" }, added: [], changed:
 
 export const RELEASES: Release[] = [
   {
+    version: "0.3.4",
+    date: "2026-10-05",
+    released: false,
+    kind: "arreglo",
+    summary: {
+      es: "El degradado de novedades ahora empieza justo debajo de la cabecera y ocupa todo el ancho.",
+      en: "The changelog glow now starts directly below the header and spans the full width.",
+    },
+    added: [],
+    changed: [],
+    fixed: [
+      {
+        title: { es: "Degradado alineado con la cabecera", en: "Gradient aligned with the header" },
+        body: {
+          es: "El hero público ya no hereda el espacio superior ni los márgenes globales de la app: el resplandor empieza pegado bajo la navegación y recorre todo el ancho.",
+          en: "The public hero no longer inherits the app-wide main spacing: its glow starts directly below the navigation and spans the full viewport width.",
+        },
+      },
+    ],
+  },
+  {
     version: "0.3.3",
     date: "2026-10-05",
     released: true,

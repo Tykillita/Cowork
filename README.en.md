@@ -8,7 +8,7 @@
 
 <!-- The version badge mirrors VERSION: `npm run version:bump` updates it (AGENTS.md, «Versiones»). -->
 <p align="center">
-  <a href="CHANGELOG.md"><img alt="version 0.3.3" src="https://img.shields.io/badge/version-0.3.3-0b7a5b"></a>
+  <a href="CHANGELOG.md"><img alt="version 0.3.4" src="https://img.shields.io/badge/version-0.3.4-0b7a5b"></a>
   <a href="https://react.dev"><img alt="React 19" src="https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=111827"></a>
   <a href="https://www.typescriptlang.org"><img alt="TypeScript 5" src="https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white"></a>
   <a href="https://vite.dev"><img alt="Vite 7" src="https://img.shields.io/badge/Vite-7-646CFF?logo=vite&logoColor=white"></a>
@@ -55,7 +55,7 @@
 - Branches and changes: one list with the registered branches and GitHub's, with each one's pull request, how far it drifted from the main branch, its commits and its tasks; register, create on GitHub, delete and remove from the register.
 - Code: browse any branch or tag with [Material Icon Theme](https://github.com/material-extensions/vscode-material-icon-theme) icons (MIT), syntax highlighting, change marks and line links, under a GitHub-like bar (branch and tag picker, "Go to file" with the `T` key, clone over HTTPS, SSH or GitHub CLI, ZIP download). Images and SVGs get a preview ([docs/CODE-VIEWER.md](docs/CODE-VIEWER.md)).
 - Files under review: creating or uploading a file in Cowork leaves it pending; someone with write access approves it and it is committed to GitHub with their account, or rejects it with a reason.
-- What's new: every version, feature by feature, at [/novedades](https://cwspace.web.app/novedades), a public page in Spanish and English with system, light and dark themes, a neutral gray/black glow below the header, a green eyebrow label, and a fixed black logo with a white mark, linked from the home page footer.
+- What's new: every version, feature by feature, at [/novedades](https://cwspace.web.app/novedades), a public page in Spanish and English with system, light and dark themes, a full-width neutral gray/black glow starting directly below the header, a green eyebrow label, and a fixed black logo with a white mark, linked from the home page footer.
 - Project release notes to tasks: configure a public release notes page and Cowork reads each version's kind (Major, Feature or Fix) with distinct badges and marks Unreleased in blue, as well as each card's group (New, Changed or Fixed), recognizes statuses, and creates or updates tasks only after you accept each proposal. If CORS blocks access, it tells you which origin to allow.
 - GitHub: sign in with GitHub or link it, see the repository's branches and recent commits (private repositories too), and delete branches after a confirmation. The owner decides whether only they or the whole team may change branches.
 

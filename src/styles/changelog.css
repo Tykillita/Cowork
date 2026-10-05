@@ -90,6 +90,9 @@ html[data-site="dark"] { --safe-area-fill: #08090b; }
 .siteLink { color: var(--s-accent-text); font-weight: 550; text-decoration: none; }
 .site .siteLink:hover { color: var(--s-accent-text); text-decoration: underline; }
 
+/* The app-wide main padding must not inset the public release page. */
+.site > main { width: 100%; max-width: none; min-width: 0; margin: 0; padding: 0; }
+
 /* Hero */
 .siteHero { position: relative; isolation: isolate; padding: 80px 0 48px; text-align: center; }
 .siteHero::before { position: absolute; z-index: -1; inset: 0 0 auto; height: 440px; background: var(--s-hero-glow); content: ""; pointer-events: none; }
