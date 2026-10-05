@@ -7,7 +7,7 @@ subirla están en [AGENTS.md](AGENTS.md#versiones). La versión pública de esto
 
 ## [Unreleased]
 
-## [0.3.1] — 2026-10-04
+## [0.3.1] — 2026-10-05
 
 ### Changed
 - **Página pública de novedades**: el degradado del encabezado, los controles de tema en grupo y la escala del título siguen la referencia; el tema ahora se puede elegir entre sistema, claro y oscuro.

@@ -45,8 +45,8 @@ export const NEXT: Upcoming = { summary: { es: "", en: "" }, added: [], changed:
 export const RELEASES: Release[] = [
   {
     version: "0.3.1",
-    date: "2026-10-04",
-    released: false,
+    date: "2026-10-05",
+    released: true,
     kind: "arreglo",
     summary: {
       es: "La sincronización y la página pública de novedades se entienden y se recorren mejor.",
