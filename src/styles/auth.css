@@ -175,7 +175,9 @@
 .accountAccessMethod em { margin-left: auto; padding: 2px 8px; border: 1px solid var(--line); border-radius: 999px; background: rgba(255,255,255,.04); color: var(--secondary); font-size: 10px; font-style: normal; }
 .accountAccessMethod i { width: 7px; height: 7px; flex: none; border: 1px solid rgba(255,255,255,.24); border-radius: 50%; }
 .accountAccessMethod i.isConnected { border-color: var(--mint); background: var(--mint); box-shadow: 0 0 8px rgba(141,231,189,.35); }
-.accountAccessLinkButton { min-height: 42px; padding: 0 14px; border: 1px solid var(--line-strong); border-radius: 12px; background: rgba(255,255,255,.06); color: var(--text); font: inherit; font-size: 12px; font-weight: 600; cursor: pointer; transition: background .15s ease, border-color .15s ease; }
+.accountAccessLinkActions { display: flex; justify-content: center; gap: 12px; }
+.accountAccessLinkButton { display: inline-grid; width: 44px; height: 44px; min-height: 44px; flex: none; place-items: center; padding: 0; border: 1px solid var(--line-strong); border-radius: 12px; background: rgba(255,255,255,.06); color: var(--text); font: inherit; cursor: pointer; transition: background .15s ease, border-color .15s ease; }
+.accountAccessLinkButton svg { display: block; width: 22px; height: 22px; }
 .accountAccessLinkButton:hover:not(:disabled) { border-color: rgba(255,255,255,.3); background: rgba(255,255,255,.1); }
 .accountAccessLinkButton:disabled { opacity: .55; cursor: wait; }
 .accountAccessUnlink { justify-self: start; min-height: 28px; padding: 2px 0; border: 0; background: transparent; color: var(--tertiary); font: inherit; font-size: 11px; text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }

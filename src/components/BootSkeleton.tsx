@@ -2,7 +2,7 @@ import { useLayoutEffect } from "react";
 import { CoworkMark } from "./CoworkMark";
 import { repeat, Sk } from "./Skeleton";
 import "./ui/CardSwap.css";
-import { HomePageSkeleton, TaskBoardSkeleton, BranchesPageSkeleton, ProjectSettingsSkeleton } from "./PageSkeletons";
+import { HomePageSkeleton, TaskBoardSkeleton, BranchesPageSkeleton, CodePageSkeleton, ProjectSettingsSkeleton } from "./PageSkeletons";
 import type { PageId } from "../types";
 
 /** Which screen the app showed last, so the boot placeholder takes the shape of the next one. */
@@ -85,6 +85,7 @@ function ProjectSkeleton({ label, page }: { label: string; page: PageId }) {
       <div>
         {page === "work" ? <TaskBoardSkeleton />
           : page === "branches-page" ? <BranchesPageSkeleton />
+          : page === "code" ? <CodePageSkeleton />
           : page === "settings-page" ? <ProjectSettingsSkeleton />
           : <HomePageSkeleton />}
       </div>

@@ -2,7 +2,7 @@ import { lazy, Suspense, useCallback, useEffect, useRef, useState, type ReactNod
 import { AppShell } from "./components/AppShell";
 import { Toast } from "./components/Toast";
 import { BootSkeleton, readBootSurface, rememberBootSurface } from "./components/BootSkeleton";
-import { BranchesPageSkeleton, HomePageSkeleton, ProjectSettingsSkeleton, TaskBoardSkeleton } from "./components/PageSkeletons";
+import { BranchesPageSkeleton, CodePageSkeleton, HomePageSkeleton, ProjectSettingsSkeleton, TaskBoardSkeleton } from "./components/PageSkeletons";
 import { LazyDialogSkeleton } from "./components/LazyDialogSkeleton";
 import { LoginScreen } from "./features/auth/LoginScreen";
 import { endSession, getAuthRedirectResult, isEmailLinkSignIn, linkGoogleProvider, observePanelAuth } from "./features/auth/panelAuth";
@@ -26,6 +26,7 @@ const ProjectPicker = lazy(() => import("./features/projects/ProjectPicker").the
 const HomePage = lazy(() => import("./pages/HomePage").then(({ HomePage }) => ({ default: HomePage })));
 const TaskBoard = lazy(() => import("./features/workboard/TaskBoard").then(({ TaskBoard }) => ({ default: TaskBoard })));
 const BranchesPage = lazy(() => import("./pages/BranchesPage").then(({ BranchesPage }) => ({ default: BranchesPage })));
+const CodePage = lazy(() => import("./pages/CodePage").then(({ CodePage }) => ({ default: CodePage })));
 const ProjectSettingsPage = lazy(() => import("./pages/ProjectSettingsPage").then(({ ProjectSettingsPage }) => ({ default: ProjectSettingsPage })));
 const EntryPortal = lazy(() => import("./features/auth/EntryPortal").then(({ EntryPortal }) => ({ default: EntryPortal })));
 
@@ -312,6 +313,16 @@ export default function App() {
     await catalog.updateSchedule(selectedProjectId, schedule);
   }, [catalog.updateSchedule, selectedProjectId]);
 
+  const saveChangelogUrl = useCallback(async (changelogUrl: string) => {
+    if (!selectedProjectId) return;
+    await catalog.updateChangelogUrl(selectedProjectId, changelogUrl);
+  }, [catalog.updateChangelogUrl, selectedProjectId]);
+
+  const saveRepository = useCallback(async (repositoryUrl: string) => {
+    if (!selectedProjectId) return;
+    await catalog.updateRepositoryUrl(selectedProjectId, repositoryUrl);
+  }, [catalog.updateRepositoryUrl, selectedProjectId]);
+
   const saveGitHubPolicy = useCallback(async (branchWrite: GitHubBranchWrite) => {
     if (!selectedProjectId) return;
     await catalog.updateGitHubPolicy(selectedProjectId, branchWrite);
@@ -368,13 +379,25 @@ export default function App() {
   const project = selectedProject;
   const isOwner = project.ownerUid === user.id;
   const pages: Record<PageId, ReactNode> = {
-    home: <HomePage project={project} tasks={workboard.tasks} branchesCount={workboard.branches.length} milestones={workboard.milestones} now={now} ready={workboard.ready} />,
+    home: <HomePage
+      project={project}
+      user={user}
+      isOwner={isOwner}
+      tasks={workboard.tasks}
+      branches={workboard.branches}
+      milestones={workboard.milestones}
+      directory={workboard.directory}
+      now={now}
+      ready={workboard.ready}
+      activity={{ events: activity.events, ready: activity.projectReady(project.id), isUnreadEvent: activity.isUnreadEvent, milestoneTitle: activity.milestoneTitle }}
+    />,
     work: <TaskBoard
       project={project}
       user={user}
       tasks={workboard.tasks}
       milestones={workboard.milestones}
       directory={workboard.directory}
+      branches={workboard.branches}
       mode={workboard.mode}
       ready={workboard.ready}
       isOwner={isOwner}
@@ -385,13 +408,15 @@ export default function App() {
       onCreateMilestone={workboard.createMilestone}
       onUpdateMilestone={workboard.updateMilestone}
     />,
-    "branches-page": <BranchesPage project={project} branches={workboard.branches} ready={workboard.ready.branches} user={user} isOwner={isOwner} onSave={workboard.createBranch} onRemove={workboard.removeBranch} />,
-    "settings-page": <ProjectSettingsPage project={project} user={user} isOwner={isOwner} actions={catalog} onSavePreview={saveProjectPreview} onSaveSchedule={saveProjectSchedule} onSaveGitHubPolicy={saveGitHubPolicy} />,
+    "branches-page": <BranchesPage project={project} branches={workboard.branches} tasks={workboard.tasks} ready={workboard.ready.branches} user={user} isOwner={isOwner} onSave={workboard.createBranch} onRemove={workboard.removeBranch} />,
+    code: <CodePage project={project} user={user} isOwner={isOwner} />,
+    "settings-page": <ProjectSettingsPage project={project} user={user} isOwner={isOwner} actions={catalog} onSavePreview={saveProjectPreview} onSaveSchedule={saveProjectSchedule} onSaveGitHubPolicy={saveGitHubPolicy} onSaveRepository={saveRepository} onSaveChangelogUrl={saveChangelogUrl} />,
   };
   const pageSkeletons: Record<PageId, ReactNode> = {
     home: <HomePageSkeleton />,
     work: <TaskBoardSkeleton />,
     "branches-page": <BranchesPageSkeleton />,
+    code: <CodePageSkeleton />,
     "settings-page": <ProjectSettingsSkeleton />,
   };
 

@@ -171,8 +171,8 @@ export function useWorkboard(user: PanelUser | null, project: Project | null, no
     onWork(saved);
   }, [onWork, projectId, run, user]);
 
-  const removeBranch = useCallback(async (id: string) => {
-    await run("la eliminación", (api) => api.deleteBranch(projectId, id));
+  const removeBranch = useCallback(async (entry: BranchEntry) => {
+    await run("la eliminación", (api) => api.deleteBranch(projectId, entry, user!));
   }, [projectId, run]);
 
   const createMilestone = useCallback(async (draft: MilestoneDraft) => {

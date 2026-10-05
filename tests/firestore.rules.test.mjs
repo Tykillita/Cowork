@@ -439,6 +439,45 @@ describe("tasks and activity events", () => {
   });
 });
 
+describe("branch register removal", () => {
+  async function registered(id, name = "feature/x") {
+    const db = owner();
+    const batch = writeBatch(db);
+    batch.set(doc(db, "projects", PROJECT, "branches", id), { id, name, reason: "Probar", by: "Owner", createdAt: NOW_ISO(), createdByUid: "owner" });
+    const [ref, event] = eventData(db, { targetType: "branch", targetId: id, revision: 1, kind: "created" });
+    event.targetTitle = name;
+    batch.set(ref, event);
+    await batch.commit();
+  }
+  function removal(db, id, title) {
+    const batch = writeBatch(db);
+    batch.delete(doc(db, "projects", PROJECT, "branches", id));
+    const [ref, event] = eventData(db, { targetType: "branch", targetId: id, revision: 2, kind: "deleted", id: `branch-${id}-deleted` });
+    event.targetTitle = title;
+    batch.set(ref, event);
+    return batch.commit();
+  }
+
+  test("removing an entry writes its event with the real name; edits are not allowed", async () => {
+    await registered("b1");
+    await assertFails(updateDoc(doc(owner(), "projects", PROJECT, "branches", "b1"), { reason: "Otro" }));
+    if (Date.now() >= Date.parse("2026-10-10T00:00:00Z")) await assertFails(deleteDoc(doc(owner(), "projects", PROJECT, "branches", "b1")));
+    await assertFails(removal(owner(), "b1", "feature/otra"));
+    await assertFails(removal(other(), "b1", "feature/x"));
+    await assertSucceeds(removal(owner(), "b1", "feature/x"));
+    const event = await getDoc(doc(owner(), "projects", PROJECT, "events", "branch-b1-deleted"));
+    assert.equal(event.data().kind, "deleted");
+  });
+
+  test("a removal event needs the entry to go away in the same write", async () => {
+    await registered("b2");
+    const db = owner();
+    const [ref, event] = eventData(db, { targetType: "branch", targetId: "b2", revision: 2, kind: "deleted", id: "branch-b2-deleted" });
+    event.targetTitle = "feature/x";
+    await assertFails(setDoc(ref, event));
+  });
+});
+
 describe("project creation event", () => {
   test("the owner writes it in the creating batch, timed by the server", async () => {
     await assertSucceeds(projectCreation(owner(), "owner", "nuevo-a1b2c3").commit());
@@ -491,6 +530,87 @@ describe("milestones", () => {
     // Tasks already linked keep their archived milestone.
     await assertSucceeds(updateTask(requester(), "t1", { milestoneId: "m1", status: "Hecha", revision: 3 }, { status: { from: "Pendiente", to: "Hecha" } }, "req"));
     await assertFails(deleteDoc(doc(owner(), "projects", PROJECT, "milestones", "m1")));
+  });
+});
+
+describe("task details", () => {
+  const details = (overrides = {}) => ({
+    description: "", priority: "media", dueDate: "", timeZone: "", dueAt: "", checklist: "", branch: "", createdAt: "2026-10-01T12:00:00.000Z", createdByUid: "owner", ...overrides,
+  });
+  // Stored as JSON, as encodeChecklist() writes it.
+  const items = (count, overrides = {}) => JSON.stringify(Array.from({ length: count }, (_, index) => ({ id: `c${index}`, text: `Paso ${index}`, done: index % 2 === 0, ...overrides })));
+
+  test("new fields are accepted within their limits", async () => {
+    await assertSucceeds(createTask(owner(), "t1", "owner", details({ description: "Detalle", priority: "alta", dueDate: "2026-10-10", timeZone: "America/Panama", dueAt: "2026-10-11T05:00:00.000Z", checklist: items(3), branch: "feature/x" })));
+    for (const [id, bad] of [
+      ["d1", { description: "x".repeat(4001) }],
+      ["d2", { checklist: "x".repeat(8001) }],
+      ["d3", { checklist: [{ id: "c1", text: "Paso", done: false }] }],
+      ["d6", { priority: "urgente" }],
+      ["d7", { dueDate: "10/10/2026", timeZone: "UTC", dueAt: "2026-10-11T00:00:00.000Z" }],
+      ["d8", { dueDate: "2026-10-10", timeZone: "", dueAt: "2026-10-11T00:00:00.000Z" }],
+      ["d9", { dueDate: "", dueAt: "2026-10-11T00:00:00.000Z" }],
+      ["d10", { branch: "x".repeat(121) }],
+      ["d11", { createdByUid: "someone-else" }],
+      ["d12", { extra: true }],
+    ]) await assertFails(createTask(owner(), id, "owner", details(bad)));
+  });
+
+  test("the creation stamp never changes and old tabs cannot erase fields", async () => {
+    await createTask(owner(), "t1", "owner", details({ description: "Detalle" }));
+    await assertFails(updateTask(owner(), "t1", { ...details({ description: "Detalle", createdAt: "2020-01-01T00:00:00.000Z" }), status: "Hecha", revision: 2 }, { status: { from: "Pendiente", to: "Hecha" } }));
+    // An older tab writes only the first fields: refused instead of silently dropping the description.
+    await assertFails(updateTask(owner(), "t1", { status: "Hecha", revision: 2 }, { status: { from: "Pendiente", to: "Hecha" } }));
+    await assertSucceeds(updateTask(owner(), "t1", { ...details({ description: "Detalle" }), status: "Hecha", revision: 2 }, { status: { from: "Pendiente", to: "Hecha" } }));
+  });
+
+  test("a task written before the new fields is upgraded by the new client", async () => {
+    await createTask(owner(), "t1");
+    await assertSucceeds(updateTask(owner(), "t1", { ...details({ createdAt: "", createdByUid: "" }), status: "En curso", revision: 2 }, { status: { from: "Pendiente", to: "En curso" } }));
+  });
+
+  test("events must record every change with its real values", async () => {
+    await createTask(owner(), "t1", "owner", details());
+    const base = details();
+    // Title, phase and order changes can no longer go unrecorded.
+    await assertFails(updateTask(owner(), "t1", { ...base, title: "Otra", revision: 2 }, {}));
+    await assertFails(updateTask(owner(), "t1", { ...base, phase: "Diseño", revision: 2 }, {}));
+    await assertFails(updateTask(owner(), "t1", { ...base, order: 5, revision: 2 }, {}));
+    await assertFails(updateTask(owner(), "t1", { ...base, title: "Otra", revision: 2 }, { title: { from: "Falso", to: "Otra" } }));
+    await assertFails(updateTask(owner(), "t1", { ...base, revision: 2, checklist: items(2) }, {}));
+    await assertFails(updateTask(owner(), "t1", { ...base, revision: 2, checklist: items(2) }, { checklist: { done: 3, total: 2 } }));
+    await assertFails(updateTask(owner(), "t1", { ...base, revision: 2, checklist: items(2) }, { checklist: { done: 1, total: 21 } }));
+    await assertFails(updateTask(owner(), "t1", { ...base, revision: 2, description: "Nueva" }, {}));
+    await assertFails(updateTask(owner(), "t1", { ...base, revision: 2, priority: "alta" }, { priority: { from: "baja", to: "alta" } }));
+    await assertSucceeds(updateTask(owner(), "t1", { ...base, revision: 2, title: "Otra", phase: "Diseño", order: 5 }, { title: { from: "Tarea", to: "Otra" }, phase: { from: "General", to: "Diseño" }, order: true }));
+  });
+
+  test("milestone changes carry their real from and to", async () => {
+    await assertSucceeds(writeMilestone(owner(), "m1", milestoneData("m1"), "created"));
+    await createTask(owner(), "t1", "owner", details());
+    await assertFails(updateTask(owner(), "t1", { ...details(), milestoneId: "m1", revision: 2 }, { milestone: { from: "otro", to: "m1" } }));
+    await assertSucceeds(updateTask(owner(), "t1", { ...details(), milestoneId: "m1", revision: 2 }, { milestone: { from: "", to: "m1" } }));
+  });
+
+  test("worst case: every field changes at once with a full checklist", async () => {
+    await assertSucceeds(writeMilestone(owner(), "m1", milestoneData("m1"), "created"));
+    await addMember("req", "req@team.test");
+    await createTask(owner(), "t1", "owner", details({ checklist: items(20) }));
+    const next = { ...details({ description: "Nueva", priority: "alta", dueDate: "2026-10-10", timeZone: "America/Panama", dueAt: "2026-10-11T05:00:00.000Z", checklist: items(20, { done: true }), branch: "feature/y" }),
+      title: "Otra", phase: "Diseño", order: 7, status: "Hecha", assigneeUid: "req", assignee: "Persona", milestoneId: "m1", revision: 2 };
+    await assertSucceeds(updateTask(owner(), "t1", next, {
+      status: { from: "Pendiente", to: "Hecha" },
+      assignee: { fromUid: "", toUid: "req", fromName: "", toName: "Persona" },
+      milestone: { from: "", to: "m1" },
+      title: { from: "Tarea", to: "Otra" },
+      phase: { from: "General", to: "Diseño" },
+      priority: { from: "media", to: "alta" },
+      dueAt: { from: "", to: "2026-10-11T05:00:00.000Z" },
+      branch: { from: "", to: "feature/y" },
+      checklist: { done: 20, total: 20 },
+      details: true,
+      order: true,
+    }));
   });
 });
 
@@ -688,6 +808,82 @@ describe("retired email invitations and schedule", () => {
   });
 });
 
+describe("project release notes sync", () => {
+  function proposal(id, author = "owner", overrides = {}) {
+    return {
+      id,
+      sourceUrl: "https://updates.example.test/changelog",
+      title: "Fix login",
+      body: "The login error is fixed.",
+      section: "fixed",
+      releaseKind: "fix",
+      version: "1.2.0",
+      suggestedStatus: "Hecha",
+      contentHash: "b".repeat(64),
+      reviewStatus: "pending",
+      taskId: "",
+      createdAt: serverTimestamp(),
+      createdByUid: author,
+      updatedAt: serverTimestamp(),
+      updatedByUid: author,
+      reviewedAt: null,
+      reviewedByUid: "",
+      ...overrides,
+    };
+  }
+
+  test("the owner can set only a public HTTPS changelog source", async () => {
+    await assertSucceeds(updateDoc(doc(owner(), "projects", PROJECT), { changelogUrl: "https://updates.example.test/changelog" }));
+    await assertFails(updateDoc(doc(owner(), "projects", PROJECT), { changelogUrl: "http://updates.example.test/changelog" }));
+  });
+
+  test("members share bounded proposals and only review pending content", async () => {
+    const id = "a".repeat(64);
+    const ref = doc(owner(), "projects", PROJECT, "releaseSyncItems", id);
+    await assertSucceeds(setDoc(ref, proposal(id)));
+    await assertSucceeds(updateDoc(ref, {
+      releaseKind: "feature",
+      updatedAt: serverTimestamp(),
+      updatedByUid: "owner",
+    }));
+    const legacyId = "f".repeat(64);
+    const legacyProposal = proposal(legacyId);
+    delete legacyProposal.releaseKind;
+    const legacyRef = doc(owner(), "projects", PROJECT, "releaseSyncItems", legacyId);
+    await assertSucceeds(setDoc(legacyRef, legacyProposal));
+    await assertSucceeds(updateDoc(legacyRef, {
+      releaseKind: "fix",
+      updatedAt: serverTimestamp(),
+      updatedByUid: "owner",
+    }));
+    await assertFails(getDoc(doc(other(), "projects", PROJECT, "releaseSyncItems", id)));
+    await assertFails(setDoc(doc(requester(), "projects", PROJECT, "releaseSyncItems", "c".repeat(64)), proposal("c".repeat(64), "req")));
+
+    await assertFails(setDoc(doc(owner(), "projects", PROJECT, "releaseSyncItems", "d".repeat(64)), proposal("d".repeat(64), "owner", { body: "x".repeat(1501) })));
+    await assertFails(setDoc(doc(owner(), "projects", PROJECT, "releaseSyncItems", "e".repeat(64)), proposal("e".repeat(64), "owner", { releaseKind: "tiny" })));
+    const taskDb = owner();
+    const taskBatch = writeBatch(taskDb);
+    taskBatch.set(doc(taskDb, "projects", PROJECT, "tasks", "news-fix-login"), taskData("news-fix-login", { title: "Fix login" }));
+    const [taskEventRef, taskEvent] = eventData(taskDb, { targetId: "news-fix-login", revision: 1, kind: "created" });
+    taskEvent.targetTitle = "Fix login";
+    taskBatch.set(taskEventRef, taskEvent);
+    await assertSucceeds(taskBatch.commit());
+    await addMember("req", "req@team.test");
+    const memberRef = doc(requester(), "projects", PROJECT, "releaseSyncItems", id);
+    const visible = await getDoc(memberRef);
+    assert.equal(visible.data().title, "Fix login");
+    await assertSucceeds(updateDoc(memberRef, {
+      reviewStatus: "accepted",
+      taskId: "news-fix-login",
+      updatedAt: serverTimestamp(),
+      updatedByUid: "req",
+      reviewedAt: serverTimestamp(),
+      reviewedByUid: "req",
+    }));
+    await assertFails(updateDoc(memberRef, { body: "Changed after approval", updatedAt: serverTimestamp(), updatedByUid: "req" }));
+  });
+});
+
 describe("GitHub", () => {
   test("only the owner sets who may change branches, with a known value", async () => {
     await assertSucceeds(updateDoc(doc(owner(), "projects", PROJECT), { githubPolicy: { branchWrite: "members" } }));
@@ -712,5 +908,110 @@ describe("GitHub", () => {
     };
     await assertSucceeds(create("g1", { githubCreated: true }));
     await assertFails(create("g2", { githubCreated: "sí" }));
+  });
+});
+
+describe("file drafts", () => {
+  const draftData = (id, uid, overrides = {}) => ({
+    id, ref: "main", path: "src/nuevo.ts", encoding: "utf-8", size: 12, message: "Añadir nuevo.ts", status: "pending",
+    authorUid: uid, authorName: "Persona", createdAt: NOW_ISO(), reviewNote: "", reviewedByUid: "", reviewerName: "", ...overrides,
+  });
+  const fileEvent = (db, id, step, { kind, revision, changes, title = "src/nuevo.ts", actorUid }) => {
+    const eventId = step ? `file-${id}-${step}` : `file-${id}`;
+    return [doc(db, "projects", PROJECT, "events", eventId), {
+      id: eventId, projectId: PROJECT, kind, targetType: "file", targetId: id, targetTitle: title, revision, actorUid, actorName: "x", createdAt: serverTimestamp(), changes,
+    }];
+  };
+  function propose(db, uid, id, overrides = {}, { content = "hola mundo\n", withEvent = true, withContent = true } = {}) {
+    const data = draftData(id, uid, overrides);
+    const batch = writeBatch(db);
+    batch.set(doc(db, "projects", PROJECT, "fileDrafts", id), data);
+    if (withContent) batch.set(doc(db, "projects", PROJECT, "fileDraftContents", id), { id, content });
+    if (withEvent) batch.set(...fileEvent(db, id, "", { kind: "created", revision: 1, changes: { ref: data.ref }, title: data.path, actorUid: uid }));
+    return batch.commit();
+  }
+  function reject(db, uid, id, note = "Falta la licencia") {
+    const batch = writeBatch(db);
+    batch.update(doc(db, "projects", PROJECT, "fileDrafts", id), { status: "rejected", reviewNote: note, reviewedByUid: uid, reviewerName: "x" });
+    batch.set(...fileEvent(db, id, "rejected", { kind: "updated", revision: 2, changes: { review: "rejected", ref: "main" }, actorUid: uid }));
+    return batch.commit();
+  }
+  function close(db, uid, id, review, revision = 2) {
+    const batch = writeBatch(db);
+    batch.delete(doc(db, "projects", PROJECT, "fileDrafts", id));
+    batch.delete(doc(db, "projects", PROJECT, "fileDraftContents", id));
+    batch.set(...fileEvent(db, id, review === "approved" ? "done" : "discarded", { kind: "deleted", revision, changes: { review, ref: "main" }, actorUid: uid }));
+    return batch.commit();
+  }
+
+  test("a member proposes a file together with its content and event", async () => {
+    await addMember("req", "req@team.test");
+    await assertSucceeds(propose(requester(), "req", "f1"));
+    await assertFails(propose(requester(), "req", "f2", {}, { withEvent: false }));
+    await assertFails(propose(requester(), "req", "f3", {}, { withContent: false }));
+    await assertFails(propose(requester(), "req", "f4", { authorUid: "owner" }));
+    await assertFails(propose(requester(), "req", "f5", { status: "rejected" }));
+    await assertFails(propose(other(), "other", "f6"));
+    assert.equal((await getDoc(doc(owner(), "projects", PROJECT, "fileDraftContents", "f1"))).data().content, "hola mundo\n");
+    await assertFails(getDoc(doc(other(), "projects", PROJECT, "fileDrafts", "f1")));
+    await assertFails(getDoc(doc(other(), "projects", PROJECT, "fileDraftContents", "f1")));
+  });
+
+  test("paths, sizes and content are checked", async () => {
+    const bad = [
+      ["p1", { path: "/raiz.ts" }], ["p2", { path: "src/" }], ["p3", { path: "src//a.ts" }], ["p4", { path: "../fuera.ts" }],
+      ["p5", { path: "src/./a.ts" }], ["p6", { path: ".git/config" }], ["p7", { path: "a\b.ts" }], ["p8", { path: "a\nb.ts" }],
+      ["p9", { path: "x".repeat(301) }], ["p10", { size: 665601 }], ["p11", { encoding: "latin1" }], ["p12", { message: "" }], ["p13", { extra: true }],
+    ];
+    for (const [id, overrides] of bad) await assertFails(propose(owner(), "owner", id, overrides));
+    await assertFails(propose(owner(), "owner", "p14", {}, { content: "x".repeat(900001) }));
+    await assertSucceeds(propose(owner(), "owner", "ok1", { path: ".github/workflows/ci.yml" }));
+    await assertSucceeds(propose(owner(), "owner", "ok2", { path: "docs/..notas.md", encoding: "base64", size: 665600 }));
+  });
+
+  test("only a reviewer rejects, without touching the content, and the author sees the note", async () => {
+    await addMember("req", "req@team.test");
+    await propose(requester(), "req", "f1");
+    await assertFails(reject(requester(), "req", "f1"));
+    await assertFails(updateDoc(doc(owner(), "projects", PROJECT, "fileDrafts", "f1"), { status: "rejected", reviewNote: "x", reviewedByUid: "owner", reviewerName: "x" }));
+    const ownerDb = owner();
+    const batch = writeBatch(ownerDb);
+    batch.update(doc(ownerDb, "projects", PROJECT, "fileDrafts", "f1"), { status: "rejected", reviewNote: "x", reviewedByUid: "owner", reviewerName: "x", path: "src/otro.ts" });
+    batch.set(...fileEvent(ownerDb, "f1", "rejected", { kind: "updated", revision: 2, changes: { review: "rejected", ref: "main" }, actorUid: "owner" }));
+    await assertFails(batch.commit());
+    await assertSucceeds(reject(owner(), "owner", "f1"));
+    assert.equal((await getDoc(doc(requester(), "projects", PROJECT, "fileDrafts", "f1"))).data().reviewNote, "Falta la licencia");
+    await assertFails(reject(owner(), "owner", "f1"));
+    await assertFails(updateDoc(doc(owner(), "projects", PROJECT, "fileDraftContents", "f1"), { content: "otro" }));
+  });
+
+  test("members review when the branch policy allows it", async () => {
+    await addMember("req", "req@team.test");
+    await propose(owner(), "owner", "f1");
+    await assertFails(close(requester(), "req", "f1", "approved"));
+    await updateDoc(doc(owner(), "projects", PROJECT), { githubPolicy: { branchWrite: "members" } });
+    await assertSucceeds(close(requester(), "req", "f1", "approved"));
+    const event = await getDoc(doc(owner(), "projects", PROJECT, "events", "file-f1-done"));
+    assert.deepEqual(event.data().changes, { review: "approved", ref: "main" });
+  });
+
+  test("the author discards; others cannot; approving needs the draft pending", async () => {
+    await addMember("req", "req@team.test");
+    await propose(requester(), "req", "f1");
+    await assertFails(close(other(), "other", "f1", "discarded"));
+    await assertFails(close(owner(), "owner", "f1", "discarded"));
+    await assertSucceeds(close(requester(), "req", "f1", "discarded"));
+    await propose(requester(), "req", "f2");
+    await reject(owner(), "owner", "f2");
+    await assertFails(close(owner(), "owner", "f2", "approved"));
+    await assertFails(close(requester(), "req", "f2", "discarded", 2));
+    await assertSucceeds(close(requester(), "req", "f2", "discarded", 3));
+    // Content left behind on its own is refused.
+    await propose(requester(), "req", "f3");
+    const ownerDb = owner();
+    const batch = writeBatch(ownerDb);
+    batch.delete(doc(ownerDb, "projects", PROJECT, "fileDrafts", "f3"));
+    batch.set(...fileEvent(ownerDb, "f3", "done", { kind: "deleted", revision: 2, changes: { review: "approved", ref: "main" }, actorUid: "owner" }));
+    await assertFails(batch.commit());
   });
 });

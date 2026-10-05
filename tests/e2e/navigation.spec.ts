@@ -58,3 +58,16 @@ test("losing access returns to the picker, live and after reload", async ({ page
   await page.reload();
   await expect(page.locator(".projectPicker:not([aria-busy])")).toBeVisible();
 });
+
+test("page parameters keep the section instead of sending it home", async ({ page }) => {
+  const ana = await createAccount("Ana");
+  await seedProject(ana, { id: "uno", name: "Uno" });
+  await signIn(page, ana);
+  await openProject(page, "Uno");
+  await page.evaluate(() => { window.location.hash = "#work?foo=1"; });
+  await expect(page.locator('[data-page="work"]').first()).toBeVisible();
+  await page.reload();
+  await expect(page.locator(".app-shell:not([aria-busy])")).toBeVisible();
+  await expect(page).toHaveURL(/#work\?foo=1$/);
+  await expect(page.locator('[data-page="work"]').first()).toBeVisible();
+});

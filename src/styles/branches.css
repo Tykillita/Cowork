@@ -1,0 +1,73 @@
+/* ─── Branches page: repository strip, unified list and register form ───── */
+
+/* Full width, like the summary and the work plan. */
+#branch-log { max-width: none; }
+
+.repoStrip { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 18px; margin: 0 0 12px; padding: 16px 19px; }
+.repoStripMain { display: grid; min-width: 0; gap: 4px; }
+.repoStripMain .eyebrow { margin: 0; }
+.repoStripName { overflow-wrap: anywhere; color: var(--text); font-size: 16px; font-weight: 620; letter-spacing: -.02em; text-decoration: none; }
+.repoStripName:hover { text-decoration: underline; text-decoration-color: var(--line-strong); }
+.repoStripMeta { display: flex; flex-wrap: wrap; gap: 4px 14px; margin: 0; color: var(--secondary); font-size: 11px; }
+.repoStripMeta code { font-size: 10.5px; }
+.repoStripWarning { margin: 2px 0 0; color: var(--amber); font-size: 10.5px; }
+.repoStripActions { display: flex; flex-wrap: wrap; gap: 8px; }
+.repoStripActions .repoConnect { margin: 0; }
+
+.branchesLayout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(300px, 380px); align-items: start; gap: 12px; }
+.branchesLayout > .panel { margin: 0; }
+.branchFormPanel { position: sticky; top: 16px; }
+
+.branchToolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; margin-bottom: 10px; }
+.branchFilters { display: flex; flex-wrap: wrap; gap: 6px; }
+.branchFilters .plain { border-color: var(--line); color: var(--secondary); }
+.branchFilters .plain.isActive { border-color: var(--line-strong); background: rgba(255, 255, 255, .1); color: var(--text); }
+.branchSearch { flex: 1 1 160px; max-width: 240px; }
+.branchSearch input { width: 100%; min-height: 34px; font-size: 12px; }
+
+.branchRow { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; gap: 8px 12px; padding: 12px 0; border-top: 1px solid rgba(255, 255, 255, .075); }
+.branchRow:first-child { border-top: 0; padding-top: 2px; }
+.branchRowMain { display: grid; min-width: 0; gap: 5px; }
+.branchRowTitle { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; }
+.branchName { min-width: 0; overflow-wrap: anywhere; color: var(--text); font: 600 11.5px/1.5 ui-monospace, "SFMono-Regular", Consolas, monospace; text-decoration: none; }
+a.branchName:hover { text-decoration: underline; text-decoration-color: var(--line-strong); }
+code.branchName { padding: 0; border: 0; background: none; }
+.branchPresence, .branchPull, .branchTasksCount { display: inline-flex; flex: none; align-items: center; padding: 2px 7px; border: 1px solid var(--line); border-radius: 999px; color: var(--secondary); font-size: 9px; font-weight: 600; text-decoration: none; }
+.branchPresence[data-presence="github"] { border-style: dashed; }
+.branchPresence[data-deleted] { border-color: rgba(255, 124, 135, .35); color: var(--red); }
+.branchPresence[data-presence="unknown"] { color: var(--tertiary); }
+a.branchPull:hover { border-color: var(--line-strong); color: var(--text); }
+.branchReason { margin: 0; color: var(--secondary); font-size: 11px; line-height: 1.55; }
+.branchMeta { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; margin: 0; }
+.branchMeta:empty { display: none; }
+.branchRowActions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 2px; }
+.branchRow .repoBranchConfirm { grid-column: 1 / -1; }
+.branchRow > .projectSettingsError { grid-column: 1 / -1; margin: 0; }
+.branchRow .toggleRow input { width: 17px; min-height: 0; background: transparent; }
+
+.branchDetail { display: grid; grid-column: 1 / -1; gap: 12px; padding: 12px 14px; border: 1px solid var(--tile-line); border-radius: 12px; background: var(--tile); }
+.branchCompare { margin: 0; color: var(--secondary); font-size: 11.5px; }
+.branchCompare strong { color: var(--text); }
+.branchDetailBlock h4 { margin: 0 0 4px; color: var(--tertiary); font-size: 9.5px; font-weight: 650; letter-spacing: .09em; text-transform: uppercase; }
+.branchDetailBlock .repoCommitItem:first-of-type { border-top: 0; }
+.branchTaskList { display: grid; gap: 4px; margin: 0; padding: 0; list-style: none; }
+.branchTaskList li { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.branchTaskList a { color: var(--text); font-size: 11.5px; text-decoration: none; }
+.branchTaskList a:hover { text-decoration: underline; }
+
+.recentChanges { max-width: none; margin-top: 12px; }
+.repoHistoryLink { display: inline-flex; min-height: 28px; align-items: center; color: var(--secondary); font-size: 10px; text-decoration: none; }
+
+@media (max-width: 900px) {
+  .branchesLayout { grid-template-columns: minmax(0, 1fr); }
+  .branchFormPanel { position: static; }
+}
+
+@media (max-width: 640px) {
+  .repoStrip { padding: 14px 16px; }
+  .branchRow { grid-template-columns: minmax(0, 1fr); }
+  .branchRowActions { justify-content: flex-start; }
+  .branchSearch { max-width: none; }
+}
+.branchCodeLink { display: inline-flex; min-height: 28px; align-items: center; color: var(--tertiary); font-size: 9px; text-decoration: none; }
+.branchCodeLink:hover { color: var(--secondary); }

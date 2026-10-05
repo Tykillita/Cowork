@@ -97,7 +97,7 @@ export function MilestonesPanel({ project, milestones, ready = true, tasks, isOw
   }
 
   return (
-    <section className="panel milestonesPanel" aria-labelledby="milestones-title">
+    <section className="panel milestonesPanel" id="milestones" aria-labelledby="milestones-title">
       <div className="panelHead">
         <div><p className="eyebrow">HITOS</p><h2 id="milestones-title">Entregas intermedias</h2></div>
         {isOwner && !creating && <button type="button" onClick={() => { setCreating(true); setMessage(""); }}>Nuevo hito</button>}

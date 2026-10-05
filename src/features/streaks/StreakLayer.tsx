@@ -124,12 +124,16 @@ export function StreakLayer({ user, legacyInvite = false }: { user: PanelUser | 
     {open && <Suspense fallback={<LazyDialogSkeleton kind="streak" onClose={() => setOpen(false)} />}><StreakPanel initialTab={initialTab} onClose={() => setOpen(false)} /></Suspense>}
     {token && <LegacyInviteDialog onDone={dismissInvite} />}
     {celebration && <aside className={`streakCelebration${celebration.resumed ? " isThawing" : ""}`} role="status" aria-label="Racha actualizada">
-      <button type="button" className="streakCelebrationClose" aria-label="Cerrar celebración" onClick={() => setCelebration(null)}>×</button>
       <PixelFlame state="lit" motion="idle" burst="ignite" igniteFrom={celebration.resumed ? "frozen" : "dim"} />
-      <div><p className="eyebrow">{celebration.resumed ? "LA LLAMA VUELVE A ENCENDERSE" : "UN DÍA MÁS CONTIGO"}</p><strong><RollingCount value={celebration.current} /> {celebration.current === 1 ? "día de racha" : "días de racha"}</strong>
-        {celebration.badges.length > 0 && <p>{celebration.badges.join(" · ")}</p>}
-        <button type="button" onClick={() => { setCelebration(null); openStreaks(); }}>Ver mi progreso</button>
+      <div className="streakCelebrationCopy">
+        <p className="eyebrow">{celebration.resumed ? "LA LLAMA VUELVE A ENCENDERSE" : "UN DÍA MÁS CONTIGO"}</p>
+        <div className="streakCelebrationMain">
+          <strong><RollingCount value={celebration.current} /> {celebration.current === 1 ? "día de racha" : "días de racha"}</strong>
+          <button type="button" className="streakCelebrationAction" onClick={() => { setCelebration(null); openStreaks(); }}>Ver mi progreso</button>
+        </div>
+        {celebration.badges.length > 0 && <p className="streakCelebrationBadges">{celebration.badges.join(" · ")}</p>}
       </div>
+      <button type="button" className="streakCelebrationClose" aria-label="Cerrar celebración" onClick={() => setCelebration(null)}>×</button>
     </aside>}
     {nudgeNotice && !celebration && <aside className="nudgeNotice" role="status" aria-label={`Toque de ${nudgeNotice.name}`}>
       <button type="button" className="streakCelebrationClose" aria-label="Cerrar aviso de toque" onClick={() => setNudgeNotice(null)}>×</button>

@@ -42,3 +42,23 @@ Las medidas de bundles provienen de `npm run build` con Vite; son tamaños de ar
 - El bundle de Firestore sigue siendo grande (562,04 kB minificados). Se carga cuando la aplicación necesita datos, y dividirlo artificialmente puede añadir viajes de red sin reducir el código necesario.
 - La batería completa de navegador ya tenía cinco fallos antes de estos cambios: una prueba de conflicto importa una ruta de desarrollo desde la vista previa compilada; dos pruebas de animación de CardNav fallan en WebKit; una recarga rápida en WebKit se queda esperando una respuesta del emulador; y el flujo de amigos en WebKit agota el tiempo. La recarga se reprodujo de nuevo y su rastro muestra peticiones del emulador sin respuesta después de varias recargas. Las pruebas de navegación equivalentes pasaron en Chromium y Firefox.
 - No se ha publicado la versión. La comprobación se realizó con builds y emuladores locales; la compatibilidad con el plan Spark se conserva.
+
+## Revisión de animaciones y siguiente plan (29 de septiembre de 2026)
+
+La revisión cubrió las animaciones CSS, las líneas de tiempo de GSAP, el brillo WebGL, la escena dibujada en canvas y el SVG del fueguito. Se corrigieron estos problemas:
+
+- El fueguito alternaba tres capas que podían quedar invisibles a la vez. Ahora desplaza una tira recortada que siempre muestra un fotograma completo. Los tres fotogramas conservan su arte y colores, pero se dibujan con 12 trazados SVG en vez de cientos de rectángulos. El ciclo pequeño dura 0,54 s y «Reducido» conserva el primer fotograma sin moverlo.
+- Al reducir movimiento, se cancelan las animaciones CSS sin conservar fotogramas iniciales invisibles. La elección «Activado» vuelve a prevalecer sobre la preferencia del sistema.
+- El carrusel de tarjetas ya no inicia otra transición si hay una en curso o si la preferencia acaba de cambiar. El menú termina inmediatamente en abierto o cerrado al cambiar a «Reducido». El texto animado vuelve a su contenido legible y la escena mantiene su dibujo estático.
+- Los componentes que animan fuera de CSS (carrusel y brillo WebGL) siguen la misma preferencia efectiva de movimiento.
+
+### Fases pendientes para el rendimiento general
+
+1. **Medir una línea base reproducible.** Usar una cuenta y proyectos representativos para registrar carga fría y caliente, LCP, INP, CLS, tareas largas, memoria, tiempo de cada fotograma y lecturas de Firestore en portada, selector, proyecto, rachas y búsqueda. Guardar resultados por navegador y tamaño de pantalla antes de fijar objetivos numéricos.
+2. **Priorizar por impacto medido.** Atender primero las interacciones con retraso y los cuadros perdidos; después estudiar el tamaño de los módulos y las suscripciones o consultas repetidas. Optimizar componentes React y listas solo si el perfil muestra trabajo innecesario. Mantener los skeletons y la apariencia definidos en `docs/DESIGN.md`.
+3. **Aplicar cambios pequeños con comparación visual.** Registrar antes y después de cada ajuste la carga, los cuadros y las lecturas. Comprobar «Sistema», «Activado» y «Reducido», además de apertura, cierre, regreso a la pestaña y cambio de tamaño. El modo reducido debe mostrar el estado final, nunca ocultar contenido.
+4. **Exigir puertas de calidad.** Ejecutar `npm run build`, `npm run test:unit` y las pruebas e2e pertinentes. Revisar visualmente a 320, 375, 390, 430, 768 y 1440 px. Rechazar un ahorro que introduzca fotogramas vacíos, regresiones funcionales o pérdida visible de detalle.
+
+Las pruebas aisladas de llama, escena, tarjetas, texto y menú han pasado en Chromium, Firefox, WebKit y sus dos variantes móviles sobre la compilación local de emuladores. El recorrido real de perfil y menú pasó en Chromium. Una repetición posterior de los recorridos que necesitan Firestore quedó interrumpida porque la JVM del emulador no pudo reservar memoria virtual en el equipo; esas pruebas deben repetirse cuando haya recursos disponibles.
+
+La compilación de producción actual pasa con TypeScript y las 55 pruebas unitarias están correctas. El archivo JavaScript principal mide 637,36 kB y el CSS principal 150,24 kB minificados; la tabla anterior corresponde a la primera fase de optimización. La página auxiliar de comprobación de animaciones se incluye solo en la compilación local para emuladores.

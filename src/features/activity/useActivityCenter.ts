@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { ActivityEvent, Milestone, OwnAccessRequest, PanelUser, Project, ProjectAccessRequest, Task } from "../../types";
+import type { ActivityEvent, FileDraft, Milestone, OwnAccessRequest, PanelUser, Project, ProjectAccessRequest, Task } from "../../types";
 import type { ReadState } from "../personal/personalStore";
 import { dueState, milestoneProgress } from "../milestones/milestoneModel";
 import { isFeedEvent, readEvent } from "./activityEvents";
+import { dueInfo } from "../workboard/taskFilters";
+import { buildHash } from "../../lib/hashRoute";
 
 export const ACTIVITY_PAGE = 15;
 
@@ -12,13 +14,15 @@ type ProjectFeed = {
   /** Every task, so milestone completion is known for every project. */
   tasks: Task[] | null;
   pendingRequests: ProjectAccessRequest[];
+  /** Files proposed in Cowork and waiting for review (or rejected). */
+  drafts: FileDraft[];
   exhausted: boolean;
 };
 
 export type ForYouItem = {
   id: string;
   projectId: string;
-  kind: "request" | "decision" | "task" | "notice";
+  kind: "request" | "decision" | "task" | "notice" | "review";
   title: string;
   detail: string;
   tone: "info" | "success" | "warning" | "error";
@@ -27,16 +31,54 @@ export type ForYouItem = {
   unreadable: boolean;
 };
 
-const EMPTY_FEED: ProjectFeed = { events: [], milestones: [], tasks: null, pendingRequests: [], exhausted: false };
+const EMPTY_FEED: ProjectFeed = { events: [], milestones: [], tasks: null, pendingRequests: [], drafts: [], exhausted: false };
+
+/**
+ * Proposed files: reviewers see what waits for them (one line per project),
+ * authors see their rejected files until they open or discard them.
+ */
+export function draftItems(project: Project, drafts: FileDraft[], uid: string): ForYouItem[] {
+  const items: ForYouItem[] = [];
+  const reviewer = project.ownerUid === uid || project.githubPolicy?.branchWrite === "members";
+  const link = (draft: FileDraft) => buildHash("code", { ref: draft.ref, path: draft.path });
+  const name = (draft: FileDraft) => draft.path.slice(draft.path.lastIndexOf("/") + 1);
+  const waiting = reviewer ? drafts.filter((draft) => draft.status === "pending" && draft.authorUid !== uid) : [];
+  if (waiting.length) {
+    const authors = [...new Set(waiting.map((draft) => draft.authorName))];
+    items.push({
+      id: `review:${project.id}`,
+      projectId: project.id,
+      kind: "review",
+      title: waiting.length === 1 ? `${name(waiting[0])} espera revisión` : `${waiting.length} archivos esperan revisión`,
+      detail: `${project.name} · ${authors.length === 1 ? `propuesto por ${authors[0]}` : `de ${authors.length} personas`}`,
+      tone: "info",
+      target: waiting.length === 1 ? link(waiting[0]) : "#code",
+      unreadable: false,
+    });
+  }
+  for (const draft of drafts.filter((entry) => entry.status === "rejected" && entry.authorUid === uid)) {
+    items.push({
+      id: `review:${project.id}:${draft.id}:rejected`,
+      projectId: project.id,
+      kind: "review",
+      title: `Rechazaron tu archivo ${name(draft)}`,
+      detail: `${project.name}${draft.reviewNote ? ` · ${draft.reviewNote}` : ""}`,
+      tone: "warning",
+      target: link(draft),
+      unreadable: true,
+    });
+  }
+  return items;
+}
 
 /**
  * Delivery notices for the next 24 hours and overdue ones. The id includes the
  * target, its due instant and the notice type, so it never repeats, and a new
  * date produces a new notice.
  */
-export function deadlineNotices(project: Project, milestones: Milestone[], tasks: Task[] | null, now: number): ForYouItem[] {
+export function deadlineNotices(project: Project, milestones: Milestone[], tasks: Task[] | null, now: number, uid = ""): ForYouItem[] {
   const notices: ForYouItem[] = [];
-  const push = (targetId: string, title: string, dueAt: string, kind: "project" | "milestone") => {
+  const push = (targetId: string, title: string, dueAt: string, kind: "project" | "milestone" | "task") => {
     const state = dueState(dueAt, now);
     if (state === "later") return;
     notices.push({
@@ -46,7 +88,7 @@ export function deadlineNotices(project: Project, milestones: Milestone[], tasks
       title: state === "overdue" ? `Vencido: ${title}` : `Vence en menos de 24 h: ${title}`,
       detail: project.name,
       tone: state === "overdue" ? "error" : "warning",
-      target: kind === "milestone" ? "#work" : "#home",
+      target: kind === "milestone" ? "#work?focus=milestones" : kind === "task" ? buildHash("work", { task: targetId }) : "#home",
       unreadable: true,
     });
   };
@@ -56,6 +98,11 @@ export function deadlineNotices(project: Project, milestones: Milestone[], tasks
     // Wait for the tasks: a complete milestone must never produce a notice.
     if (!tasks || milestoneProgress(milestone, tasks).complete) continue;
     push(milestone.id, `hito «${milestone.title}»`, milestone.dueAt, "milestone");
+  }
+  // Due dates of my own open tasks.
+  for (const task of tasks ?? []) {
+    if (!uid || task.assigneeUid !== uid || task.status === "Hecha" || !task.dueAt) continue;
+    push(task.id, `tarea «${task.title}»`, task.dueAt, "task");
   }
   return notices;
 }
@@ -126,7 +173,7 @@ export function useActivityCenter(user: PanelUser | null, projects: Project[], c
       setFeeds((current) => { const next = new Map(current); next.delete(projectId); return next; });
     };
 
-    void Promise.all([import("../../lib/firebase"), import("firebase/firestore"), import("../workboard/firestoreWorkboard"), import("../projects/projectAccess")]).then(async ([{ getCoworkFirestore }, api, workboard, access]) => {
+    void Promise.all([import("../../lib/firebase"), import("firebase/firestore"), import("../workboard/firestoreWorkboard"), import("../projects/projectAccess"), import("../code/fileDrafts")]).then(async ([{ getCoworkFirestore }, api, workboard, access, { readFileDraft }]) => {
       const db = await getCoworkFirestore();
       if (!db || !active) return;
       for (const project of projects) {
@@ -134,9 +181,13 @@ export function useActivityCenter(user: PanelUser | null, projects: Project[], c
         keep(api.onSnapshot(api.collection(db, "projects", project.id, "milestones"), (snapshot) => {
           update(project.id, { milestones: snapshot.docs.map((entry) => workboard.readMilestone(entry.id, entry.data())) });
         }, onError));
-        keep(api.onSnapshot(api.collection(db, "projects", project.id, "tasks"), (snapshot) => {
+        keep(api.onSnapshot(workboard.tasksQuery(api, db, project.id), (snapshot) => {
           update(project.id, { tasks: snapshot.docs.map((entry) => workboard.readTask(entry.id, entry.data())) });
         }, onError));
+        // Older rules may not allow drafts yet: that only hides them, not the project's feed.
+        keep(api.onSnapshot(api.query(api.collection(db, "projects", project.id, "fileDrafts"), api.orderBy("createdAt", "desc")), (snapshot) => {
+          update(project.id, { drafts: snapshot.docs.map((entry) => readFileDraft(entry.id, entry.data())) });
+        }, () => update(project.id, { drafts: [] })));
         if (project.ownerUid === uid) {
           keep(await access.watchAccessRequests(project.id, (requests) => update(project.id, { pendingRequests: requests }), onError, true));
         }
@@ -240,10 +291,15 @@ export function useActivityCenter(user: PanelUser | null, projects: Project[], c
       }
       // The open project's tasks may be fresher than this listener after a local save.
       const tasks = currentTasks?.projectId === project.id ? currentTasks.tasks : feed.tasks;
-      items.push(...deadlineNotices(project, feed.milestones, tasks, now));
+      const notices = deadlineNotices(project, feed.milestones, tasks, now, uid);
+      items.push(...notices);
       for (const task of (tasks ?? []).filter((entry) => entry.assigneeUid === uid && entry.status !== "Hecha")) {
-        items.push({ id: `task:${project.id}:${task.id}`, projectId: project.id, kind: "task", title: task.title, detail: `${project.name} · ${task.status}`, tone: "info", target: "#work", unreadable: false });
+        // A task with a due notice is already listed once.
+        if (notices.some((notice) => notice.id.startsWith(`notice:${project.id}:task:${task.id}:`))) continue;
+        const due = dueInfo(task, now);
+        items.push({ id: `task:${project.id}:${task.id}`, projectId: project.id, kind: "task", title: task.title, detail: `${project.name} · ${task.status}${due ? ` · ${due.label}` : ""}`, tone: "info", target: buildHash("work", { task: task.id }), unreadable: false });
       }
+      items.push(...draftItems(project, feed.drafts, uid));
     }
     for (const request of ownRequests) {
       if (request.status === "pending" || request.status === "unknown") continue;
@@ -308,8 +364,10 @@ export function useActivityCenter(user: PanelUser | null, projects: Project[], c
   }, [feeds]);
 
   const ready = readStates !== null && projects.every((project) => settled.has(project.id));
+  /** One project's first page of events has answered; the summary card waits only for its own project. */
+  const projectReady = useCallback((projectId: string) => readStates !== null && settled.has(projectId), [readStates, settled]);
 
-  return { ready, events, forYou, pendingRequestCount, unreadCount, isUnreadEvent, isUnreadItem, markRead, markAllRead, loadMore, canLoadMore, refreshNow, projectName, milestoneTitle };
+  return { ready, projectReady, events, forYou, pendingRequestCount, unreadCount, isUnreadEvent, isUnreadItem, markRead, markAllRead, loadMore, canLoadMore, refreshNow, projectName, milestoneTitle };
 }
 
 export type ActivityCenterState = ReturnType<typeof useActivityCenter>;

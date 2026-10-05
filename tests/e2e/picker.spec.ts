@@ -75,7 +75,7 @@ test("cards show the real icon of each preview site, or the initial when it has 
     if (route.request().resourceType() === "document") return route.fulfill({ contentType: "text/html", body: "<p>preview</p>" });
     return route.fulfill({ status: 404, body: "" });
   });
-  await page.evaluate(() => window.localStorage.removeItem("cowork.site-favicons"));
+  await page.evaluate(() => window.localStorage.removeItem("cowork.site-favicons:v2"));
   await page.getByRole("button", { name: /Cerrar sesión/ }).click();
   await signIn(page, ana);
   const withIcon = page.getByRole("button", { name: "Abrir el proyecto Con icono" }).locator(".projectBrowserFavicon img");
@@ -83,6 +83,29 @@ test("cards show the real icon of each preview site, or the initial when it has 
   const withoutIcon = page.getByRole("button", { name: "Abrir el proyecto Sin icono" }).locator(".projectBrowserFavicon");
   await expect.poll(() => withoutIcon.textContent(), { timeout: 20_000 }).toBe("S");
   await expect(withoutIcon.locator("img")).toHaveCount(0);
+});
+
+test("recognizes custom favicon paths from the added Firebase projects", async ({ page }) => {
+  const ana = await createAccount("Diego");
+  await seedProject(ana, { id: "is-target-sleeping", name: "isTargetSleeping", previewUrl: "https://istargetsleeping.web.app/index.html", createdAt: "2026-09-10T00:00:00.000Z" });
+  await seedProject(ana, { id: "centro-veterinario", name: "Centro Veterinario", previewUrl: "https://vetcentercaninosyfelinos.web.app/index.html", createdAt: "2026-09-09T00:00:00.000Z" });
+  const svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><rect width="16" height="16" fill="#0f0"/></svg>';
+  const png = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/pCEAAAAASUVORK5CYII=";
+  await page.route(/https:\/\/(istargetsleeping\.web\.app|vetcentercaninosyfelinos\.web\.app)\/.*/, (route) => {
+    const url = route.request().url();
+    if (url === "https://istargetsleeping.web.app/media/istargetsleeping-icon.svg") return route.fulfill({ contentType: "image/svg+xml", body: svg });
+    if (url === "https://vetcentercaninosyfelinos.web.app/assets/images/app-icon-192.png") return route.fulfill({ contentType: "image/png", body: Buffer.from(png, "base64") });
+    if (route.request().resourceType() === "document") return route.fulfill({ contentType: "text/html", body: "<p>preview</p>" });
+    return route.fulfill({ status: 404, body: "" });
+  });
+  await page.evaluate(() => window.localStorage.removeItem("cowork.site-favicons:v2"));
+  await page.getByRole("button", { name: /Cerrar sesión/ }).click();
+  await signIn(page, ana);
+
+  await expect(page.getByRole("button", { name: "Abrir el proyecto isTargetSleeping" }).locator(".projectBrowserFavicon img"))
+    .toHaveAttribute("src", "https://istargetsleeping.web.app/media/istargetsleeping-icon.svg");
+  await expect(page.getByRole("button", { name: "Abrir el proyecto Centro Veterinario" }).locator(".projectBrowserFavicon img"))
+    .toHaveAttribute("src", "https://vetcentercaninosyfelinos.web.app/assets/images/app-icon-192.png");
 });
 
 test("an icon set in the project settings wins over the detected one", async ({ page }) => {

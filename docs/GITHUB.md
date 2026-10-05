@@ -40,6 +40,52 @@ GitHub no permite limitar `repo` a un solo repositorio con una OAuth App. El tok
 - El registro guarda `githubCreated: true` y muestra la etiqueta «en GitHub». El punto y el evento de actividad son los mismos que al registrar una rama a mano.
 - En la tarjeta de ramas de GitHub, **Borrar** pide una confirmación en línea antes de llamar a `DELETE /repos/{repo}/git/refs/heads/{rama}`. La rama principal y las ramas protegidas nunca muestran esa acción.
 
+## Una sola lista de ramas
+
+La página **Ramas y cambios** reúne en una lista (`reconcileBranches`, `src/features/github/branchModel.ts`) las ramas del registro del equipo y las del repositorio. Las empareja por nombre sin distinguir mayúsculas. Cada rama muestra dónde existe:
+
+| Estado | Significado |
+|---|---|
+| Cowork + GitHub | Registrada y presente en el repositorio. |
+| Solo en Cowork | Registrada, pero no existe en GitHub. Se puede **Crear en GitHub** desde la rama principal. |
+| Borrada en GitHub | Se creó desde Cowork y ya no está en el repositorio. Sustituye a la antigua etiqueta «en GitHub», que quedaba desactualizada. |
+| Sin registrar | Está en GitHub y nadie la registró. **Registrar** rellena el formulario sin volver a crearla. |
+| GitHub no disponible | Registrada, pero GitHub no respondió. |
+
+- **Orden de la lista:** primero la rama principal, después las registradas (de la más reciente a la más antigua) y por último las que solo están en GitHub.
+- **Datos de cada fila:**
+  - su pull request abierto (`GET /pulls`, emparejado por `head.ref`);
+  - cuántas tareas apuntan a ella (`task.branch`);
+  - en **Detalles**: cuántos cambios lleva por delante y por detrás de la principal (`GET /compare/{principal}...{rama}`), sus últimos commits (`GET /commits?sha=`) y las tareas vinculadas.
+- **Filtros:** Todas · En Cowork · Solo en GitHub · Con PR, más una búsqueda.
+- **Enlace directo:** `#branches-page?branch=feature/x` abre esa rama.
+- **Quitar del registro** escribe el evento `branch-{id}-deleted` en la misma operación, y la actividad muestra «quitó la rama X del registro». Las reglas exigen ese evento y ya no permiten editar una entrada del registro. Opcionalmente, también borra la rama en GitHub.
+- **Si GitHub crea la rama pero el registro falla**, Cowork no la borra (alguien podría estar subiendo cambios). La rama aparece como «Sin registrar» y el formulario ofrece **Reintentar registro**.
+
+## Caché y límite de consultas
+
+- Todas las llamadas pasan por `githubFetch` (`githubApi.ts`) y una caché en memoria por pestaña (`githubCache.ts`). La clave usa una huella del token; el token nunca se guarda en la caché.
+- Las respuestas que cambian (repositorio, ramas, commits, pull requests) se reutilizan durante 30 s. Después se piden de nuevo con `If-None-Match`, y si GitHub responde 304 se conservan los datos.
+- Los árboles y los archivos se piden por SHA, así que no cambian y se guardan para el resto de la visita.
+- Las peticiones idénticas en curso se comparten.
+- Resumen, Ramas y Código comparten el mismo store del repositorio (`repositoryStore.ts`). Se refresca cada 5 minutos solo mientras alguna vista lo usa y la pestaña está visible.
+- **Límite de consultas:** si GitHub responde que no quedan consultas, Cowork no envía más hasta la hora de reinicio y muestra esa hora. La franja del repositorio avisa cuando queda menos del 10 %.
+- Un límite temporal conserva el repositorio y las ramas de la última consulta. Código muestra un aviso y mantiene el árbol y el visor; los árboles y archivos ya descargados por SHA siguen disponibles en la caché de la pestaña. Los archivos aún no descargados necesitan conectar GitHub o esperar al reinicio del cupo.
+- **Lista de ramas:** se pagina con la cabecera `Link` hasta 1000 ramas, y la página indica si hay más.
+- **Repositorio que no responde:** un fallo de `GET /repos/{repo}` se muestra como mensaje en lugar de dejar los controles en espera para siempre.
+
+## Subir archivos
+
+Desde **Código → Añadir archivo**, cualquier miembro propone un archivo nuevo o subido. Queda en Cowork pendiente de revisión. Quien puede revisar (la misma política que las ramas, más `permissions.push`) lo aprueba, y Cowork lo sube con `PUT /repos/{repo}/contents/{ruta}` usando el token de esa persona y el permiso `repo` que ya se pide. El flujo completo está en [CODE-VIEWER.md](CODE-VIEWER.md#archivos-propuestos).
+
+## Repositorio editable
+
+En **Configuración → GitHub**, el propietario puede cambiar o quitar el repositorio (`updateProjectRepository`). La URL se normaliza con `normalizeRepositoryUrl`. Las ramas registradas se conservan, y su estado en GitHub se recalcula con el nuevo repositorio.
+
+## Explorador de código
+
+Ver [CODE-VIEWER.md](CODE-VIEWER.md).
+
 ## Modelo de permisos
 
 Para ver los controles hacen falta las dos condiciones:
@@ -56,7 +102,10 @@ GitHub es la autoridad real: cada acción usa el token de la persona que la hace
 | `src/features/auth/panelAuth.ts` | Acceso, vínculo, reconexión y desvínculo de GitHub, y resultado de las redirecciones. |
 | `src/features/github/githubSession.ts` | Token de la pestaña, validación y hook `useGitHubSession`. |
 | `src/features/github/githubApi.ts` | Cliente de la API con mensajes de error en español (401, límite de consultas, 404, conflictos). |
-| `src/features/repository/useRepository.ts` | Ramas, commits y metadatos del repositorio, con token si existe. |
+| `src/features/github/githubCache.ts` | Caché por pestaña, ETag y límite de consultas. |
+| `src/features/repository/repositoryStore.ts` y `useRepository.ts` | Repositorio, ramas, commits y pull requests compartidos por todas las vistas. |
+| `src/features/github/branchModel.ts` | Conciliación del registro con GitHub y filtros. |
+| `src/pages/BranchesPage.tsx`, `src/features/branches/` | Página de ramas: franja del repositorio, lista y detalle. |
 | `src/features/github/branchPermissions.ts` | Permiso efectivo (política del proyecto + `push` en GitHub) y ramas que no se pueden borrar. |
 | `src/features/github/githubRefs.ts` | Validación de nombres de rama. |
-| `tests/e2e/github.spec.ts` | Crear, registrar y borrar ramas y política por miembros, con la API de GitHub simulada. |
+| `tests/e2e/github.spec.ts`, `tests/e2e/githubMock.ts` | Ramas con la API de GitHub simulada: crear, registrar, borrar, política, conciliación, paginación y límite de consultas. |

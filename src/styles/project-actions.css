@@ -1,0 +1,48 @@
+/* ─── Project views: neutral actions ───────────────────────────────────────
+ * DESIGN.md: buttons and highlights are neutral glass; mint stays for small
+ * status signals. `:where()` keeps these rules at element specificity, so any
+ * button with its own class (menus, chips, icon buttons) keeps its look.
+ */
+:where(.app-shell, .drawer) button { border-color: rgba(255, 255, 255, .14); background: rgba(255, 255, 255, .08); color: var(--text); }
+:where(.app-shell, .drawer) button:hover { border-color: rgba(255, 255, 255, .24); background: rgba(255, 255, 255, .13); }
+:where(.app-shell, .drawer) button:disabled { opacity: .5; cursor: default; }
+:where(.app-shell, .drawer) button:disabled:hover { border-color: rgba(255, 255, 255, .14); background: rgba(255, 255, 255, .08); }
+:where(.app-shell, .drawer) button.ghost { border-color: var(--line); background: transparent; color: var(--secondary); }
+:where(.app-shell, .drawer) button.ghost:hover { border-color: var(--line-strong); background: rgba(255, 255, 255, .06); color: var(--text); }
+:where(.app-shell, .drawer) button.plain { border-color: transparent; background: transparent; color: var(--tertiary); }
+:where(.app-shell, .drawer) button.plain:hover { border-color: var(--line); background: rgba(255, 255, 255, .05); color: var(--secondary); }
+
+/* Fields: a soft white ring instead of the mint one. */
+:where(.app-shell, .drawer) :is(input, select, textarea):focus { border-color: rgba(255, 255, 255, .32); box-shadow: 0 0 0 3px rgba(255, 255, 255, .06); }
+/* The ring above replaces the global mint outline (checkboxes and radios keep it). */
+:where(.app-shell, .drawer) :is(input:not([type="checkbox"], [type="radio"]), select, textarea):focus-visible { outline: none; }
+
+/* One monospace for every branch, SHA and path. */
+:where(.app-shell, .drawer) code { font-family: ui-monospace, "SFMono-Regular", "Cascadia Code", "JetBrains Mono", Consolas, monospace; }
+
+/* Link-like actions inside panels. */
+.inlineAction { display: inline-flex; min-height: 28px; align-items: center; gap: 5px; padding: 0 8px; border-radius: 9px; color: var(--secondary); font-size: 10.5px; font-weight: 600; text-decoration: none; }
+.inlineAction:hover { background: rgba(255, 255, 255, .05); color: var(--text); }
+
+/* Primary actions: one solid light button per form. */
+:where(.app-shell, .drawer) :is(button[type="submit"], .projectSettingsActions > button:not(.ghost), .drawerActions > button:not(.plain), .accessRequestRow .projectMemberActions > button:not(.plain)) {
+  border-color: transparent; background: #ececf0; color: #0b0c0e; font-weight: 650;
+}
+:where(.app-shell, .drawer) :is(button[type="submit"], .projectSettingsActions > button:not(.ghost), .drawerActions > button:not(.plain), .accessRequestRow .projectMemberActions > button:not(.plain)):hover { border-color: transparent; background: #ffffff; }
+:where(.app-shell, .drawer) :is(button[type="submit"], .projectSettingsActions > button:not(.ghost), .drawerActions > button:not(.plain)):disabled { opacity: .35; }
+:where(.app-shell, .drawer) :is(button[type="submit"], .projectSettingsActions > button:not(.ghost), .drawerActions > button:not(.plain)):disabled:hover { background: #ececf0; }
+
+/* Settings and forms inside a project: neutral selection, labels and links. */
+.app-shell .formSectionLegend { color: var(--secondary); }
+.app-shell .scheduleMode.isActive { border-color: rgba(255, 255, 255, .28); background: rgba(255, 255, 255, .06); }
+.app-shell :is(.scheduleMode, .toggleRow) input, .drawer input[type="checkbox"] { accent-color: #ececf0; }
+.app-shell a.ghost { border: 1px solid var(--line); border-radius: 11px; color: var(--secondary); }
+.app-shell a.ghost:hover { border-color: var(--line-strong); color: var(--text); }
+.app-shell .projectPreviewReadonly a { color: var(--text); }
+.app-shell .scheduleZoneChange { color: var(--secondary) !important; }
+.app-shell .projectMemberAvatar { background: rgba(255, 255, 255, .06); color: var(--secondary); }
+.app-shell .projectMemberTransfer { color: var(--secondary); }
+
+/* Datalist arrows (phase, branch) in the light tone of the selects. */
+:where(.app-shell, .drawer) input[list]::-webkit-calendar-picker-indicator { filter: invert(1); opacity: .45; }
+:where(.app-shell, .drawer) input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(1); opacity: .6; }

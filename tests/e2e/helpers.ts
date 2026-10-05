@@ -96,6 +96,23 @@ export async function seedActivityEvents(projectId: string, count: number, actor
   });
 }
 
+export type SeedTask = { id: string; title: string; status?: "Pendiente" | "En curso" | "Hecha"; assignee?: TestAccount; phase?: string; order?: number; milestoneId?: string; details?: Record<string, unknown> };
+
+/** Writes tasks straight into Firestore (rules bypassed; used only for setup). */
+export async function seedTasks(projectId: string, tasks: SeedTask[], updatedBy: TestAccount) {
+  const test = await environment();
+  await test.withSecurityRulesDisabled(async (context) => {
+    const db = context.firestore();
+    for (const [index, task] of tasks.entries()) {
+      await setDoc(doc(db, "projects", projectId, "tasks", task.id), {
+        id: task.id, order: task.order ?? (index + 1) * 1_048_576, phase: task.phase ?? "General", title: task.title, status: task.status ?? "Pendiente",
+        assignee: task.assignee?.name ?? "", assigneeUid: task.assignee?.uid ?? "", milestoneId: task.milestoneId ?? "", revision: 1, updatedByUid: updatedBy.uid,
+        ...(task.details ?? {}),
+      });
+    }
+  });
+}
+
 export async function removeMember(projectId: string, uid: string) {
   const test = await environment();
   await test.withSecurityRulesDisabled(async (context) => {

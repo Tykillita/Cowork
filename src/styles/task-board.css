@@ -1,0 +1,158 @@
+/* ─── Work plan: toolbar, board, list chips and the task drawer ──────────── */
+
+/* The work plan uses the full width of the page, like the summary. */
+#work #task-board, #work .milestonesPanel { max-width: none; }
+
+/* Keep the task board, release proposals and milestones on one clear rhythm. */
+.workPlanStack { display: grid; align-content: start; gap: 16px; }
+.workPlanStack > .pageHeading { margin: 4px 0 0; }
+.workPlanStack > .taskPanel, .workPlanStack > .releaseSyncPanel, .workPlanStack > .milestonesPanel { margin: 0; }
+
+/* `.panelHead > div` is a grid; the switch must stay a row. */
+.panelHead > .taskViewSwitch { display: inline-flex; flex: none; flex-direction: row; gap: 2px; align-self: flex-start; }
+.taskViewSwitch > button { min-height: 30px; padding: 0 13px; border: 0; border-radius: 9px; background: transparent; color: var(--secondary); font-size: 11px; }
+.taskViewSwitch > button:hover { background: rgba(255, 255, 255, .06); color: var(--text); }
+.taskViewSwitch > button.isActive { background: rgba(255, 255, 255, .12); color: var(--text); }
+
+.taskToolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin: 18px 0 10px; }
+.taskSearch { display: block; flex: 1 1 260px; min-width: 0; }
+.taskSearch input { width: 100%; min-height: 34px; padding-left: 12px; font-size: 12px; }
+.taskToolbar .taskFilterShortcuts { display: flex; flex-wrap: wrap; gap: 6px; }
+.taskToolbar .taskFilterShortcuts .plain { min-height: 30px; padding: 0 11px; border-color: var(--line); border-radius: 999px; color: var(--secondary); font-size: 10.5px; }
+.taskToolbar .taskFilterShortcuts .plain:hover { color: var(--text); }
+.taskToolbar .taskFilterShortcuts .plain.isActive { border-color: var(--line-strong); background: rgba(255, 255, 255, .1); color: var(--text); }
+.taskFiltersToggle { display: none; }
+#task-board .taskFilters { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; margin: 0 0 16px; padding-bottom: 16px; border-bottom: 1px solid var(--rule); }
+#task-board .taskFilters select { min-height: 34px; font-size: 11.5px; }
+
+/* Chips shared by cards and rows. Colour only for urgency. */
+.taskChips { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; }
+.taskChips:empty { display: none; }
+.taskChip { display: inline-flex; max-width: 100%; align-items: center; gap: 4px; min-height: 21px; padding: 0 7px; border: 1px solid var(--tile-line); border-radius: 999px; background: var(--tile); color: var(--secondary); font-size: 10px; font-weight: 550; line-height: 1; text-decoration: none; white-space: nowrap; }
+.taskChipIcon { width: 11px; height: 11px; flex: none; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 2; opacity: .85; }
+.taskChipIconOnly { padding: 0 5px; }
+.taskChip[data-tone="done"] { color: var(--mint); }
+.taskChip[data-tone="error"] { border-color: rgba(255, 124, 135, .35); color: var(--red); }
+.taskChip[data-tone="warning"] { border-color: rgba(246, 207, 134, .35); color: var(--amber); }
+.taskChip code { overflow: hidden; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.taskBranchChip { max-width: 220px; }
+a.taskBranchChip:hover { border-color: var(--line-strong); color: var(--text); }
+.taskPriorityDot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.taskRowMain .taskChips { margin-top: 6px; }
+
+/* ─── Board ─── */
+.kanban { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.kanbanColumn { display: flex; min-width: 0; min-height: 220px; flex-direction: column; gap: 8px; padding: 10px; border: 1px solid var(--tile-line); border-radius: 16px; background: var(--tile); }
+.kanbanColumnHead { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 2px 4px 4px; }
+.kanbanColumnHead h3 { display: flex; align-items: center; gap: 7px; margin: 0; color: var(--secondary); font-size: 10px; font-weight: 650; letter-spacing: .09em; text-transform: uppercase; }
+.kanbanColumnHead h3::before { width: 6px; height: 6px; border-radius: 50%; background: var(--tertiary); content: ""; }
+.kanbanColumn[data-status="En curso"] .kanbanColumnHead h3::before { background: var(--amber); }
+.kanbanColumn[data-status="Hecha"] .kanbanColumnHead h3::before { background: var(--mint); }
+.kanbanCount { min-width: 20px; padding: 1px 7px; border: 1px solid var(--line); border-radius: 999px; color: var(--tertiary); font-size: 9.5px; font-weight: 650; text-align: center; }
+.kanbanList { display: flex; flex: 1; flex-direction: column; gap: 8px; }
+.kanbanEmpty { margin: 0; padding: 18px 8px; border: 1px dashed var(--tile-line); border-radius: 12px; color: var(--tertiary); font-size: 10.5px; text-align: center; }
+
+.taskCard { display: grid; gap: 10px; padding: 12px 12px 10px 14px; border: 1px solid var(--line); border-radius: 14px; background: linear-gradient(180deg, rgba(255, 255, 255, .055), rgba(255, 255, 255, .03)); box-shadow: inset 0 1px rgba(255, 255, 255, .05); touch-action: manipulation; transition: border-color .15s var(--ease); }
+.taskCard:hover { border-color: var(--line-strong); }
+.taskCard.done .t { color: var(--tertiary); text-decoration: line-through; text-decoration-color: rgba(235, 235, 245, .3); }
+.taskCardHead { display: flex; align-items: flex-start; gap: 8px; }
+.taskCardTitle { display: block; min-height: 0; flex: 1; min-width: 0; padding: 2px 0 0; border: 0; background: transparent; color: var(--text); font-size: 12.5px; font-weight: 580; letter-spacing: -.005em; line-height: 1.45; text-align: left; overflow-wrap: anywhere; }
+button.taskCardTitle:hover { background: transparent; text-decoration: underline; text-decoration-color: var(--line-strong); }
+.taskCardHandle { flex: none; width: 28px; min-height: 28px; padding: 0; border: 1px solid transparent; border-radius: 8px; background: transparent; color: var(--tertiary); cursor: grab; touch-action: none; }
+.taskCardHandle svg { width: 14px; height: 14px; fill: currentColor; }
+.taskCardHandle:hover, .taskCardHandle[aria-pressed="true"] { border-color: var(--line); background: rgba(255, 255, 255, .06); color: var(--text); }
+.taskCardFoot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px; padding-top: 9px; border-top: 1px solid var(--rule); }
+.taskCardPeople { display: flex; min-width: 0; flex-wrap: wrap; align-items: center; gap: 4px; }
+.taskCardFoot .taskStatusSelect { min-height: 28px; padding: 3px 24px 3px 9px; border-radius: 8px; background: rgba(255, 255, 255, .04); color: var(--secondary); font-size: 10px; }
+.taskCard .assigneeButton { min-height: 26px; }
+.taskCard.isLifted { border-color: var(--line-strong); background: rgba(255, 255, 255, .09); box-shadow: 0 18px 40px rgba(0, 0, 0, .45); }
+.taskCard.isFloating { z-index: 60; pointer-events: none; cursor: grabbing; }
+.taskCardPlaceholder { min-height: 74px; border: 1px dashed var(--line-strong); border-radius: 13px; background: rgba(255, 255, 255, .03); }
+.kanban[data-dragging="pointer"] { cursor: grabbing; user-select: none; }
+
+/* ─── List ─── */
+.taskTitleButton { display: block; min-height: 0; padding: 0; border: 0; background: transparent; color: var(--text); font-size: 12px; font-weight: 560; line-height: 1.55; text-align: left; overflow-wrap: anywhere; cursor: text; }
+.taskTitleButton:hover { background: transparent; text-decoration: underline; text-decoration-color: var(--line-strong); }
+.row.done .taskTitleButton { color: var(--tertiary); text-decoration: line-through; }
+.taskTitleInput { width: 100%; min-height: 32px; font-size: 12px; }
+.taskCreatePhase { flex: 0 1 150px !important; }
+.taskOpenButton { min-height: 28px !important; }
+#task-board .taskRow { padding: 14px 0; }
+#task-board .taskRow .meta { margin-top: 8px; }
+
+/* ─── Drawer ─── */
+dialog.drawer { position: fixed; inset: 0 0 0 auto; width: min(460px, 100vw); height: 100dvh; max-width: none; max-height: none; margin: 0; padding: 0; overflow: hidden; border: 0; border-left: 1px solid var(--line); background: var(--surface-solid); color: var(--text); box-shadow: -24px 0 70px rgba(0, 0, 0, .45); animation: drawerIn .22s var(--ease); }
+dialog.drawer::backdrop { background: rgba(4, 6, 7, .62); }
+.drawerBody { display: flex; height: 100%; flex-direction: column; gap: 16px; overflow-y: auto; padding: 20px 22px 26px; overscroll-behavior: contain; }
+.drawerHead { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.drawerHead .eyebrow { margin: 0 0 4px; overflow-wrap: anywhere; }
+.drawerSaveState { color: var(--tertiary); font-size: 10.5px; }
+.drawerClose { width: 32px; min-height: 32px; padding: 0; border-color: var(--line); border-radius: 50%; background: transparent; color: var(--secondary); }
+.drawerClose svg { width: 16px; height: 16px; }
+.drawerClose:hover { border-color: var(--line-strong); background: rgba(255, 255, 255, .06); color: var(--text); }
+.drawerTitleField textarea { width: 100%; min-height: 0; field-sizing: content; resize: none; padding: 6px 8px; margin: 0 -8px; border: 1px solid transparent; border-radius: 10px; background: transparent; color: var(--text); font-size: 19px; font-weight: 620; letter-spacing: -.02em; line-height: 1.3; }
+.drawerTitleField textarea:hover { border-color: var(--line); }
+.drawerTitleField textarea:focus { border-color: var(--line-strong); background: rgba(255, 255, 255, .04); }
+.drawerFields { display: grid; gap: 10px; margin: 0; }
+.drawerFields > div { display: grid; grid-template-columns: 110px minmax(0, 1fr); align-items: center; gap: 10px; }
+.drawerFields dt { color: var(--tertiary); font-size: 11px; }
+.drawerFields dd { display: flex; min-width: 0; flex-wrap: wrap; align-items: center; gap: 6px; margin: 0; }
+.drawerFields dd > select, .drawerFields dd > input { flex: 1 1 160px; min-width: 0; min-height: 34px; font-size: 12px; }
+.drawerFields dd small { flex-basis: 100%; color: var(--tertiary); font-size: 10.5px; }
+.drawerFields dd small[data-tone="error"] { color: var(--red); }
+.drawerFields dd small[data-tone="warning"] { color: var(--amber); }
+.drawerFieldError { color: var(--red) !important; }
+.drawerBranch a.plain { display: inline-flex; min-height: 28px; align-items: center; padding: 0 8px; border-radius: 9px; color: var(--secondary); font-size: 10.5px; text-decoration: none; }
+.drawerBranch a.plain:hover { background: rgba(255, 255, 255, .05); color: var(--text); }
+.drawerSection { display: grid; gap: 8px; padding-top: 14px; border-top: 1px solid var(--rule); }
+.drawerSectionHead { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.drawerSectionHead h3 { margin: 0; color: var(--secondary); font-size: 10px; font-weight: 650; letter-spacing: .09em; text-transform: uppercase; }
+.drawerSectionHead small { color: var(--tertiary); font-size: 10.5px; }
+.drawerDescription { width: 100%; min-height: 110px; resize: vertical; font-size: 12.5px; line-height: 1.6; }
+.drawerActions { display: flex; justify-content: flex-end; gap: 8px; }
+.drawerSection .bar { margin: 0; }
+.drawerSteps { display: grid; gap: 4px; margin: 0; padding: 0; list-style: none; }
+.drawerSteps li { display: flex; align-items: center; gap: 8px; }
+.drawerSteps input[type="checkbox"] { flex: none; width: 16px; height: 16px; accent-color: var(--mint); }
+.drawerStepText { flex: 1; min-width: 0; min-height: 32px; padding: 4px 8px; border-color: transparent; background: transparent; font-size: 12px; }
+.drawerStepText:hover, .drawerStepText:focus { border-color: var(--line); background: rgba(255, 255, 255, .04); }
+.drawerSteps li.isDone .drawerStepText { color: var(--tertiary); text-decoration: line-through; }
+.drawerStepActions { display: flex; flex: none; }
+.drawerStepActions .plain { min-width: 26px; padding: 0 6px; font-size: 12px; }
+.drawerStepAdd { margin-top: 2px; }
+.drawerFoot { display: grid; gap: 10px; margin-top: auto; padding-top: 14px; border-top: 1px solid var(--rule); }
+.drawerMeta { margin: 0; color: var(--tertiary); font-size: 10.5px; }
+.drawerDeleteButton { justify-self: start; color: var(--red) !important; }
+.drawerDelete { display: grid; gap: 8px; padding: 12px; border: 1px solid rgba(255, 124, 135, .3); border-radius: 12px; background: rgba(255, 124, 135, .05); }
+.drawerDelete p { margin: 0; color: var(--secondary); font-size: 11.5px; }
+.drawerDelete > div { display: flex; justify-content: flex-end; gap: 8px; }
+.drawerDeleteConfirm { border-color: rgba(255, 124, 135, .4); color: var(--red); }
+
+@keyframes drawerIn { from { transform: translateX(24px); opacity: 0; } to { transform: none; opacity: 1; } }
+
+@media (max-width: 900px) {
+  #task-board .taskFilters { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+
+@media (max-width: 768px) {
+  /* Columns become horizontal panes that snap. */
+  .kanban { grid-template-columns: none; grid-auto-flow: column; grid-auto-columns: minmax(250px, 84%); overflow-x: auto; padding-bottom: 6px; scroll-snap-type: x mandatory; }
+  .kanbanColumn { scroll-snap-align: start; }
+}
+
+@media (max-width: 640px) {
+  .workPlanStack { gap: 12px; }
+  .taskToolbar .taskFiltersToggle { display: inline-flex; }
+  #task-board .taskFilters { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  #task-board .taskFilters[data-open="false"] { display: none; }
+  dialog.drawer { inset: 0; width: calc(100vw - 20px); height: fit-content; max-height: 88dvh; margin: auto; border: 1px solid var(--line); border-radius: 20px; animation-name: drawerPop; }
+  .drawerBody { max-height: 88dvh; padding: 16px 16px 20px; }
+  .drawerFields > div { grid-template-columns: minmax(0, 1fr); gap: 4px; }
+}
+
+@keyframes drawerPop { from { transform: scale(.97); opacity: 0; } to { transform: none; opacity: 1; } }
+
+html[data-motion="reduced"] dialog.drawer { animation: none; }
+@media (prefers-reduced-motion: reduce) {
+  html:not([data-motion="full"]) dialog.drawer { animation: none; }
+}

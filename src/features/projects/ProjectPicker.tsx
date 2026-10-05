@@ -413,7 +413,10 @@ export function ProjectPicker({
         {ordering && <ProjectOrderEditor projects={projects} order={preferences.order} favorites={preferences.favorites} onChange={(order) => void savePreferences({ order, sort: "custom" }).catch(() => undefined)} onClose={() => setOrdering(false)} />}
         {accessContext && <AccessRequestDialog context={accessContext} user={user} projects={projects} onClose={onCloseAccess} onOpenProject={onSelect} onUserUpdated={onUserUpdated} />}
       </section>
-      <footer className="projectPickerFooter">COWORK <span>·</span> ESPACIOS DE TRABAJO DEL EQUIPO</footer>
+      <footer className="projectPickerFooter">
+        <p>COWORK <span>·</span> ESPACIOS DE TRABAJO DEL EQUIPO</p>
+        <a className="projectPickerVersion" href="/novedades">VERSIÓN {__APP_VERSION__} <span>·</span> NOVEDADES</a>
+      </footer>
     </main>
   );
 }

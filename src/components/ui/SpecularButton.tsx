@@ -1,5 +1,6 @@
 import { useRef, useEffect, type CSSProperties, type ReactNode, type MouseEventHandler } from 'react';
 import { Renderer, Program, Mesh, Triangle, Color } from 'ogl';
+import { motionReduced } from '../../lib/motion';
 import './SpecularButton.css';
 
 type ButtonSize = 'sm' | 'md' | 'lg';
@@ -214,7 +215,7 @@ const SpecularButton = ({
     let pointerAngle: number | null = null;
     let proximityT = 0;
     const onPointerMove = (e: PointerEvent) => {
-      if (!onScreen || document.hidden || motionQuery.matches || document.documentElement.dataset.motion === 'reduced') return;
+      if (!onScreen || document.hidden || motionReduced(motionQuery.matches)) return;
       const rect = btn.getBoundingClientRect();
       const cx = rect.left + rect.width / 2;
       const cy = rect.top + rect.height / 2;
@@ -242,7 +243,7 @@ const SpecularButton = ({
     let last = performance.now();
     let raf = 0;
     const motionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
-    const canAnimate = () => onScreen && !document.hidden && !motionQuery.matches && document.documentElement.dataset.motion !== 'reduced'
+    const canAnimate = () => onScreen && !document.hidden && !motionReduced(motionQuery.matches)
       && (propsRef.current.autoAnimate || proximityT > 0.001 || bright > 0.001);
 
     const lineC = new Color();

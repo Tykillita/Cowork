@@ -80,6 +80,18 @@ export function useProjectCatalog(user: PanelUser | null) {
     return updateProjectSchedule(projectId, schedule);
   }, [user]);
 
+  const updateChangelogUrl = useCallback(async (projectId: string, changelogUrl: string) => {
+    if (!user) throw new Error("Inicia sesión para editar el proyecto.");
+    const { updateProjectChangelogUrl } = await import("./projectCatalog");
+    return updateProjectChangelogUrl(projectId, changelogUrl);
+  }, [user]);
+
+  const updateRepositoryUrl = useCallback(async (projectId: string, repositoryUrl: string) => {
+    if (!user) throw new Error("Inicia sesión para editar el proyecto.");
+    const { updateProjectRepository } = await import("./projectCatalog");
+    return updateProjectRepository(projectId, repositoryUrl);
+  }, [user]);
+
   const updateGitHubPolicy = useCallback(async (projectId: string, branchWrite: GitHubBranchWrite) => {
     if (!user) throw new Error("Inicia sesión para editar el proyecto.");
     const { updateProjectGitHubPolicy } = await import("./projectCatalog");
@@ -151,5 +163,5 @@ export function useProjectCatalog(user: PanelUser | null) {
     await transferProjectOwnership(projectId, targetUid, user);
   }, [user]);
 
-  return { projects, loading, ready: !user || readyUserId === user.id, error, retry, addProject, updatePreviewUrl, updateSchedule, updateGitHubPolicy, watchMembers, watchLinks, watchRequests, createLink, revokeLink, approveRequest, rejectRequest, setRetryAllowed, loadHistory, removeMember, transferOwnership };
+  return { projects, loading, ready: !user || readyUserId === user.id, error, retry, addProject, updatePreviewUrl, updateSchedule, updateGitHubPolicy, updateChangelogUrl, updateRepositoryUrl, watchMembers, watchLinks, watchRequests, createLink, revokeLink, approveRequest, rejectRequest, setRetryAllowed, loadHistory, removeMember, transferOwnership };
 }

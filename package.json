@@ -1,6 +1,6 @@
 {
   "name": "cowork-panel",
-  "version": "0.1.0",
+  "version": "0.3.1",
   "private": true,
   "license": "MIT",
   "type": "module",
@@ -10,17 +10,21 @@
   "scripts": {
     "dev": "npm run build:emulators && npx firebase-tools emulators:start --only hosting,auth,firestore",
     "test:streaks": "npx firebase-tools emulators:exec --only firestore --project demo-cowork-spark \"node --experimental-strip-types --test tests/spark-backend.test.mjs\"",
-    "build:emulators": "tsc --noEmit && cross-env VITE_USE_FIREBASE_EMULATORS=true vite build",
-    "dev:vite": "vite --host 0.0.0.0",
+    "build:emulators": "npm run icons && tsc --noEmit && cross-env VITE_USE_FIREBASE_EMULATORS=true vite build",
+    "dev:vite": "npm run icons && vite --host 0.0.0.0",
+    "icons": "node scripts/file-icons.mjs",
     "dev:emulators": "npm run dev",
-    "build": "tsc --noEmit && cross-env VITE_USE_FIREBASE_EMULATORS=false vite build",
+    "build": "npm run icons && tsc --noEmit && cross-env VITE_USE_FIREBASE_EMULATORS=false vite build",
     "deploy": "npm run build && npx firebase-tools deploy --only hosting:cowork,firestore:rules,firestore:indexes",
     "preview": "vite preview --host 0.0.0.0",
     "test:rules": "npx firebase-tools emulators:exec --only firestore --project demo-cowork-rules \"node --test tests/firestore.rules.test.mjs\"",
     "test:unit": "vitest run",
     "test:e2e": "npm run build:emulators && cross-env E2E_USE_PREVIEW=true firebase emulators:exec --only auth,firestore --project vigilia-panel \"npx playwright test\"",
     "test": "npm run test:unit && npm run test:streaks && npm run test:rules && npm run test:e2e",
-    "test:smoke": "npm run build:emulators && firebase emulators:exec --only auth,firestore --project vigilia-panel \"node tests/spark-ui-smoke.mjs\""
+    "test:smoke": "npm run build:emulators && firebase emulators:exec --only auth,firestore --project vigilia-panel \"node tests/spark-ui-smoke.mjs\"",
+    "version:check": "node scripts/version.mjs check",
+    "version:bump": "node scripts/version.mjs bump",
+    "video:capture": "cross-env CAPTURE_TOUR=1 firebase emulators:exec --only auth,firestore --project vigilia-panel \"npx playwright test tests/e2e/tour-capture.spec.ts --project=chromium\""
   },
   "dependencies": {
     "@date-fns/tz": "^1.5.0",
@@ -31,7 +35,8 @@
     "qrcode": "^1.5.4",
     "react": "^19.3.0",
     "react-day-picker": "^10.0.1",
-    "react-dom": "^19.3.0"
+    "react-dom": "^19.3.0",
+    "shiki": "^4.5.0"
   },
   "devDependencies": {
     "@firebase/rules-unit-testing": "^5.0.2",
@@ -41,6 +46,7 @@
     "@types/react-dom": "^19.3.0",
     "cross-env": "^10.1.0",
     "firebase-tools": "^15.31.0",
+    "material-icon-theme": "^5.38.1",
     "typescript": "^5.9.3",
     "vite": "^7.3.6",
     "vitest": "^4.1.11"

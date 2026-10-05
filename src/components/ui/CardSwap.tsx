@@ -11,6 +11,7 @@ import React, {
   useRef,
 } from "react";
 import gsap from "gsap";
+import { motionReduced } from "../../lib/motion";
 import "./CardSwap.css";
 
 export interface CardSwapProps {
@@ -93,7 +94,14 @@ const CardSwap: React.FC<CardSwapProps> = ({
 
     if (total < 2) return () => { elements.forEach((element) => gsap.killTweensOf(element)); };
 
+    const motionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
+    let hovered = false;
+    let onScreen = true;
+    let paused = true;
     const swap = () => {
+      // An interval callback can already be queued when motion is disabled.
+      // Never start another tween while paused or while a swap is in flight.
+      if (motionReduced(motionQuery.matches) || document.hidden || !onScreen || (pauseOnHover && hovered) || timelineRef.current?.isActive()) return;
       if (order.current.length < 2) return;
       const [front, ...rest] = order.current;
       const frontElement = refs[front]?.current;
@@ -125,13 +133,9 @@ const CardSwap: React.FC<CardSwapProps> = ({
     };
 
     const node = containerRef.current;
-    const motionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
-    let hovered = false;
-    let onScreen = true;
-    let paused = true;
-    let reducedBefore = motionQuery.matches || document.documentElement.dataset.motion === "reduced";
+    let reducedBefore = motionReduced(motionQuery.matches);
     const sync = () => {
-      const reduced = motionQuery.matches || document.documentElement.dataset.motion === "reduced";
+      const reduced = motionReduced(motionQuery.matches);
       if (reduced && !reducedBefore) timelineRef.current?.progress(1).pause();
       reducedBefore = reduced;
       const stop = (pauseOnHover && hovered) || !onScreen || document.hidden || reduced;

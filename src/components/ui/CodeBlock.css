@@ -1,0 +1,134 @@
+/* CodeBlock: a window over the code, in the app's dark glass (or a light sheet). */
+.codeBlock {
+  --cb-bg: rgba(13, 15, 18, .92);
+  --cb-bar: rgba(255, 255, 255, .035);
+  --cb-line: rgba(255, 255, 255, .08);
+  --cb-text: #e6edf3;
+  --cb-muted: rgba(235, 235, 245, .45);
+  --cb-number: rgba(235, 235, 245, .3);
+  --cb-mark: rgba(255, 255, 255, .06);
+  --cb-mark-bar: rgba(255, 255, 255, .55);
+  display: flex; min-width: 0; flex-direction: column; overflow: hidden; border: 1px solid var(--line); border-radius: 16px; background: var(--cb-bg); color: var(--cb-text); box-shadow: inset 0 1px rgba(255, 255, 255, .05);
+}
+.codeBlock[data-theme="light"] {
+  --cb-bg: #fbfbfc; --cb-bar: #f2f3f5; --cb-line: rgba(0, 0, 0, .08); --cb-text: #1f2328; --cb-muted: rgba(31, 35, 40, .55); --cb-number: rgba(31, 35, 40, .35); --cb-mark: rgba(9, 105, 218, .07); --cb-mark-bar: #0969da;
+  border-color: rgba(0, 0, 0, .1);
+}
+.cbHeader { display: flex; min-height: 44px; align-items: center; gap: 12px; padding: 0 12px 0 14px; border-bottom: 1px solid var(--cb-line); background: var(--cb-bar); }
+.cbDots { display: flex; flex: none; gap: 6px; }
+.cbDots i { width: 10px; height: 10px; border-radius: 50%; background: #ff5f57; opacity: .8; }
+.cbDots i:nth-child(2) { background: #febc2e; }
+.cbDots i:nth-child(3) { background: #28c840; }
+.cbBreadcrumb { display: flex; min-width: 0; flex: 1; align-items: center; gap: 6px; overflow: hidden; color: var(--cb-muted); font-size: 11px; white-space: nowrap; }
+.cbBreadcrumb svg { width: 14px; height: 14px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.5; }
+.cbBreadcrumb span { overflow: hidden; text-overflow: ellipsis; }
+.cbCrumbLast { color: var(--cb-text); }
+.cbSep { flex: none; opacity: .6; }
+.cbStats { flex: none; margin-left: auto; color: var(--cb-muted); font-size: 10.5px; font-variant-numeric: tabular-nums; }
+.cbActions { display: flex; flex: none; align-items: center; gap: 2px; }
+.cbIconButton { display: inline-grid; width: 30px; min-height: 30px; padding: 0; place-items: center; border: 1px solid transparent; border-radius: 8px; background: transparent; color: var(--cb-muted); }
+.cbIconButton:hover { border-color: var(--cb-line); background: var(--cb-mark); color: var(--cb-text); }
+.cbIconButton svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.6; }
+.cbFilename { display: flex; min-height: 36px; align-items: center; gap: 8px; padding: 0 14px; border-bottom: 1px solid var(--cb-line); font-size: 12px; font-weight: 600; }
+.cbFilename svg { width: 15px; height: 15px; fill: none; stroke: var(--amber); stroke-linecap: round; stroke-width: 1.8; }
+.codeBlock[data-theme="light"] .cbFilename svg { stroke: #9a6700; }
+.cbFileIcon { display: inline-grid; width: 16px; height: 16px; flex: none; place-items: center; }
+.cbFileIcon img { display: block; width: 16px; height: 16px; }
+.cbTabs button { display: inline-flex; align-items: center; gap: 7px; }
+.cbTabs { display: flex; overflow-x: auto; border-bottom: 1px solid var(--cb-line); }
+.cbTabs button { min-height: 36px; padding: 0 14px; border: 0; border-bottom: 2px solid transparent; border-radius: 0; background: transparent; color: var(--cb-muted); font-size: 12px; white-space: nowrap; }
+.cbTabs button.isActive { border-bottom-color: var(--cb-text); color: var(--cb-text); }
+.cbBody { min-height: 0; flex: 1; overflow: auto; outline: none; scrollbar-color: rgba(255, 255, 255, .18) transparent; scrollbar-width: thin; }
+.cbBody:focus-visible { box-shadow: inset 0 0 0 2px var(--line-strong); }
+.cbPre { min-width: max-content; margin: 0; padding: 10px 0 14px; font: 12.5px/20px ui-monospace, "SFMono-Regular", "Cascadia Code", Consolas, monospace; font-variant-ligatures: none; tab-size: 2; }
+.cbChunk { content-visibility: auto; }
+.cbLine { position: relative; display: flex; min-height: 20px; padding-right: 18px; }
+.cbLine.isMarked { background: var(--cb-mark); }
+.cbLine.isMarked::before { position: absolute; top: 0; bottom: 0; left: 0; width: 2px; background: var(--cb-mark-bar); content: ""; }
+.cbNum { flex: none; width: 52px; padding-right: 16px; color: var(--cb-number); text-align: right; user-select: none; font-variant-numeric: tabular-nums; }
+.cbNum::before { content: attr(data-n); }
+.cbNum.isLink { cursor: pointer; }
+.cbNum.isLink:hover { color: var(--cb-text); }
+.cbText { padding-left: 14px; white-space: pre; }
+.cbPre:not(.hasNumbers) .cbText { padding-left: 18px; }
+.cbFooter { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 16px; min-height: 34px; padding: 6px 14px; border-top: 1px solid var(--cb-line); background: var(--cb-bar); color: var(--cb-muted); font-size: 10.5px; }
+.cbEncoding { margin-left: auto; }
+
+/* "Ver en GitHub": a pill with GitHub's mark in the header, a button in empty states. */
+.ghMark { display: block; flex: none; width: 15px; height: 15px; }
+.ghArrow { width: 11px; height: 11px; flex: none; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.6; opacity: .55; transition: opacity .16s var(--ease), transform .16s var(--ease); }
+.cbGitHub {
+  display: inline-flex; min-height: 28px; align-items: center; gap: 6px; margin-left: 4px; padding: 0 9px 0 8px;
+  border: 1px solid var(--cb-line); border-radius: 999px; background: rgba(255, 255, 255, .04);
+  color: var(--cb-text); font-size: 11px; font-weight: 600; text-decoration: none; white-space: nowrap;
+  transition: border-color .16s var(--ease), background .16s var(--ease);
+}
+.cbGitHub:hover { border-color: rgba(255, 255, 255, .22); background: rgba(255, 255, 255, .09); color: var(--cb-text); }
+.cbGitHub:hover .ghArrow, .ghButton:hover .ghArrow { opacity: .9; transform: translate(1px, -1px); }
+.codeBlock[data-theme="light"] .cbGitHub { background: #fff; }
+.ghButton {
+  display: inline-flex; min-height: 36px; align-items: center; gap: 8px; padding: 0 15px 0 13px;
+  border: 1px solid transparent; border-radius: 11px; background: #ececf0; color: #0b0c0e;
+  font-size: 12px; font-weight: 650; text-decoration: none; transition: background .16s var(--ease), border-color .16s var(--ease);
+}
+.ghButton:hover { background: #fff; color: #0b0c0e; }
+.ghButton .ghMark { width: 16px; height: 16px; }
+.ghButton.isQuiet { border-color: rgba(255, 255, 255, .14); background: rgba(255, 255, 255, .06); color: var(--text); font-weight: 600; }
+.ghButton.isQuiet:hover { border-color: rgba(255, 255, 255, .24); background: rgba(255, 255, 255, .11); color: var(--text); }
+.ghArrow.isDownload { width: 15px; height: 15px; opacity: .8; }
+a.cbIconButton { color: var(--cb-muted); }
+a.cbIconButton:hover { color: var(--cb-text); }
+
+/* "Vista previa" / "Código" switch for SVG files. */
+.cbSegment { display: inline-flex; margin-right: 4px; padding: 2px; border: 1px solid var(--cb-line); border-radius: 9px; background: rgba(255, 255, 255, .03); }
+.codeBlock .cbSegment button { min-height: 24px; padding: 0 9px; border: 0; border-radius: 7px; background: transparent; color: var(--cb-muted); font-size: 10.5px; font-weight: 600; }
+.codeBlock .cbSegment button:hover { background: transparent; color: var(--cb-text); }
+.codeBlock .cbSegment button[aria-pressed="true"] { background: rgba(255, 255, 255, .1); color: var(--cb-text); }
+
+/* Previews: a stage for images, an explanation for the rest. */
+.cbPreview .cbFilename { padding-right: 10px; }
+.cbBackdrops { display: inline-flex; gap: 5px; margin-left: auto; }
+.codeBlock .cbSwatch { width: 18px; min-height: 18px; padding: 0; border: 1px solid rgba(255, 255, 255, .22); border-radius: 50%; }
+.codeBlock .cbSwatch.is-checker { background: repeating-conic-gradient(#8a8d93 0 25%, #3a3d42 0 50%) 0 0 / 8px 8px; }
+.codeBlock .cbSwatch.is-dark, .codeBlock .cbSwatch.is-dark:hover { background: #0b0c0e; }
+.codeBlock .cbSwatch.is-light, .codeBlock .cbSwatch.is-light:hover { background: #f4f4f6; }
+.codeBlock .cbSwatch:hover { border-color: rgba(255, 255, 255, .5); }
+.codeBlock .cbSwatch[aria-pressed="true"] { box-shadow: 0 0 0 2px var(--cb-bg), 0 0 0 3.5px rgba(255, 255, 255, .7); }
+.cbStage { display: grid; min-height: 300px; flex: 1; place-items: center; overflow: auto; padding: clamp(24px, 5vw, 56px); transition: background-color .2s var(--ease); }
+.cbStage.is-checker { background: repeating-conic-gradient(rgba(255, 255, 255, .045) 0 25%, transparent 0 50%) 0 0 / 20px 20px; }
+.cbStage.is-dark { background: #0b0c0e; }
+.cbStage.is-light { background: #f4f4f6; }
+.cbStage img { display: block; max-width: 100%; max-height: min(52vh, 440px); width: auto; height: auto; }
+.cbStage img.isPixel { max-width: none; max-height: none; image-rendering: pixelated; }
+.cbEmpty { display: grid; min-height: 300px; flex: 1; place-content: center; justify-items: center; gap: 8px; padding: 48px 24px; text-align: center; }
+.cbEmptyIcon { display: grid; width: 68px; height: 68px; margin-bottom: 6px; place-items: center; border: 1px solid var(--cb-line); border-radius: 18px; background: linear-gradient(180deg, rgba(255, 255, 255, .06), rgba(255, 255, 255, .02)); box-shadow: inset 0 1px rgba(255, 255, 255, .06); }
+.cbEmptyIcon img, .cbEmptyIcon svg { width: 34px; height: 34px; }
+.cbEmptyIcon svg { fill: none; stroke: var(--cb-muted); stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.4; }
+.cbEmptyIcon.is-error { border-color: rgba(255, 124, 135, .3); }
+.cbEmpty h3 { margin: 0; color: var(--cb-text); font-size: 14px; font-weight: 640; }
+.cbEmpty p { max-width: 46ch; margin: 0; color: var(--cb-muted); font-size: 12px; line-height: 1.6; }
+.cbEmptyActions { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 10px; }
+
+.cbDialog { width: calc(100vw - 32px); max-width: none; height: calc(100dvh - 32px); max-height: none; margin: auto; padding: 0; overflow: hidden; border: 0; border-radius: 18px; background: transparent; }
+.cbDialog::backdrop { background: rgba(4, 6, 7, .72); }
+.cbDialog > .codeBlock { height: 100%; }
+
+@media (max-width: 640px) {
+  .cbHeader { gap: 8px; padding: 0 8px 0 10px; }
+  .cbDots, .cbStats { display: none; }
+  /* Phones show only the file name in the path. */
+  .cbBreadcrumb > span:not(.cbCrumbLast), .cbBreadcrumb > svg { display: none; }
+  /* The header already names the file. */
+  .cbHeader:has(.cbBreadcrumb) + .cbFilename:not(:has(.cbBackdrops)) { display: none; }
+  /* With an image the bar stays, only for the backdrop swatches. */
+  .cbHeader:has(.cbBreadcrumb) + .cbFilename :is(.cbFileIcon, .cbFileName) { display: none; }
+  .cbGitHub .ghLabel, .cbGitHub .ghArrow { display: none; }
+  .cbGitHub { width: 30px; justify-content: center; padding: 0; }
+  .cbStage, .cbEmpty { min-height: 240px; }
+  .cbNum { width: 40px; padding-right: 10px; }
+  .cbText { padding-left: 10px; }
+  .cbPre { font-size: 12px; }
+}
+
+html[data-motion="reduced"] :is(.ghArrow, .cbStage, .cbGitHub, .ghButton) { transition: none; }
+@media (prefers-reduced-motion: reduce) { html:not([data-motion="full"]) :is(.ghArrow, .cbStage, .cbGitHub, .ghButton) { transition: none; } }

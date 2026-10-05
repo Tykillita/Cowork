@@ -8,7 +8,14 @@ import { useEffect, useState } from "react";
  */
 
 const NAMES = ["favicon.svg", "favicon.ico", "favicon.png", "apple-touch-icon.png", "icon.svg"];
-const CACHE_KEY = "cowork.site-favicons";
+// These sites publish their icons at custom paths and don't allow cross-origin
+// HTML reads, so the client can't discover the href from their <link> tags.
+const SITE_ICONS: Record<string, string[]> = {
+  "istargetsleeping.web.app": ["/media/istargetsleeping-icon.svg"],
+  "vetcentercaninosyfelinos.web.app": ["/assets/images/app-icon-192.png", "/assets/images/apple-touch-icon.png"],
+};
+// New key forces sites that were cached as "no icon" to retry the expanded list.
+const CACHE_KEY = "cowork.site-favicons:v2";
 const MISSING = "";
 const memory = new Map<string, string>();
 const pending = new Map<string, Promise<string>>();
@@ -35,7 +42,12 @@ export function faviconCandidates(previewUrl: string) {
   base.hash = "";
   const last = base.pathname.split("/").pop() ?? "";
   if (!base.pathname.endsWith("/") && !last.includes(".")) base.pathname += "/";
-  const urls = [...NAMES.map((name) => new URL(name, base).href), ...NAMES.map((name) => new URL(`/${name}`, base.origin).href)];
+  const known = SITE_ICONS[page.hostname.toLowerCase()] ?? [];
+  const urls = [
+    ...known.map((path) => new URL(path, page.origin).href),
+    ...NAMES.map((name) => new URL(name, base).href),
+    ...NAMES.map((name) => new URL(`/${name}`, base.origin).href),
+  ];
   return [...new Set(urls)];
 }
 

@@ -112,8 +112,13 @@
 .projectCreateCancelButton { min-height: 44px; flex: none; }
 .projectFormError { margin: 0; color: var(--red); font-size: 11px; }
 .projectCreateHint { margin: 0; color: var(--secondary); font-size: 12px; }
-.projectPickerFooter { margin-top: auto; color: rgba(235,235,245,.34); font-size: 9px; letter-spacing: .13em; text-align: center; }
+.projectPickerFooter { display: grid; justify-items: center; gap: 6px; margin-top: auto; color: rgba(235,235,245,.34); font-size: 9px; letter-spacing: .13em; text-align: center; }
+.projectPickerFooter p { margin: 0; }
 .projectPickerFooter span { padding: 0 6px; color: var(--mint); }
+/* The public changelog, reachable before signing in. */
+.projectPickerVersion { padding: 3px 8px; border-radius: 999px; color: rgba(235,235,245,.42); text-decoration: none; transition: color .15s var(--ease), background .15s var(--ease); }
+.projectPickerVersion span { color: rgba(235,235,245,.3); }
+.projectPickerVersion:hover, .projectPickerVersion:focus-visible { background: rgba(255,255,255,.05); color: var(--text); }
 
 .projectJoinDialog {
   position: fixed;
@@ -360,4 +365,24 @@ html[data-motion="reduced"] .projectJoinDialog[open], html[data-motion="reduced"
     -webkit-mask-image: linear-gradient(to bottom, rgba(0,0,0,.42), transparent 78%);
     mask-image: linear-gradient(to bottom, rgba(0,0,0,.42), transparent 78%);
   }
+}
+
+/* Section chips at the top of the project settings; a side index on wide screens. */
+.settingsLayout { display: grid; grid-template-columns: minmax(0, 1fr); }
+.settingsPanels { min-width: 0; }
+.settingsSections { display: flex; max-width: 820px; flex-wrap: wrap; gap: 6px; margin: 0 0 16px; }
+.settingsSections a { display: inline-flex; min-height: 30px; align-items: center; gap: 6px; padding: 0 12px; border: 1px solid var(--line); border-radius: 999px; background: rgba(255,255,255,.03); color: var(--secondary); font-size: 11px; font-weight: 600; text-decoration: none; }
+.settingsSections a:hover { border-color: var(--line-strong); color: var(--text); }
+.settingsSections a[aria-current="true"] { background: rgba(255,255,255,.1); color: var(--text); }
+.settingsSectionBadge { display: inline-grid; min-width: 17px; height: 17px; place-items: center; padding: 0 5px; border-radius: 999px; background: rgba(246,207,134,.18); color: var(--amber); font-size: 9.5px; }
+.projectRepositoryForm { margin-bottom: 16px; padding-bottom: 16px; border-bottom: 1px solid var(--rule); }
+#settings-github, #settings-schedule, #settings-preview, #settings-members, #settings-access { scroll-margin-top: 24px; }
+
+@media (min-width: 1121px) {
+  .settingsLayout { grid-template-columns: 184px minmax(0, 880px); align-items: start; gap: 28px; }
+  .settingsSections { position: sticky; top: 24px; display: grid; gap: 2px; margin: 4px 0 0; padding-left: 10px; border-left: 1px solid var(--line); }
+  .settingsSections a { min-height: 34px; justify-content: space-between; border: 0; border-radius: 9px; background: transparent; font-size: 12px; }
+  .settingsSections a:hover { background: rgba(255,255,255,.05); }
+  .settingsSections a[aria-current="true"] { background: rgba(255,255,255,.08); }
+  .settingsPanels .projectSettingsPanel, .settingsPanels .projectMembersPanel { max-width: none; }
 }

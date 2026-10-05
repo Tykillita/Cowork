@@ -2,6 +2,7 @@ import { useEffect, useRef, type CSSProperties, type ReactNode } from "react";
 import { gsap } from "gsap";
 import { SplitText } from "gsap/SplitText";
 import { ScrambleTextPlugin } from "gsap/ScrambleTextPlugin";
+import { usePersonal } from "../../features/personal/PersonalContext";
 import "./ScrambledText.css";
 
 gsap.registerPlugin(SplitText, ScrambleTextPlugin);
@@ -27,11 +28,12 @@ export default function ScrambledText({
 }: ScrambledTextProps) {
   const wrapperRef = useRef<HTMLSpanElement>(null);
   const rootRef = useRef<HTMLSpanElement>(null);
+  const { reducedMotion } = usePersonal();
 
   useEffect(() => {
     const wrapper = wrapperRef.current;
     const element = rootRef.current;
-    if (!wrapper || !element || radius <= 0) return;
+    if (!wrapper || !element || radius <= 0 || reducedMotion) return;
 
     let split: SplitText | undefined;
     let chars: HTMLElement[] = [];
@@ -94,7 +96,7 @@ export default function ScrambledText({
       chars.forEach((char) => gsap.killTweensOf(char));
       split?.revert();
     };
-  }, [duration, radius, scrambleChars, speed]);
+  }, [duration, radius, reducedMotion, scrambleChars, speed]);
 
   return (
     <span ref={wrapperRef} className={`scrambled-text${className ? ` ${className}` : ""}`} style={style}>

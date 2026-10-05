@@ -1,0 +1,118 @@
+/* ─── Project summary (#home) ──────────────────────────────────────────────
+ * Named areas keep the reading order of the DOM at every width:
+ * 12 columns on desktop, 2 on tablets and 1 on phones.
+ */
+
+.heroFacts { display: flex; flex-wrap: wrap; gap: 8px; margin: 2px 0 0; padding: 0; list-style: none; }
+.heroFacts li { display: inline-flex; align-items: center; min-height: 28px; padding: 0 11px; border: 1px solid var(--line); border-radius: 999px; background: rgba(255, 255, 255, .04); color: var(--secondary); font-size: 11px; }
+.heroFacts a { color: inherit; text-decoration: none; }
+.heroFacts a:hover { color: var(--text); }
+
+.homeGrid {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  grid-template-areas:
+    "you you you you you prog prog prog prog mile mile mile"
+    "act act act act act act act repo repo repo repo repo";
+  gap: 12px;
+}
+.homeGrid.hasCode {
+  grid-template-areas:
+    "you you you you you prog prog prog prog mile mile mile"
+    "act act act act act act act repo repo repo repo repo"
+    "act act act act act act act code code code code code";
+}
+.homeYou { grid-area: you; }
+.homeProgress { grid-area: prog; }
+.homeMilestone { grid-area: mile; }
+.homeActivity { grid-area: act; }
+.homeRepo { grid-area: repo; }
+.homeCode { grid-area: code; }
+
+.homeCard { display: flex; min-width: 0; min-height: 200px; flex-direction: column; gap: 10px; margin: 0; padding: 19px; }
+.homeCardHead { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 20px; }
+.homeEyebrow { overflow: hidden; margin: 0; color: var(--tertiary); font-size: 9px; font-weight: 650; letter-spacing: .13em; text-overflow: ellipsis; white-space: nowrap; }
+.homeCardTitle { margin: 0; font-size: 17px; font-weight: 620; letter-spacing: -.025em; }
+.homeCount, .homeChip { display: inline-flex; flex: none; align-items: center; min-width: 22px; justify-content: center; padding: 1px 8px; border: 1px solid var(--line); border-radius: 999px; color: var(--secondary); font-size: 10px; font-weight: 650; }
+.homeCopy { max-width: 46ch; margin: 0; color: var(--tertiary); font-size: 11.5px; line-height: 1.6; }
+.homeMuted { color: var(--tertiary); }
+.homeCard .bar { width: 100%; margin: 0; }
+.homeCardFoot { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; margin-top: auto; padding-top: 6px; }
+.homeLink { color: var(--secondary); font-size: 10.5px; font-weight: 600; text-decoration: none; }
+a.homeLink:hover { color: var(--text); }
+
+/* Lists of tasks and events: whole rows are links. */
+.homeList { display: grid; gap: 2px; margin: 0 -10px; padding: 0; list-style: none; }
+.homeRow { display: flex; min-height: 38px; align-items: center; gap: 10px; padding: 7px 10px; border-radius: 11px; color: var(--text); font-size: 12.5px; text-decoration: none; }
+a.homeRow:hover { background: rgba(255, 255, 255, .05); color: var(--text); }
+a.homeRow:focus-visible { outline: 2px solid var(--line-strong); outline-offset: -2px; }
+.homeRowText { display: grid; min-width: 0; flex: 1; gap: 2px; line-height: 1.45; }
+.homeYou .homeRowText { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.homeRow .accessStatusChip { margin: 0; }
+.homeEvent .homeRowText strong { font-weight: 600; }
+.homeEvent .homeRowText > span { color: var(--secondary); }
+.homeEvent .homeRowText > span strong { color: var(--text); }
+.homeEvent small { color: var(--tertiary); font-size: 10.5px; }
+.homeUnread { width: 7px; height: 7px; flex: none; border-radius: 50%; background: var(--mint); }
+
+.homeBigNumber { display: flex; align-items: baseline; gap: 10px; margin: 2px 0 0; font-size: 38px; font-weight: 650; letter-spacing: -.04em; line-height: 1; }
+.homeBigNumber small { color: var(--tertiary); font-size: 11px; font-weight: 500; letter-spacing: 0; }
+.homeStats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 2px 0 0; }
+.homeStats > div { min-width: 0; padding: 8px 10px; border: 1px solid var(--tile-line); border-radius: 12px; background: var(--tile); }
+.homeStats dt { overflow: hidden; color: var(--tertiary); font-size: 9.5px; text-overflow: ellipsis; white-space: nowrap; }
+.homeStats dd { margin: 2px 0 0; font-size: 16px; font-weight: 620; }
+
+.homeMilestone.isOverdue { border-color: rgba(255, 124, 135, .35); }
+.homeMilestone .homeCardHead .accessStatusChip { margin: 0; }
+
+.homeFacts { display: grid; gap: 10px; margin: 0; }
+.homeFacts > div { display: grid; min-width: 0; gap: 3px; }
+.homeFacts dt { color: var(--tertiary); font-size: 9.5px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; }
+.homeFacts dd { min-width: 0; margin: 0; font-size: 12.5px; }
+.homeFacts dd code { padding: 1px 6px; border: 1px solid var(--tile-line); border-radius: 6px; background: var(--tile); font-size: 11.5px; }
+.homeFacts dd a { display: grid; min-width: 0; gap: 2px; color: var(--text); text-decoration: none; }
+.homeFacts dd a:hover .homeCommitMessage { text-decoration: underline; }
+.homeFacts dd small { color: var(--tertiary); font-size: 10.5px; }
+.homeCommitMessage { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.homeRepoStats { display: flex; flex-wrap: wrap; gap: 4px 14px; margin: 0; color: var(--secondary); font-size: 11px; }
+
+/* Owner checklist while the project still lacks something. */
+.homeSetup { display: grid; grid-template-columns: minmax(0, .8fr) minmax(0, 2fr); align-items: center; gap: 16px; margin-top: 12px; padding: 19px; }
+.homeSetupList { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin: 0; padding: 0; list-style: none; }
+.homeSetupList a { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 1px solid var(--tile-line); border-radius: 12px; background: var(--tile); color: var(--text); font-size: 12px; text-decoration: none; }
+.homeSetupList a:hover { border-color: var(--line-strong); }
+.homeSetupList a.isDone { color: var(--tertiary); }
+.homeSetupCheck { display: grid; width: 18px; height: 18px; flex: none; place-items: center; border: 1px solid var(--line-strong); border-radius: 50%; font-size: 10px; }
+.homeSetupList a.isDone .homeSetupCheck { border-color: rgba(141, 231, 189, .4); color: var(--mint); }
+
+@media (max-width: 1120px) {
+  .homeGrid, .homeGrid.hasCode {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-areas: "you you" "prog mile" "act act" "repo repo";
+  }
+  .homeGrid.hasCode { grid-template-areas: "you you" "prog mile" "act act" "repo code"; }
+}
+
+@media (max-width: 900px) {
+  .homeSetup { grid-template-columns: minmax(0, 1fr); }
+}
+
+@media (max-width: 640px) {
+  .homeGrid, .homeGrid.hasCode { grid-template-columns: minmax(0, 1fr); grid-template-areas: "you" "prog" "mile" "act" "repo"; }
+  .homeGrid.hasCode { grid-template-areas: "you" "prog" "mile" "act" "repo" "code"; }
+  .homeCard { min-height: 0; padding: 16px; }
+  .homeBigNumber { font-size: 32px; }
+  .homeSetupList { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* Arriving from a summary link: the task is marked with a neutral outline. */
+.taskRow.isFocused { border-color: var(--line-strong); background: rgba(255, 255, 255, .05); }
+#milestones { scroll-margin-top: 24px; }
+
+.homeMilestoneProgress { display: grid; gap: 8px; margin-top: 4px; }
+.homeMilestoneCount { color: var(--secondary); font-size: 11.5px; }
+.homeMilestoneCount strong { color: var(--text); font-weight: 650; }
+.homeActivity .homeRow { min-height: 46px; }
+
+/* Commit SHAs and branch names stay neutral in the project views. */
+.homeFacts dd code, #branch-log .repoCommitMeta code { color: var(--tertiary); }

@@ -2,11 +2,12 @@ import { useEffect, useId, useRef, useState } from "react";
 import { Avatar } from "../../components/Avatar";
 import { usePresence } from "../../components/usePresence";
 import type { ActivityEvent } from "../../types";
-import { describeEvent } from "./activityEvents";
+import { describeEvent, eventTarget } from "./activityEvents";
 import type { ActivityCenterState, ForYouItem } from "./useActivityCenter";
 import { usePersonal } from "../personal/PersonalContext";
 import { ReceivedNudge } from "../streaks/NudgeUI";
 import { repeat, Sk, SkGroup } from "../../components/Skeleton";
+import { relativeTime } from "../../lib/relativeTime";
 
 /** Entries while the feeds load: avatar (Actividad) or status chip (Para ti), a line and its meta. */
 function ActivitySkeleton({ tab }: { tab: "for-you" | "activity" }) {
@@ -20,19 +21,6 @@ function ActivitySkeleton({ tab }: { tab: "for-you" | "activity" }) {
 
 type Tab = "for-you" | "activity";
 
-function when(value: string) {
-  const time = Date.parse(value);
-  if (Number.isNaN(time)) return "";
-  const minutes = Math.round((Date.now() - time) / 60_000);
-  if (minutes < 1) return "ahora";
-  if (minutes < 60) return `hace ${minutes} min`;
-  if (minutes < 60 * 24) return `hace ${Math.round(minutes / 60)} h`;
-  return new Intl.DateTimeFormat("es", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }).format(time);
-}
-
-function eventTarget(event: ActivityEvent) {
-  return event.targetType === "branch" ? "#branches-page" : "#work";
-}
 
 export function ActivityCenter({ state, projectIds, onOpen }: {
   state: ActivityCenterState;
@@ -130,7 +118,7 @@ export function ActivityCenter({ state, projectIds, onOpen }: {
           {!state.ready ? <ActivitySkeleton tab={tab} /> : tab === "for-you" ? (
             filteredForYou.length ? filteredForYou.map((item) => (
               <button key={item.id} type="button" className={`activityEntry${state.isUnreadItem(item) ? " isUnread" : ""}`} onClick={() => void openItem(item)} disabled={!item.target && !(item.unreadable && state.isUnreadItem(item))}>
-                <span className="accessStatusChip" data-tone={item.tone}>{item.kind === "request" ? "Solicitud" : item.kind === "decision" ? "Decisión" : item.kind === "task" ? "Tu tarea" : "Entrega"}</span>
+                <span className="accessStatusChip" data-tone={item.tone}>{item.kind === "request" ? "Solicitud" : item.kind === "decision" ? "Decisión" : item.kind === "task" ? "Tu tarea" : item.kind === "review" ? "Revisión" : "Entrega"}</span>
                 <span className="activityEntryText"><strong>{item.title}</strong><small>{item.detail}</small></span>
                 {state.isUnreadItem(item) && <span className="activityUnread" aria-label="Sin leer" />}
               </button>
@@ -141,7 +129,7 @@ export function ActivityCenter({ state, projectIds, onOpen }: {
                 <Avatar name={event.actorName} size={24} />
                 <span className="activityEntryText">
                   <strong>{event.actorName}</strong> <span>{describeEvent(event, state.milestoneTitle)}</span>
-                  <small>{state.projectName(event.projectId)} · <time dateTime={event.createdAt}>{when(event.createdAt)}</time></small>
+                  <small>{state.projectName(event.projectId)} · <time dateTime={event.createdAt}>{relativeTime(event.createdAt)}</time></small>
                 </span>
                 {state.isUnreadEvent(event) && <span className="activityUnread" aria-label="Sin leer" />}
               </button>

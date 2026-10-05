@@ -168,7 +168,7 @@ try {
   await page.evaluate(() => { location.hash = "#work"; });
   const input = page.getByRole("textbox", { name: "Título de la nueva tarea" });
   await input.fill("Actividad Spark"); await input.press("Enter");
-  await expect(page.locator(".taskRow", { hasText: "Actividad Spark" })).toBeVisible();
+  await expect(page.locator(".taskItem", { hasText: "Actividad Spark" })).toBeVisible();
   await page.getByRole("button", { name: /Abrir rachas y puntos/ }).click();
   await expect(panel.locator(".streakHeroMain b")).toHaveText("4", { timeout: 30000 });
   await expect(panel.locator(".streakStats")).toContainText("8Puntos disponibles");

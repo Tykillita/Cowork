@@ -1,0 +1,481 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Cowork · recorrido</title>
+<!--
+  The Cowork tour, drawn frame by frame: render.mjs loads this page at 1920 × 1080, calls
+  window.render(t) for every frame and pipes the screenshots to ffmpeg. Scenes follow a
+  120 BPM grid (every boundary on a half-second beat) that soundtrack.py shares.
+  The screenshots in shots/ come from `npm run video:capture` (docs/VIDEO.md).
+-->
+<style>
+  :root {
+    --bg: #07080a; --ink: #f5f5f7; --dim: rgba(235, 235, 245, .62); --faint: rgba(235, 235, 245, .36);
+    --mint: #8de7bd; --mint-wash: rgba(141, 231, 189, .12); --amber: #f6cf86; --red: #ff7c87;
+    --card: rgba(255, 255, 255, .045); --line: rgba(255, 255, 255, .1);
+    --sans: -apple-system, "SF Pro Display", "Segoe UI Variable Display", "Segoe UI", system-ui, sans-serif;
+    --mono: ui-monospace, "Cascadia Code", "Cascadia Mono", Consolas, monospace;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 1920px; height: 1080px; overflow: hidden; background: var(--bg); color: var(--ink); font-family: var(--sans); -webkit-font-smoothing: antialiased; }
+  #stage { position: absolute; inset: 0; overflow: hidden; }
+  #bgglow { position: absolute; inset: -200px; background:
+      radial-gradient(1000px 640px at var(--gx, 70%) var(--gy, 10%), rgba(141, 231, 189, .09), transparent 68%),
+      radial-gradient(760px 560px at 12% 88%, rgba(126, 180, 255, .05), transparent 70%); }
+  .grid { position: absolute; inset: 0; background-image: radial-gradient(circle, rgba(255, 255, 255, .06) 1.2px, transparent 1.6px);
+          background-size: 48px 48px; mask-image: radial-gradient(1200px 800px at 50% 50%, #000 30%, transparent 85%); }
+  .scene { position: absolute; inset: 0; opacity: 0; }
+  .abs { position: absolute; }
+  .h1 { font-size: 132px; font-weight: 700; letter-spacing: -6px; line-height: 1; }
+  .h2 { font-size: 76px; font-weight: 700; letter-spacing: -3px; line-height: 1.04; }
+  .p { font-size: 30px; color: var(--dim); line-height: 1.4; }
+  .kicker { font-size: 21px; font-weight: 700; letter-spacing: 4px; text-transform: uppercase; color: var(--mint); }
+  .dim { color: var(--dim); } .mint { color: var(--mint); } .amber { color: var(--amber); }
+  .chip { display: inline-flex; align-items: center; gap: 12px; padding: 10px 18px; border: 1px solid var(--line); border-radius: 999px;
+          background: rgba(255, 255, 255, .06); color: var(--ink); font-size: 24px; font-weight: 600; white-space: nowrap; }
+  .chip .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--mint); }
+  .mono { font-family: var(--mono); }
+  .glass { border: 1px solid var(--line); border-radius: 28px; background: linear-gradient(180deg, rgba(255, 255, 255, .07), rgba(255, 255, 255, .025));
+           box-shadow: 0 30px 80px rgba(0, 0, 0, .55), inset 0 1px 0 rgba(255, 255, 255, .06); }
+
+  /* A browser window around a screenshot; .pan carries the zoom and the rings. */
+  .win { position: absolute; overflow: hidden; border: 1px solid rgba(255, 255, 255, .12); border-radius: 22px; background: #0b0c0e;
+         box-shadow: 0 40px 120px rgba(0, 0, 0, .65), 0 0 0 1px rgba(0, 0, 0, .4); }
+  .winbar { display: flex; height: 42px; align-items: center; gap: 16px; padding: 0 18px; border-bottom: 1px solid rgba(255, 255, 255, .07); background: #121316; }
+  .winbar .dots { display: flex; gap: 8px; } .winbar .dots i { width: 12px; height: 12px; border-radius: 50%; background: #ff5f57; opacity: .85; }
+  .winbar .dots i:nth-child(2) { background: #febc2e; } .winbar .dots i:nth-child(3) { background: #28c840; }
+  .winbar .url { flex: 1; max-width: 520px; margin: 0 auto; padding: 5px 14px; border-radius: 8px; background: rgba(255, 255, 255, .05); color: var(--faint); font-size: 15px; text-align: center; }
+  .winbody { position: relative; overflow: hidden; aspect-ratio: 1600 / 1000; }
+  .pan { position: absolute; inset: 0; transform-origin: 0 0; }
+  .pan img { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .ring { position: absolute; border: 3px solid rgba(255, 255, 255, .9); border-radius: 16px; opacity: 0;
+          box-shadow: 0 0 0 9999px rgba(4, 5, 6, .45), 0 0 0 7px rgba(255, 255, 255, .12); }
+
+  .callout { position: absolute; left: 110px; width: 500px; }
+  .callout .n { color: var(--mint); font-size: 22px; font-weight: 700; letter-spacing: 3px; }
+  .callout .t { margin-top: 8px; font-size: 48px; font-weight: 700; letter-spacing: -1.6px; line-height: 1.06; }
+  .callout .d { margin-top: 12px; color: var(--dim); font-size: 26px; line-height: 1.38; }
+  .key { display: inline-grid; min-width: 46px; height: 46px; place-items: center; padding: 0 12px; border: 1px solid rgba(255, 255, 255, .3);
+         border-bottom-width: 4px; border-radius: 10px; background: rgba(255, 255, 255, .06); font: 700 24px var(--mono); }
+
+  .toast { position: absolute; display: flex; width: 560px; align-items: center; gap: 20px; padding: 22px 26px; border-radius: 20px; }
+  .toast .ic { display: grid; width: 60px; height: 60px; flex: none; place-items: center; border-radius: 16px; background: #ececf0; color: #0b0c0e; }
+  .toast .ic svg { width: 32px; height: 32px; }
+  .toast .tt { font-size: 25px; font-weight: 650; } .toast .td { margin-top: 2px; color: var(--dim); font-size: 21px; }
+
+  .fcard { position: absolute; width: 380px; height: 210px; padding: 28px 30px; }
+  .fcard svg { width: 42px; height: 42px; fill: none; stroke: var(--ink); stroke-linecap: round; stroke-linejoin: round; stroke-width: 2; }
+  .fcard .t { margin-top: 18px; font-size: 29px; font-weight: 650; letter-spacing: -.5px; }
+  .fcard .d { margin-top: 6px; color: var(--dim); font-size: 20px; line-height: 1.32; }
+
+  .float { position: absolute; padding: 18px 24px; border-radius: 18px; font-size: 26px; }
+  .float small { display: block; margin-bottom: 6px; color: var(--faint); font-size: 17px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; }
+  .mark path, .mark circle { fill: none; stroke: var(--ink); stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+  .word { display: inline-block; white-space: pre; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="bgglow"></div><div class="grid"></div>
+
+  <!-- 1 · Intro -->
+  <section class="scene" id="s1">
+    <svg class="abs mark" id="mark1" viewBox="0 0 24 24" style="left:860px;top:250px;width:200px;height:200px;overflow:visible">
+      <path id="m1a" d="M6.5 5.5v4a3 3 0 0 0 3 3h5a3 3 0 0 1 3 3v3" pathLength="1" stroke-dasharray="1" />
+      <path id="m1b" d="M6.5 18.5v-3a3 3 0 0 1 3-3" pathLength="1" stroke-dasharray="1" />
+      <circle class="node" cx="6.5" cy="4.5" r="2" style="fill:var(--ink);stroke:none" />
+      <circle class="node" cx="6.5" cy="19.5" r="2" style="fill:var(--ink);stroke:none" />
+      <circle class="node" cx="17.5" cy="19.5" r="2" style="fill:var(--mint);stroke:none" />
+    </svg>
+    <div class="abs h1" id="title1" style="left:0;right:0;top:520px;text-align:center"></div>
+    <div class="abs p" id="tag1" style="left:0;right:0;top:680px;text-align:center;font-size:36px"></div>
+  </section>
+
+  <!-- 2 · Problem -->
+  <section class="scene" id="s2">
+    <div class="abs kicker" id="s2k" style="left:0;right:0;top:250px;text-align:center"></div>
+    <div class="abs h2" id="s2t" style="left:200px;right:200px;top:300px;text-align:center"></div>
+    <div id="s2floats"></div>
+  </section>
+
+  <!-- 3 · One space per project -->
+  <section class="scene" id="s3">
+    <div class="abs kicker" id="s3k" style="left:120px;top:250px"></div>
+    <div class="abs h2" id="s3t" style="left:120px;top:296px;width:640px"></div>
+    <div class="abs p" id="s3p" style="left:120px;top:560px;width:600px"></div>
+    <div class="abs" id="s3chips" style="left:120px;top:760px;display:flex;gap:14px;flex-wrap:wrap;width:640px"></div>
+    <div class="win" id="w3" style="left:820px;top:170px;width:1000px"><div class="winbar"><span class="dots"><i></i><i></i><i></i></span><span class="url">cowork</span></div>
+      <div class="winbody"><div class="pan"><img src="shots/portal.png"></div></div></div>
+  </section>
+
+  <!-- 4 · Summary -->
+  <section class="scene" id="s4">
+    <div class="abs kicker" id="s4k" style="left:120px;top:150px"></div>
+    <div id="s4callouts"></div>
+    <div class="win" id="w4" style="left:660px;top:140px;width:1180px"><div class="winbar"><span class="dots"><i></i><i></i><i></i></span><span class="url">cowork · Vigilia</span></div>
+      <div class="winbody"><div class="pan" id="p4"><img src="shots/home.png"><div class="ring" id="r4"></div></div></div></div>
+  </section>
+
+  <!-- 5 · Board and task -->
+  <section class="scene" id="s5">
+    <div class="abs kicker" id="s5k" style="left:120px;top:150px"></div>
+    <div id="s5callouts"></div>
+    <div class="win" id="w5" style="left:660px;top:140px;width:1180px"><div class="winbar"><span class="dots"><i></i><i></i><i></i></span><span class="url">cowork · Plan de trabajo</span></div>
+      <div class="winbody"><div class="pan" id="p5"><img src="shots/board.png"><img id="p5task" src="shots/task.png" style="opacity:0"><div class="ring" id="r5"></div></div></div></div>
+  </section>
+
+  <!-- 6 · Branches -->
+  <section class="scene" id="s6">
+    <div class="abs kicker" id="s6k" style="left:120px;top:150px"></div>
+    <div id="s6callouts"></div>
+    <div class="win" id="w6" style="left:660px;top:140px;width:1180px"><div class="winbar"><span class="dots"><i></i><i></i><i></i></span><span class="url">cowork · Ramas y cambios</span></div>
+      <div class="winbody"><div class="pan" id="p6"><img src="shots/branches.png"><div class="ring" id="r6"></div></div></div></div>
+  </section>
+
+  <!-- 7 · Code -->
+  <section class="scene" id="s7">
+    <div class="abs kicker" id="s7k" style="left:120px;top:150px"></div>
+    <div id="s7callouts"></div>
+    <div class="win" id="w7" style="left:660px;top:140px;width:1180px"><div class="winbar"><span class="dots"><i></i><i></i><i></i></span><span class="url">cowork · Código</span></div>
+      <div class="winbody"><div class="pan" id="p7"><img src="shots/code.png"><img id="p7find" src="shots/code-find.png" style="opacity:0"><img id="p7clone" src="shots/code-clone.png" style="opacity:0"><div class="ring" id="r7"></div></div></div></div>
+  </section>
+
+  <!-- 8 · Files under review -->
+  <section class="scene" id="s8">
+    <div class="abs kicker" id="s8k" style="left:120px;top:150px"></div>
+    <div id="s8callouts"></div>
+    <div class="win" id="w8" style="left:660px;top:140px;width:1180px"><div class="winbar"><span class="dots"><i></i><i></i><i></i></span><span class="url">cowork · Código</span></div>
+      <div class="winbody"><div class="pan" id="p8"><img src="shots/review.png"><div class="ring" id="r8"></div></div></div></div>
+    <div class="toast glass" id="toast8" style="left:1200px;top:860px">
+      <div class="ic"><svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 0c4.42 0 8 3.58 8 8a8.01 8.01 0 0 1-5.45 7.59c-.4.08-.55-.17-.55-.38 0-.27.01-1.13.01-2.2 0-.75-.25-1.23-.54-1.48 1.78-.2 3.65-.88 3.65-3.95 0-.88-.31-1.59-.82-2.15.08-.2.36-1.02-.08-2.12 0 0-.67-.22-2.2.82-.64-.18-1.32-.27-2-.27-.68 0-1.36.09-2 .27-1.53-1.03-2.2-.82-2.2-.82-.44 1.1-.16 1.92-.08 2.12-.51.56-.82 1.28-.82 2.15 0 3.06 1.86 3.75 3.64 3.95-.23.2-.44.55-.51 1.07-.46.21-1.61.55-2.33-.66-.15-.24-.6-.83-1.23-.82-.67.01-.27.38.01.53.34.19.73.9.82 1.13.16.45.68 1.31 2.69.94 0 .67.01 1.3.01 1.49 0 .21-.15.45-.55.38A8 8 0 0 1 0 8c0-4.42 3.58-8 8-8Z"/></svg></div>
+      <div><div class="tt" id="toast8t"></div><div class="td" id="toast8d"></div></div>
+    </div>
+  </section>
+
+  <!-- 9 · And also -->
+  <section class="scene" id="s9">
+    <div class="abs kicker" id="s9k" style="left:0;right:0;top:150px;text-align:center"></div>
+    <div class="abs h2" id="s9t" style="left:0;right:0;top:196px;text-align:center"></div>
+    <div id="s9cards"></div>
+  </section>
+
+  <!-- 10 · Your data -->
+  <section class="scene" id="s10">
+    <div class="abs kicker" id="s10k" style="left:0;right:0;top:330px;text-align:center"></div>
+    <div class="abs h2" id="s10t" style="left:0;right:0;top:380px;text-align:center;font-size:96px;letter-spacing:-4px"></div>
+    <div class="abs p" id="s10p" style="left:360px;right:360px;top:520px;text-align:center"></div>
+    <div class="abs" id="s10chips" style="left:0;right:0;top:680px;display:flex;justify-content:center;gap:16px"></div>
+  </section>
+
+  <!-- 11 · Outro -->
+  <section class="scene" id="s11">
+    <svg class="abs mark" id="mark11" viewBox="0 0 24 24" style="left:885px;top:250px;width:150px;height:150px;overflow:visible">
+      <path d="M6.5 5.5v4a3 3 0 0 0 3 3h5a3 3 0 0 1 3 3v3" /><path d="M6.5 18.5v-3a3 3 0 0 1 3-3" />
+      <circle cx="6.5" cy="4.5" r="2" style="fill:var(--ink);stroke:none" /><circle cx="6.5" cy="19.5" r="2" style="fill:var(--ink);stroke:none" /><circle cx="17.5" cy="19.5" r="2" style="fill:var(--mint);stroke:none" />
+    </svg>
+    <div class="abs h1" id="s11t" style="left:0;right:0;top:450px;text-align:center">Cowork</div>
+    <div class="abs p" id="s11p" style="left:0;right:0;top:600px;text-align:center;font-size:34px"></div>
+    <div class="abs" id="s11links" style="left:0;right:0;top:700px;display:flex;justify-content:center;gap:16px"></div>
+  </section>
+</div>
+
+<script>
+const LANG = new URLSearchParams(location.search).get('lang') || 'es';
+const VERSION = new URLSearchParams(location.search).get('version') || '0.2.0';
+const T = {
+  es: {
+    tag: 'Tu equipo, sus proyectos, sus permisos.',
+    s2k: 'El problema', s2t: 'El trabajo del equipo vive<br><span class="dim">en demasiados sitios.</span>',
+    floats: [['Chat', '¿Quién se encarga de los turnos?'], ['Rama', 'feature/tablero'], ['Hoja de cálculo', 'tareas_v3_final.xlsx'], ['Notas', '¿Para cuándo era la beta?'], ['GitHub', 'PR #12 sin revisar'], ['Correo', 'Re: Re: guía de guardias']],
+    s3k: 'Cowork', s3t: 'Un espacio para cada proyecto.', s3p: 'Tareas, hitos, ramas y código en un solo lugar. Cada cuenta ve solo los proyectos a los que pertenece.',
+    s3chips: ['Privado', 'Con aprobación', 'En tiempo real'],
+    s4k: 'El resumen',
+    s4: [['01', 'La entrega, a la vista', 'Cuenta atrás hasta el último día, en la zona horaria del proyecto.'], ['02', 'Para ti', 'Tus tareas abiertas, lo que espera tu revisión y quién pide entrar.'], ['03', 'El avance', 'Cuánto va hecho, y lo pendiente y en curso.'], ['04', 'El próximo hito', 'Su fecha y cuántas de sus tareas están hechas.'], ['05', 'Lo último del equipo', 'Cada cambio, con quién lo hizo y cuándo.']],
+    s5k: 'Plan de trabajo',
+    s5: [['01', 'Un tablero de verdad', 'Arrastra las tareas entre columnas, o usa el teclado.'], ['02', 'Cada tarea, en detalle', 'Prioridad, fecha límite, pasos y la rama donde vive.'], ['03', 'Se guarda solo', 'Cada cambio llega al equipo en segundos.']],
+    s6k: 'Ramas y cambios',
+    s6: [['01', 'Una sola lista', 'Las ramas del equipo y las de GitHub, juntas.'], ['02', 'Qué pasa en cada una', 'Su pull request, sus commits y sus tareas.'], ['03', 'Créala en GitHub', 'Con tu cuenta, desde el mismo formulario.']],
+    s7k: 'El código',
+    s7: [['01', 'Sin salir de Cowork', 'El árbol con el icono de cada lenguaje y el archivo resaltado.'], ['02', 'Ir a archivo', 'Pulsa <span class="key">T</span> y escribe: lo encuentra al vuelo.'], ['03', 'Clona o descarga', 'HTTPS, SSH, GitHub CLI o el ZIP de la rama.']],
+    s8k: 'Archivos en revisión',
+    s8: [['01', 'Propón un archivo', 'Créalo o súbelo: queda pendiente en Cowork.'], ['02', 'Alguien lo aprueba', 'Y se sube a GitHub con su cuenta y tu mensaje.']],
+    toastT: 'Subido a GitHub', toastD: 'docs/guia-de-guardias.md · main',
+    s9k: 'Y además', s9t: 'Todo lo que el equipo necesita.',
+    cards: [['Hitos', 'Con fecha, zona horaria y su propio avance.'], ['Plazo de entrega', 'Una cuenta atrás que todos ven igual.'], ['Equipos', 'Entra quien el propietario aprueba.'], ['Actividad', 'Avisos y lo leído, en todos tus dispositivos.'], ['Rachas y amigos', 'Días activos, metas y toques.'], ['Mi colección', 'Personajes y paisajes pixel art.'], ['GitHub privado', 'Con tu cuenta y sus permisos.'], ['Novedades', 'Cada versión, función por función.']],
+    s10k: 'Tus datos', s10t: 'En tu propio Firebase.', s10p: 'Cada instalación conecta su proyecto, en el plan gratuito. Nadie más ve a tu equipo.',
+    s10chips: ['Plan Spark', 'Sin servidores propios', 'Código abierto · MIT'],
+    s11p: 'Un espacio compartido para coordinar a tu equipo.', s11links: ['github.com/Tykillita/Cowork', `Versión ${VERSION}`],
+  },
+  en: {
+    tag: 'Your team, its projects, its permissions.',
+    s2k: 'The problem', s2t: 'Your team’s work lives<br><span class="dim">in too many places.</span>',
+    floats: [['Chat', 'Who’s handling the shifts?'], ['Branch', 'feature/tablero'], ['Spreadsheet', 'tasks_v3_final.xlsx'], ['Notes', 'When was the beta due?'], ['GitHub', 'PR #12 not reviewed'], ['Email', 'Re: Re: on-call guide']],
+    s3k: 'Cowork', s3t: 'One space for every project.', s3p: 'Tasks, milestones, branches and code in one place. Each account only sees the projects it belongs to.',
+    s3chips: ['Private', 'With approval', 'Real time'],
+    s4k: 'The summary',
+    s4: [['01', 'The deadline, in sight', 'A countdown to the last day, in the project’s time zone.'], ['02', 'For you', 'Your open tasks, what waits for your review and who asks to join.'], ['03', 'Progress', 'How much is done, and what’s to do and in progress.'], ['04', 'The next milestone', 'Its date and how many of its tasks are done.'], ['05', 'The team’s latest', 'Every change, with who made it and when.']],
+    s5k: 'Work plan',
+    s5: [['01', 'A real board', 'Drag tasks between columns, or use the keyboard.'], ['02', 'Every task, in detail', 'Priority, due date, checklist and the branch it lives on.'], ['03', 'It saves itself', 'Every change reaches the team in seconds.']],
+    s6k: 'Branches and changes',
+    s6: [['01', 'One list', 'The team’s branches and GitHub’s, together.'], ['02', 'What happens in each', 'Its pull request, its commits and its tasks.'], ['03', 'Create it on GitHub', 'With your account, from the same form.']],
+    s7k: 'The code',
+    s7: [['01', 'Without leaving Cowork', 'The tree with each language’s icon and the highlighted file.'], ['02', 'Go to file', 'Press <span class="key">T</span> and type: it finds it as you go.'], ['03', 'Clone or download', 'HTTPS, SSH, GitHub CLI or the branch’s ZIP.']],
+    s8k: 'Files under review',
+    s8: [['01', 'Propose a file', 'Create it or upload it: it waits in Cowork.'], ['02', 'Someone approves it', 'And it’s committed to GitHub with their account and your message.']],
+    toastT: 'Committed to GitHub', toastD: 'docs/guia-de-guardias.md · main',
+    s9k: 'And also', s9t: 'Everything the team needs.',
+    cards: [['Milestones', 'With a date, a time zone and their own progress.'], ['Deadline', 'A countdown everyone sees the same.'], ['Teams', 'In only if the owner approves.'], ['Activity', 'Notices and what you’ve read, on every device.'], ['Streaks and friends', 'Active days, goals and nudges.'], ['My collection', 'Pixel art characters and landscapes.'], ['Private GitHub', 'With your account and its permissions.'], ['What’s new', 'Every version, feature by feature.']],
+    s10k: 'Your data', s10t: 'In your own Firebase.', s10p: 'Each installation connects its own project, on the free plan. Nobody else sees your team.',
+    s10chips: ['Spark plan', 'No servers of your own', 'Open source · MIT'],
+    s11p: 'A shared space to coordinate your team.', s11links: ['github.com/Tykillita/Cowork', `Version ${VERSION}`],
+  },
+}[LANG];
+
+// ---------- helpers ----------
+const $ = (id) => document.getElementById(id);
+const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
+const seg = (t, a, b) => clamp((t - a) / (b - a));
+const lerp = (a, b, k) => a + (b - a) * k;
+const eOut = (k) => 1 - Math.pow(1 - k, 3);
+const eInOut = (k) => (k < 0.5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2);
+const eBack = (k) => { const c = 1.70158, c3 = c + 1; return 1 + c3 * Math.pow(k - 1, 3) + c * Math.pow(k - 1, 2); };
+function appear(el, t, at, dur = 0.6, dy = 30, extra = '') {
+  const k = eOut(seg(t, at, at + dur));
+  el.style.opacity = k;
+  el.style.transform = `translateY(${(1 - k) * dy}px) ${extra}`;
+  el.style.filter = k < 1 ? `blur(${(1 - k) * 8}px)` : '';
+}
+function hide(el, t, at, dur = 0.4) { el.style.opacity = Math.min(Number(el.style.opacity || 1), 1 - seg(t, at, at + dur)); }
+
+/** Regions of the 1600 × 1000 screenshots, as fractions [x0, y0, x1, y1] (measured on the 1200 × 750 previews). */
+const R = (x0, y0, x1, y1) => [x0 / 1200, y0 / 750, x1 / 1200, y1 / 750];
+const REGIONS = {
+  home: [R(664, 132, 1120, 296), R(80, 313, 507, 505), R(517, 313, 857, 505), R(867, 313, 1120, 505), R(80, 516, 683, 750)],
+  board: [R(96, 474, 1104, 750), R(856, 0, 1200, 750), R(443, 507, 758, 623)],
+  branches: [R(80, 314, 826, 638), R(436, 450, 826, 572), R(836, 314, 1120, 660)],
+  code: [R(80, 251, 1120, 655), R(500, 212, 890, 280), R(850, 214, 1121, 440)],
+  review: [R(329, 250, 1120, 318), R(80, 286, 319, 328)],
+};
+
+/** Zoom the window's content towards a region (k = 0 full view, 1 zoomed) and place the ring on it. */
+function focus(pan, ring, region, k, zoom = 1.45, ringK = k) {
+  const body = pan.parentElement, W = body.clientWidth, H = body.clientHeight;
+  const [x0, y0, x1, y1] = region, cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
+  const s = lerp(1, zoom, k);
+  // Keep the region's centre where it would be on screen, pulled towards the middle as it zooms.
+  const tx = clamp(W / 2 - cx * W * s, W - W * s, 0), ty = clamp(H / 2 - cy * H * s, H - H * s, 0);
+  pan.style.transform = `translate(${lerp(0, tx, k)}px, ${lerp(0, ty, k)}px) scale(${s})`;
+  if (!ring) return;
+  const pad = 0.006;
+  ring.style.left = `${(x0 - pad) * 100}%`; ring.style.top = `${(y0 - pad) * 100}%`;
+  ring.style.width = `${(x1 - x0 + 2 * pad) * 100}%`; ring.style.height = `${(y1 - y0 + 2 * pad) * 100}%`;
+  ring.style.borderWidth = `${3 / s}px`; ring.style.borderRadius = `${16 / s}px`;
+  ring.style.opacity = ringK;
+}
+
+/** Numbered callouts on the left, one after another every `step` seconds from `start`. */
+function buildCallouts(host, items) {
+  $(host).innerHTML = items.map(([n, t, d], i) => `<div class="callout" id="${host}-${i}" style="top:300px"><div class="n">${n}</div><div class="t">${t}</div><div class="d">${d}</div></div>`).join('');
+}
+function showCallouts(host, count, l, start, step) {
+  let active = -1;
+  for (let i = 0; i < count; i++) {
+    const el = $(`${host}-${i}`), at = start + i * step;
+    appear(el, l, at, 0.55, 40);
+    if (i < count - 1) hide(el, l, at + step - 0.3, 0.3);
+    if (l >= at) active = i;
+  }
+  return active;
+}
+
+// ---------- scenes: [id, start, end] ----------
+const SCENES = [['s1', 0, 6.2], ['s2', 6, 13.2], ['s3', 13, 21.2], ['s4', 21, 31.2], ['s5', 31, 41.2],
+  ['s6', 41, 48.7], ['s7', 48.5, 54.7], ['s8', 54.5, 60.7], ['s9', 60.5, 68.7], ['s10', 68.5, 72.2], ['s11', 72, 78]];
+const DURATION = 77;
+
+function build() {
+  $('title1').innerHTML = [...'Cowork'].map((c) => `<span class="word">${c}</span>`).join('');
+  $('tag1').textContent = T.tag;
+  $('s2k').textContent = T.s2k; $('s2t').innerHTML = T.s2t;
+  const spots = [[150, 560, -4], [1360, 520, 3], [300, 790, 2], [1180, 780, -3], [760, 640, -1], [1500, 690, 4]];
+  $('s2floats').innerHTML = T.floats.map(([k, v], i) => `<div class="float glass" id="f${i}" style="left:${spots[i][0]}px;top:${spots[i][1]}px"><small>${k}</small>${i === 1 ? `<span class="mono">${v}</span>` : v}</div>`).join('');
+  $('s3k').textContent = T.s3k; $('s3t').textContent = T.s3t; $('s3p').textContent = T.s3p;
+  $('s3chips').innerHTML = T.s3chips.map((c, i) => `<span class="chip" id="s3c${i}"><span class="dot"></span>${c}</span>`).join('');
+  for (const n of [4, 5, 6, 7, 8]) $(`s${n}k`).textContent = T[`s${n}k`];
+  buildCallouts('s4callouts', T.s4); buildCallouts('s5callouts', T.s5); buildCallouts('s6callouts', T.s6); buildCallouts('s7callouts', T.s7); buildCallouts('s8callouts', T.s8);
+  $('toast8t').textContent = T.toastT; $('toast8d').textContent = T.toastD;
+  $('s9k').textContent = T.s9k; $('s9t').textContent = T.s9t;
+  const ICONS = [
+    '<path d="M4 20V4"/><path d="M4 4h12l-2 4 2 4H4"/>',
+    '<circle cx="12" cy="13" r="8"/><path d="M12 9v4l3 2M9 2h6"/>',
+    '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.6 3.4-5.5 6.5-5.5s5.7 1.9 6.5 5.5"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7M18 14.8c1.9.8 3.1 2.6 3.5 5.2"/>',
+    '<path d="M3 12h4l3-8 4 16 3-8h4"/>',
+    '<path d="M12 3c2 3.5 6 5.5 6 10a6 6 0 0 1-12 0c0-2.6 1.4-4.2 2.6-5.6.4 1.9 1.4 3 2.6 3.3C10.6 8 11 5.6 12 3Z"/>',
+    '<rect x="3" y="3" width="18" height="18" rx="3"/><path d="M3 16l5-5 4 4 3-3 6 6"/><circle cx="16" cy="8" r="1.6"/>',
+    '<rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/>',
+    '<path d="M12 3l2.6 5.4 5.9.8-4.3 4.1 1 5.9L12 16.4 6.8 19.2l1-5.9-4.3-4.1 5.9-.8Z"/>',
+  ];
+  $('s9cards').innerHTML = T.cards.map(([t, d], i) => `<div class="fcard glass" id="c${i}" style="left:${160 + (i % 4) * 410}px;top:${380 + Math.floor(i / 4) * 240}px"><svg viewBox="0 0 24 24">${ICONS[i]}</svg><div class="t">${t}</div><div class="d">${d}</div></div>`).join('');
+  $('s10k').textContent = T.s10k; $('s10t').textContent = T.s10t; $('s10p').textContent = T.s10p;
+  $('s10chips').innerHTML = T.s10chips.map((c, i) => `<span class="chip" id="s10c${i}"><span class="dot"></span>${c}</span>`).join('');
+  $('s11p').textContent = T.s11p;
+  $('s11links').innerHTML = T.s11links.map((c, i) => `<span class="chip" id="s11c${i}">${i === 0 ? '<svg viewBox="0 0 16 16" width="22" height="22" fill="currentColor"><path d="M8 0c4.42 0 8 3.58 8 8a8.01 8.01 0 0 1-5.45 7.59c-.4.08-.55-.17-.55-.38 0-.27.01-1.13.01-2.2 0-.75-.25-1.23-.54-1.48 1.78-.2 3.65-.88 3.65-3.95 0-.88-.31-1.59-.82-2.15.08-.2.36-1.02-.08-2.12 0 0-.67-.22-2.2.82-.64-.18-1.32-.27-2-.27-.68 0-1.36.09-2 .27-1.53-1.03-2.2-.82-2.2-.82-.44 1.1-.16 1.92-.08 2.12-.51.56-.82 1.28-.82 2.15 0 3.06 1.86 3.75 3.64 3.95-.23.2-.44.55-.51 1.07-.46.21-1.61.55-2.33-.66-.15-.24-.6-.83-1.23-.82-.67.01-.27.38.01.53.34.19.73.9.82 1.13.16.45.68 1.31 2.69.94 0 .67.01 1.3.01 1.49 0 .21-.15.45-.55.38A8 8 0 0 1 0 8c0-4.42 3.58-8 8-8Z"/></svg>' : '<span class="dot"></span>'}${c}</span>`).join('');
+}
+
+function windowIn(id, l, at = 0.4) {
+  const k = eOut(seg(l, at, at + 1.0));
+  $(id).style.opacity = k;
+  $(id).style.transform = `translateY(${(1 - k) * 80}px) scale(${lerp(0.96, 1, k)})`;
+}
+
+function render(t) {
+  for (const [id, a, b] of SCENES) {
+    const el = $(id);
+    const k = Math.min(seg(t, a, a + 0.5), 1 - seg(t, b - 0.5, b));
+    el.style.opacity = k;
+    el.style.display = k <= 0 ? 'none' : '';
+    el.style.transform = `scale(${lerp(1.03, 1, eOut(seg(t, a, a + 0.8))) * lerp(1, 0.985, seg(t, b - 0.5, b))})`;
+  }
+  $('bgglow').style.setProperty('--gx', `${62 + Math.sin(t * 0.21) * 18}%`);
+  $('bgglow').style.setProperty('--gy', `${16 + Math.cos(t * 0.17) * 14}%`);
+
+  // 1 · Intro: the mark draws itself, then the name and the motto.
+  if (t < 6.5) {
+    $('m1a').style.strokeDashoffset = 1 - eInOut(seg(t, 0.2, 1.4));
+    $('m1b').style.strokeDashoffset = 1 - eInOut(seg(t, 0.9, 1.6));
+    document.querySelectorAll('#mark1 .node').forEach((el, i) => {
+      const k = eBack(seg(t, 1.1 + i * 0.12, 1.5 + i * 0.12));
+      el.style.transformOrigin = `${[6.5, 6.5, 17.5][i]}px ${[4.5, 19.5, 19.5][i]}px`;
+      el.style.transform = `scale(${k})`;
+    });
+    const up = eInOut(seg(t, 2.4, 3.2));
+    $('mark1').style.transform = `translateY(${-up * 60}px) scale(${lerp(1, 0.78, up)})`;
+    [...$('title1').children].forEach((c, i) => {
+      const k = eOut(seg(t, 2.9 + i * 0.05, 3.5 + i * 0.05));
+      c.style.opacity = k; c.style.transform = `translateY(${(1 - k) * 40}px)`;
+    });
+    $('title1').style.transform = `translateY(${-up * 60}px)`;
+    appear($('tag1'), t, 3.9, 0.7, 20, `translateY(${-up * 60}px)`);
+  }
+
+  // 2 · Problem: notes everywhere, drifting, then pulled together.
+  if (t > 5.5 && t < 13.5) {
+    const l = t - 6;
+    appear($('s2k'), l, 0.3); appear($('s2t'), l, 0.5, 0.8, 40);
+    const gather = eInOut(seg(l, 5.4, 6.8));
+    T.floats.forEach((_, i) => {
+      const el = $(`f${i}`), at = 1.3 + i * 0.45, k = eBack(seg(l, at, at + 0.5));
+      const dx = Math.sin(l * 0.9 + i) * 10, dy = Math.cos(l * 0.7 + i * 2) * 8;
+      const spots = [[150, 560], [1360, 520], [300, 790], [1180, 780], [760, 640], [1500, 690]];
+      const toX = (960 - spots[i][0] - 160) * gather, toY = (760 - spots[i][1]) * gather;
+      el.style.opacity = Math.min(seg(l, at, at + 0.3), 1 - gather * 0.9);
+      el.style.transform = `translate(${dx + toX}px, ${dy + toY}px) scale(${lerp(0.7, 1, k) * lerp(1, 0.5, gather)}) rotate(${[-4, 3, 2, -3, -1, 4][i] * (1 - gather)}deg)`;
+    });
+  }
+
+  // 3 · One space per project
+  if (t > 12.5 && t < 21.5) {
+    const l = t - 13;
+    appear($('s3k'), l, 0.3); appear($('s3t'), l, 0.5, 0.8, 40); appear($('s3p'), l, 1.4, 0.7, 24);
+    T.s3chips.forEach((_, i) => appear($(`s3c${i}`), l, 2.4 + i * 0.25, 0.5, 16));
+    windowIn('w3', l, 0.8);
+    $('w3').style.transform += ` perspective(1600px) rotateY(${lerp(-10, -4, eInOut(seg(l, 0.8, 8)))}deg)`;
+  }
+
+  // 4 · Summary: five callouts, each highlighted in the screenshot.
+  if (t > 20.5 && t < 31.5) {
+    const l = t - 21;
+    appear($('s4k'), l, 0.3); windowIn('w4', l, 0.3);
+    const active = showCallouts('s4callouts', 5, l, 1.2, 1.85);
+    if (active >= 0) {
+      const at = 1.2 + active * 1.85;
+      focus($('p4'), $('r4'), REGIONS.home[active], 0, 1, eOut(seg(l, at, at + 0.4)) * (1 - seg(l, at + 1.75, at + 1.85)));
+    } else focus($('p4'), $('r4'), REGIONS.home[0], 0, 1, 0);
+  }
+
+  // 5 · Board, then the task panel slides over it.
+  if (t > 30.5 && t < 41.5) {
+    const l = t - 31;
+    appear($('s5k'), l, 0.3); windowIn('w5', l, 0.3);
+    const active = showCallouts('s5callouts', 3, l, 1.0, 3.0);
+    $('p5task').style.opacity = eOut(seg(l, 3.8, 4.4));
+    const region = REGIONS.board[Math.max(0, active)];
+    const ring = active === 0 ? eOut(seg(l, 1.4, 1.9)) * (1 - seg(l, 3.6, 3.9)) : active === 1 ? eOut(seg(l, 4.4, 4.9)) * (1 - seg(l, 6.6, 6.9)) : 0;
+    const zoom = active === 2 ? eInOut(seg(l, 7.0, 8.2)) : 0;
+    focus($('p5'), $('r5'), active === 2 ? REGIONS.board[1] : region, zoom, 1.5, ring);
+  }
+
+  // 6 · Branches
+  if (t > 40.5 && t < 49) {
+    const l = t - 41;
+    appear($('s6k'), l, 0.3); windowIn('w6', l, 0.3);
+    const active = showCallouts('s6callouts', 3, l, 1.0, 2.2);
+    if (active >= 0) {
+      const at = 1.0 + active * 2.2;
+      focus($('p6'), $('r6'), REGIONS.branches[active], 0, 1, eOut(seg(l, at + 0.2, at + 0.6)) * (1 - seg(l, at + 2.0, at + 2.2)));
+    } else focus($('p6'), $('r6'), REGIONS.branches[0], 0, 1, 0);
+  }
+
+  // 7 · Code: the file, "go to file" with T, the clone menu.
+  if (t > 48 && t < 55) {
+    const l = t - 48.5;
+    appear($('s7k'), l, 0.3); windowIn('w7', l, 0.3);
+    const active = showCallouts('s7callouts', 3, l, 0.8, 1.8);
+    $('p7find').style.opacity = eOut(seg(l, 2.7, 3.0)) * (1 - seg(l, 4.3, 4.5));
+    $('p7clone').style.opacity = eOut(seg(l, 4.4, 4.7));
+    if (active >= 0) {
+      const at = 0.8 + active * 1.8;
+      focus($('p7'), $('r7'), REGIONS.code[active], 0, 1, eOut(seg(l, at + 0.3, at + 0.7)) * (1 - seg(l, at + 1.6, at + 1.8)) * (active === 0 ? 0 : 1));
+    } else focus($('p7'), $('r7'), REGIONS.code[0], 0, 1, 0);
+  }
+
+  // 8 · Files under review: the strip, then "committed to GitHub".
+  if (t > 54 && t < 61) {
+    const l = t - 54.5;
+    appear($('s8k'), l, 0.3); windowIn('w8', l, 0.3);
+    const active = showCallouts('s8callouts', 2, l, 0.9, 2.4);
+    const ring = eOut(seg(l, 1.2, 1.6)) * (1 - seg(l, 5.4, 5.8));
+    focus($('p8'), $('r8'), REGIONS.review[active === 1 ? 0 : 1], active === 1 ? eInOut(seg(l, 3.3, 4.2)) : 0, 1.18, ring);
+    const k = eBack(seg(l, 4.2, 4.8));
+    $('toast8').style.opacity = seg(l, 4.2, 4.4);
+    $('toast8').style.transform = `translateX(${(1 - k) * 120}px)`;
+  }
+
+  // 9 · And also: eight cards.
+  if (t > 60 && t < 69) {
+    const l = t - 60.5;
+    appear($('s9k'), l, 0.3); appear($('s9t'), l, 0.5, 0.8, 40);
+    T.cards.forEach((_, i) => {
+      const at = 1.3 + i * 0.32, k = eBack(seg(l, at, at + 0.55));
+      $(`c${i}`).style.opacity = seg(l, at, at + 0.25);
+      $(`c${i}`).style.transform = `translateY(${(1 - k) * 60}px) scale(${lerp(0.9, 1, k)})`;
+    });
+  }
+
+  // 10 · Your data
+  if (t > 68 && t < 72.5) {
+    const l = t - 68.5;
+    appear($('s10k'), l, 0.2); appear($('s10t'), l, 0.35, 0.7, 40); appear($('s10p'), l, 1.0, 0.6, 20);
+    T.s10chips.forEach((_, i) => appear($(`s10c${i}`), l, 1.5 + i * 0.25, 0.5, 16));
+  }
+
+  // 11 · Outro
+  if (t > 71.5) {
+    const l = t - 72;
+    const k = eBack(seg(l, 0.1, 0.7));
+    $('mark11').style.opacity = seg(l, 0.1, 0.3);
+    $('mark11').style.transform = `scale(${lerp(0.6, 1, k)})`;
+    appear($('s11t'), l, 0.35, 0.7, 40); appear($('s11p'), l, 0.9, 0.6, 20);
+    T.s11links.forEach((_, i) => appear($(`s11c${i}`), l, 1.4 + i * 0.25, 0.5, 16));
+  }
+}
+
+build();
+window.render = render;
+window.ready = Promise.all([...document.images].map((img) => img.complete ? null : new Promise((r) => { img.onload = img.onerror = r; })))
+  .then(() => document.fonts.ready).then(() => DURATION);
+render(0);
+</script>
+</body>
+</html>

@@ -152,7 +152,10 @@ export function EntryPortal({ onCreate, onJoin }: { onCreate: () => void; onJoin
           </div>
         </section>
       </section>
-      <footer className="projectPickerFooter">COWORK <span>·</span> TU EQUIPO, SUS PROYECTOS, SUS PERMISOS</footer>
+      <footer className="projectPickerFooter">
+        <p>COWORK <span>·</span> TU EQUIPO, SUS PROYECTOS, SUS PERMISOS</p>
+        <a className="projectPickerVersion" href="/novedades">VERSIÓN {__APP_VERSION__} <span>·</span> NOVEDADES</a>
+      </footer>
     </main>
   );
 }

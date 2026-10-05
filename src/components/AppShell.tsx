@@ -6,7 +6,7 @@ import type { PageId, PanelUser, Project, WorkboardMode } from "../types";
 
 const NAV_CARDS: CardNavItem[] = [
   {
-    label: "Espacio",
+    label: "Trabajo",
     bgColor: "rgba(52,52,55,.96)",
     textColor: "#f5f5f7",
     links: [
@@ -15,18 +15,21 @@ const NAV_CARDS: CardNavItem[] = [
     ],
   },
   {
-    label: "Proyecto",
+    label: "Código",
     bgColor: "rgba(42,42,45,.96)",
     textColor: "#f5f5f7",
-    links: [{ label: "Cambiar proyecto", href: "#projects", ariaLabel: "Volver a la lista de proyectos" }],
+    links: [
+      { label: "Ramas y cambios", href: "#branches-page", ariaLabel: "Abrir las ramas del equipo" },
+      { label: "Explorar código", href: "#code", ariaLabel: "Abrir el explorador de código" },
+    ],
   },
   {
-    label: "Equipo",
+    label: "Proyecto",
     bgColor: "rgba(34,34,37,.96)",
     textColor: "#f5f5f7",
     links: [
-      { label: "Ramas", href: "#branches-page", ariaLabel: "Abrir las ramas del equipo" },
       { label: "Configuración", href: "#settings-page", ariaLabel: "Abrir la configuración del proyecto" },
+      { label: "Cambiar proyecto", href: "#projects", ariaLabel: "Volver a la lista de proyectos" },
     ],
   },
 ];

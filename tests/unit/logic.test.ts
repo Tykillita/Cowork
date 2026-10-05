@@ -2,7 +2,8 @@ import { readFileSync } from "node:fs";
 import { describe, expect, test } from "vitest";
 import { DAILY_POINT_LIMIT, EMPTY_WALLET, awardPoint, nextUtcDayStart, pointKey, pointsOn, readWallet, spendPoints, streaks, utcDay } from "../../src/features/progress/progressStore";
 import { rewardNotices } from "../../src/features/progress/rewardNotices";
-import { sameBranch } from "../../src/pages/BranchesPage";
+import { sameBranch } from "../../src/features/github/branchModel";
+import { EMPTY_TASK_DETAILS } from "../../src/features/workboard/taskModel";
 import { arrangeProjects, moveInOrder, personalOrder } from "../../src/features/projects/projectListing";
 import { assigneeView, dueState, milestoneDueAt, milestoneProgress, nextMilestone, outsideProjectWindow } from "../../src/features/milestones/milestoneModel";
 import { deadlineNotices } from "../../src/features/activity/useActivityCenter";
@@ -15,7 +16,7 @@ import type { Milestone, Project, Task } from "../../src/types";
 
 const DAY = 86_400_000;
 const project = (id: string, name: string, createdAt: string, description = ""): Project => ({ id, name, description, repositoryUrl: "", previewUrl: "", kind: "general", createdAt, ownerUid: "o" });
-const task = (overrides: Partial<Task> = {}): Task => ({ id: "t", order: 1, phase: "General", title: "Tarea", status: "Pendiente", assignee: "", assigneeUid: "", milestoneId: "", revision: 1, ...overrides });
+const task = (overrides: Partial<Task> = {}): Task => ({ id: "t", order: 1, phase: "General", title: "Tarea", status: "Pendiente", assignee: "", assigneeUid: "", milestoneId: "", revision: 1, ...EMPTY_TASK_DETAILS, ...overrides });
 const milestone = (overrides: Partial<Milestone> = {}): Milestone => ({ id: "m", title: "Hito", description: "", dueDate: "2026-10-10", timeZone: "UTC", dueAt: "2026-10-11T00:00:00.000Z", archived: false, createdAt: "", revision: 1, ...overrides });
 
 describe("active days and streaks", () => {
@@ -302,6 +303,35 @@ describe("preview site icons", () => {
     expect(new Set(candidates).size).toBe(candidates.length);
     expect(faviconCandidates("https://vigilia.web.app/")[0]).toBe("https://vigilia.web.app/favicon.svg");
     expect(faviconCandidates("https://vigilia.web.app/index.html")[0]).toBe("https://vigilia.web.app/favicon.svg");
+    expect(faviconCandidates("https://istargetsleeping.web.app/index.html")[0]).toBe("https://istargetsleeping.web.app/media/istargetsleeping-icon.svg");
+    expect(faviconCandidates("https://vetcentercaninosyfelinos.web.app/index.html")[0]).toBe("https://vetcentercaninosyfelinos.web.app/assets/images/app-icon-192.png");
     expect(faviconCandidates("http://inseguro.test/")).toEqual([]);
+  });
+});
+
+describe("task detail events", () => {
+  test("every detail change is recorded and described", () => {
+    const before = task();
+    const after = task({ phase: "Diseño", priority: "alta", dueAt: "2026-10-11T05:00:00.000Z", dueDate: "2026-10-10", timeZone: "America/Panama", branch: "feature/x", checklist: [{ id: "c1", text: "Paso", done: true }, { id: "c2", text: "Otro", done: false }], description: "Detalle", order: 9 });
+    const changes = taskChanges(before, after);
+    expect(changes).toEqual({
+      phase: { from: "General", to: "Diseño" },
+      priority: { from: "media", to: "alta" },
+      dueAt: { from: "", to: "2026-10-11T05:00:00.000Z" },
+      branch: { from: "", to: "feature/x" },
+      checklist: { done: 1, total: 2 },
+      details: true,
+      order: true,
+    });
+    const event = { id: "e", projectId: "p", kind: "updated" as const, targetType: "task" as const, targetId: "t", targetTitle: "Diseño", revision: 2, actorUid: "u1", actorName: "Ana", createdAt: "", changes };
+    expect(describeEvent(event)).toBe("la movió a la fase Diseño, cambió la prioridad a alta, cambió la fecha límite, la vinculó a la rama feature/x, actualizó la lista (1/2), editó la descripción · «Diseño»");
+    expect(countsAsWork(event)).toBe(false);
+  });
+
+  test("a move alone stays out of the feed", async () => {
+    const { isFeedEvent } = await import("../../src/features/activity/activityEvents");
+    const moved = { id: "e", projectId: "p", kind: "updated" as const, targetType: "task" as const, targetId: "t", targetTitle: "T", revision: 2, actorUid: "u1", actorName: "Ana", createdAt: "", changes: { order: true as const } };
+    expect(isFeedEvent(moved)).toBe(false);
+    expect(isFeedEvent({ ...moved, changes: { order: true as const, status: { from: "Pendiente", to: "Hecha" } } })).toBe(true);
   });
 });

@@ -219,8 +219,15 @@ html[data-motion="reduced"] *, html[data-motion="reduced"] *::before, html[data-
   scroll-behavior: auto !important;
   transition-duration: 0s !important;
   transition-delay: 0s !important;
-  animation-duration: 0s !important;
-  animation-iteration-count: 1 !important;
+  animation: none !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  html:not([data-motion="full"]) *, html:not([data-motion="full"]) *::before, html:not([data-motion="full"]) *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0s !important;
+    transition-delay: 0s !important;
+    animation: none !important;
+  }
 }
 
 @media (max-width: 430px) {

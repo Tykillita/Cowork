@@ -153,6 +153,14 @@ const CardNav: React.FC<CardNavProps> = ({
     };
   }, [rebuildTimeline]);
 
+  // If the preference changes during an opening or closing tween, settle the
+  // menu in its requested state instead of leaving the cards half revealed.
+  useEffect(() => {
+    if (!reducedMotion) return;
+    tlRef.current?.progress(openRef.current ? 1 : 0).pause();
+    if (!openRef.current) setIsExpanded(false);
+  }, [reducedMotion]);
+
   const openMenu = useCallback(() => {
     const timeline = tlRef.current;
     if (!timeline || openRef.current) return;

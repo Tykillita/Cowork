@@ -3,7 +3,8 @@ import type { GitHubBranchWrite, PanelUser, Project, ProjectSchedule } from "../
 import { eventDocument, projectEventId } from "../activity/activityEvents";
 import { readSchedule } from "../schedule/scheduleTime";
 import { directoryDocument } from "../team/teamDirectory";
-import { normalizePreviewUrl } from "./projectUrls";
+import { normalizeChangelogUrl, normalizePreviewUrl } from "./projectUrls";
+import { normalizeRepositoryUrl } from "../repository/githubRepository";
 
 async function database() {
   const [db, api] = await Promise.all([getCoworkFirestore(), import("firebase/firestore")]);
@@ -30,6 +31,7 @@ function readProject(id: string, value: Record<string, unknown>): Project | null
     ownerUid: value.ownerUid,
     ...(schedule ? { schedule } : {}),
     ...(iconUrl ? { iconUrl } : {}),
+    ...(normalizeChangelogUrl(typeof value.changelogUrl === "string" ? value.changelogUrl : "") ? { changelogUrl: normalizeChangelogUrl(typeof value.changelogUrl === "string" ? value.changelogUrl : "")! } : {}),
     ...(branchWrite ? { githubPolicy: { branchWrite } } : {}),
   };
 }
@@ -123,17 +125,15 @@ export type ProjectDraft = { name: string; description: string; repositoryUrl: s
 export async function createProject(input: ProjectDraft, user: PanelUser) {
   const name = input.name.trim().slice(0, 80);
   const description = input.description.trim().slice(0, 400);
-  const repositoryUrl = input.repositoryUrl.trim().replace(/\/$/, "");
+  const repositoryUrl = normalizeRepositoryUrl(input.repositoryUrl);
   if (!name) throw new Error("Escribe un nombre para el proyecto.");
-  if (repositoryUrl && !/^https:\/\/github\.com\/[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+(?:\.git)?$/.test(repositoryUrl)) {
-    throw new Error("Usa un enlace de repositorio de GitHub válido.");
-  }
+  if (repositoryUrl === null) throw new Error("Usa un enlace de repositorio de GitHub válido.");
 
   const { db, api } = await database();
   const id = `${slugify(name)}-${crypto.randomUUID().slice(0, 6)}`;
   const createdAt = new Date().toISOString();
   const project: Project = {
-    id, name, description, repositoryUrl: repositoryUrl.replace(/\.git$/, ""), previewUrl: "", kind: "general", createdAt, ownerUid: user.id,
+    id, name, description, repositoryUrl, previewUrl: "", kind: "general", createdAt, ownerUid: user.id,
     ...(input.schedule ? { schedule: input.schedule } : {}),
   };
   const projectRef = api.doc(db, "projects", id);
@@ -168,6 +168,24 @@ export async function updateProjectPreviewUrl(projectId: string, previewUrl: str
   const { db, api } = await database();
   await api.updateDoc(api.doc(db, "projects", projectId), { previewUrl: normalized, iconUrl: icon || api.deleteField() });
   return normalized;
+}
+
+/** Owner-only: the optional public release-notes page for task proposals. */
+export async function updateProjectChangelogUrl(projectId: string, value: string) {
+  const changelogUrl = normalizeChangelogUrl(value);
+  if (changelogUrl === null) throw new Error("Usa una dirección HTTPS pública válida de la página de novedades.");
+  const { db, api } = await database();
+  await api.updateDoc(api.doc(db, "projects", projectId), { changelogUrl: changelogUrl || api.deleteField() });
+  return changelogUrl;
+}
+
+/** Owner-only: the project's GitHub repository; an empty value removes it. */
+export async function updateProjectRepository(projectId: string, value: string) {
+  const repositoryUrl = normalizeRepositoryUrl(value);
+  if (repositoryUrl === null) throw new Error("Usa un enlace de repositorio de GitHub válido, por ejemplo https://github.com/equipo/proyecto.");
+  const { db, api } = await database();
+  await api.updateDoc(api.doc(db, "projects", projectId), { repositoryUrl });
+  return repositoryUrl;
 }
 
 /** Owner-only: who may create and delete GitHub branches from Cowork. */

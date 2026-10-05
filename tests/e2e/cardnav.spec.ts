@@ -10,6 +10,7 @@ async function navHeight(page: Page) {
 }
 
 test.beforeEach(async ({ page }) => {
+  test.setTimeout(120_000);
   await resetEmulators();
   const ana = await createAccount("Ana");
   await seedProject(ana, { id: "uno", name: "Uno" });
@@ -80,6 +81,20 @@ test("reduced motion opens and closes instantly", async ({ page }) => {
   const hamburger = page.locator(".hamburger-menu");
   await hamburger.click();
   expect(await navHeight(page)).toBeGreaterThanOrEqual(250);
+  await hamburger.click();
+  expect(await navHeight(page)).toBe(60);
+});
+
+test("switching to reduced motion settles an in-progress menu @cross", async ({ page }) => {
+  test.setTimeout(120_000);
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+  const hamburger = page.locator(".hamburger-menu");
+  await hamburger.click();
+  await page.waitForTimeout(100);
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await expect(page.locator("html")).toHaveAttribute("data-motion", "reduced");
+  await expect.poll(() => navHeight(page)).toBeGreaterThanOrEqual(250);
+  await expect(page.locator(".nav-card").last()).toHaveCSS("opacity", "1");
   await hamburger.click();
   expect(await navHeight(page)).toBe(60);
 });

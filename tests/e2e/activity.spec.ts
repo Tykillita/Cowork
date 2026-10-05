@@ -15,7 +15,7 @@ async function createTask(page: Page, title: string) {
   const input = page.getByRole("textbox", { name: "Título de la nueva tarea" });
   await input.fill(title);
   await page.getByRole("button", { name: "Agregar tarea" }).click();
-  await expect(page.locator(".taskRow", { hasText: title })).toBeVisible();
+  await expect(page.locator(".taskItem", { hasText: title })).toBeVisible();
 }
 
 test("activity from another member is unread until opened or marked; read state syncs", async ({ browser }) => {

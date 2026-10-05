@@ -1,6 +1,7 @@
 import { useEffect, useSyncExternalStore } from "react";
 import { auth } from "../../lib/firebase";
 import type { PanelUser } from "../../types";
+import { clearGitHubCache } from "./githubCache";
 
 /**
  * GitHub access token for the signed-in account. Firebase only hands it over
@@ -20,9 +21,11 @@ export interface GitHubSessionState {
   login: string;
   avatarUrl: string;
   scopes: string[];
+  /** GitHub could not confirm the token (rate limit, outage); it is still used. */
+  verifyError: string;
 }
 
-const EMPTY: GitHubSessionState = { uid: "", linked: false, canUnlink: false, token: "", status: "none", login: "", avatarUrl: "", scopes: [] };
+const EMPTY: GitHubSessionState = { uid: "", linked: false, canUnlink: false, token: "", status: "none", login: "", avatarUrl: "", scopes: [], verifyError: "" };
 let state = EMPTY;
 const listeners = new Set<() => void>();
 let validation = 0;
@@ -63,20 +66,38 @@ async function validate(uid: string, token: string) {
     });
     if (run !== validation || state.uid !== uid || state.token !== token) return;
     if (response.status === 401) { rejectGitHubToken(token); return; }
+    if (!response.ok) {
+      // Rate limit or outage: the token may still work. Keep what we knew and check again later.
+      setState({ ...state, status: "ready", verifyError: `GitHub respondió ${response.status} al comprobar la cuenta.` });
+      retryOnFocus(uid, token);
+      return;
+    }
     const payload: unknown = await response.json().catch(() => ({}));
     const profile = payload as { login?: unknown; avatar_url?: unknown };
     const scopes = (response.headers.get("x-oauth-scopes") || "").split(",").map((scope) => scope.trim()).filter(Boolean);
     setState({
       ...state,
       status: "ready",
-      login: response.ok && typeof profile.login === "string" ? profile.login : "",
-      avatarUrl: response.ok && typeof profile.avatar_url === "string" ? profile.avatar_url : "",
+      login: typeof profile.login === "string" ? profile.login : state.login,
+      avatarUrl: typeof profile.avatar_url === "string" ? profile.avatar_url : state.avatarUrl,
       scopes,
+      verifyError: "",
     });
   } catch {
     // Offline: keep the token; GitHub requests will report their own errors.
-    if (run === validation && state.uid === uid && state.token === token) setState({ ...state, status: "ready" });
+    if (run === validation && state.uid === uid && state.token === token) {
+      setState({ ...state, status: "ready", verifyError: "No se pudo comprobar la cuenta de GitHub." });
+      retryOnFocus(uid, token);
+    }
   }
+}
+
+/** One more check the next time the tab gets focus. */
+function retryOnFocus(uid: string, token: string) {
+  if (typeof window === "undefined") return;
+  window.addEventListener("focus", () => {
+    if (state.uid === uid && state.token === token && state.verifyError) void validate(uid, token);
+  }, { once: true });
 }
 
 /** Points the session at the signed-in account (or none) and restores its token. */
@@ -100,6 +121,7 @@ export function storeGitHubToken(uid: string, token: string) {
 export function clearGitHubToken(uid?: string) {
   const target = uid || state.uid;
   if (target) writeStoredToken(target, "");
+  clearGitHubCache();
   if (!target || state.uid === target) setState(target ? { ...EMPTY, uid: target, ...providerState(target) } : EMPTY);
 }
 

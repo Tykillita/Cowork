@@ -11,7 +11,8 @@
 .projectCardNav {
   --card-nav-top: 20px;
   --card-nav-gutter: clamp(24px, 3.5vw, 58px);
-  position: relative;
+  position: sticky;
+  top: 0;
   z-index: 40;
   width: min(1500px, 100%);
   --card-nav-offset: max(var(--card-nav-top), calc(env(safe-area-inset-top, 0px) + 8px));

@@ -26,7 +26,7 @@ test("real work unlocks the first reward once per UTC day; the choice is validat
   for (const title of ["Primera", "Segunda"]) {
     await input.fill(title);
     await input.press("Enter");
-    await expect(page.locator(".taskRow", { hasText: title })).toBeVisible();
+    await expect(page.locator(".taskItem", { hasText: title })).toBeVisible();
   }
   await page.getByRole("button", { name: /Abrir perfil/ }).click();
   await page.getByRole("button", { name: "Mi colección" }).click();
@@ -55,7 +55,7 @@ test("work earns up to three points a day; the shop charges once and bought item
   for (const title of ["Una", "Dos", "Tres", "Cuatro"]) {
     await input.fill(title);
     await input.press("Enter");
-    await expect(page.locator(".taskRow", { hasText: title })).toBeVisible();
+    await expect(page.locator(".taskItem", { hasText: title })).toBeVisible();
     // Reaching 3/3 is explained right away.
     if (title === "Tres") await expect(page.locator("#toast")).toContainText("llegaste al máximo de 3 puntos por hoy");
   }
@@ -136,9 +136,9 @@ test("migration: dry run first, unique names linked, ambiguous and unknown left 
   await expect(page.getByText("Datos del equipo actualizados")).toBeVisible();
 
   await page.evaluate(() => { window.location.hash = "#work"; });
-  await expect(page.locator(".taskRow", { hasText: "De Olga" }).getByRole("button", { name: /: Olga\./ })).toBeVisible();
-  await expect(page.locator(".taskRow", { hasText: "De alguna Ana" }).getByRole("button", { name: /Ana · por revisar/ })).toBeVisible();
-  await expect(page.locator(".taskRow", { hasText: "De Zoe" }).getByRole("button", { name: /Zoe · por revisar/ })).toBeVisible();
+  await expect(page.locator(".taskItem", { hasText: "De Olga" }).getByRole("button", { name: /: Olga\./ })).toBeVisible();
+  await expect(page.locator(".taskItem", { hasText: "De alguna Ana" }).getByRole("button", { name: /Ana · por revisar/ })).toBeVisible();
+  await expect(page.locator(".taskItem", { hasText: "De Zoe" }).getByRole("button", { name: /Zoe · por revisar/ })).toBeVisible();
 
   // Repeatable: a second dry run finds nothing left to link.
   await page.evaluate(() => { window.location.hash = "#settings-page"; });

@@ -38,6 +38,6 @@ img.skImg { background: linear-gradient(90deg, var(--sk-base), var(--sk-shine), 
 @keyframes skAppear { from { opacity: 0; } }
 
 /* The boot screen renders before the motion preference is applied to <html>. */
-@media (prefers-reduced-motion: reduce) { :is(.sk, img.skImg) { animation: none; } }
+@media (prefers-reduced-motion: reduce) { html:not([data-motion="full"]) :is(.sk, img.skImg) { animation: none; } }
 html[data-motion="reduced"] :is(.sk, img.skImg) { animation: none; }
 html[data-motion="full"] :is(.sk, img.skImg) { animation: skShimmer var(--sk-speed) linear infinite; }

@@ -16,12 +16,15 @@
 .scheduleField:disabled { opacity: .7; }
 .scheduleCalendarBlock { display: grid; min-width: 0; gap: 10px; padding: 12px; border: 1px solid var(--line); border-radius: 14px; background: rgba(0,0,0,.18); }
 :where(.scheduleCalendar) button { min-height: 0; padding: 0; border: 0; background: none; color: inherit; font-weight: inherit; transform: none; }
-.scheduleCalendar {
-  --rdp-accent-color: var(--mint);
-  --rdp-accent-background-color: rgba(141,231,189,.14);
-  --rdp-range_middle-background-color: rgba(141,231,189,.14);
-  --rdp-range_start-color: #0f1d17;
-  --rdp-range_end-color: #0f1d17;
+/* Two classes: react-day-picker's own stylesheet arrives later with the lazy page and must not win. */
+.scheduleCalendarBlock .scheduleCalendar {
+  --rdp-accent-color: #f5f5f7;
+  --rdp-accent-background-color: rgba(255,255,255,.08);
+  --rdp-range_middle-background-color: rgba(255,255,255,.08);
+  --rdp-range_middle-color: var(--text);
+  --rdp-range_start-color: #08090b;
+  --rdp-range_end-color: #08090b;
+  --rdp-selected-border: 0;
   --rdp-today-color: var(--amber);
   --rdp-day-height: 38px;
   --rdp-day-width: 38px;
@@ -40,8 +43,10 @@
 .scheduleCalendar .rdp-chevron { fill: var(--secondary); }
 .scheduleCalendar .rdp-button_previous, .scheduleCalendar .rdp-button_next { border-radius: 9px; }
 .scheduleCalendar .rdp-button_previous:hover, .scheduleCalendar .rdp-button_next:hover, .scheduleCalendar .rdp-day_button:hover { background: rgba(255,255,255,.07); }
-.scheduleCalendar .rdp-day_button:focus-visible { outline: 2px solid var(--mint); outline-offset: 1px; }
-.scheduleCalendar .rdp-selected .rdp-day_button { font-weight: 700; }
+.scheduleCalendar .rdp-day_button:focus-visible { outline: 2px solid rgba(255,255,255,.6); outline-offset: 1px; }
+/* Only the ends of the range stand out; the days in between keep the normal size. */
+.scheduleCalendarBlock .scheduleCalendar .rdp-selected { font-size: inherit; font-weight: inherit; }
+.scheduleCalendarBlock .scheduleCalendar :is(.rdp-range_start, .rdp-range_end) .rdp-day_button { font-weight: 700; }
 .scheduleSummary { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 14px; color: var(--secondary); font-size: 12px; }
 .scheduleSummary strong { color: var(--text); }
 .scheduleZone { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; }

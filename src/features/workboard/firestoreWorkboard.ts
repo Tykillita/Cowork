@@ -1,6 +1,7 @@
 import type { ActivityChanges, BranchEntry, Milestone, PanelUser, Project, Task, TaskStatus } from "../../types";
 import { getCoworkFirestore } from "../../lib/firebase";
-import { branchEventId, eventDocument, milestoneEventId, taskChanges, taskEventId } from "../activity/activityEvents";
+import { branchDeletedEventId, branchEventId, eventDocument, milestoneEventId, taskChanges, taskEventId } from "../activity/activityEvents";
+import { EMPTY_TASK_DETAILS, encodeChecklist, normalizeTask, readChecklist, readPriority, sameTaskContent } from "./taskModel";
 
 async function database() {
   const [db, api] = await Promise.all([getCoworkFirestore(), import("firebase/firestore")]);
@@ -37,6 +38,16 @@ export function readTask(id: string, value: Record<string, unknown>): Task {
     assigneeUid: typeof value.assigneeUid === "string" ? value.assigneeUid : "",
     milestoneId: typeof value.milestoneId === "string" ? value.milestoneId : "",
     revision: typeof value.revision === "number" ? value.revision : 0,
+    // Tasks written before these fields existed read as empty; the defaults match firestore.rules.
+    description: typeof value.description === "string" ? value.description : EMPTY_TASK_DETAILS.description,
+    priority: readPriority(value.priority),
+    dueDate: typeof value.dueDate === "string" ? value.dueDate : "",
+    timeZone: typeof value.timeZone === "string" ? value.timeZone : "",
+    dueAt: typeof value.dueAt === "string" ? value.dueAt : "",
+    checklist: readChecklist(value.checklist),
+    branch: typeof value.branch === "string" ? value.branch : "",
+    createdAt: typeof value.createdAt === "string" ? value.createdAt : "",
+    createdByUid: typeof value.createdByUid === "string" ? value.createdByUid : "",
   };
 }
 
@@ -54,24 +65,34 @@ export function readMilestone(id: string, value: Record<string, unknown>): Miles
   };
 }
 
-function taskDocument(task: Task, revision: number, user: PanelUser) {
+/**
+ * Every key is always written, so a tab running an older version (which only
+ * knows the first fields) cannot erase the rest: the rules require that an
+ * update keeps every existing key. `created` comes from the stored document.
+ */
+function taskDocument(task: Task, revision: number, user: PanelUser, created: { createdAt: string; createdByUid: string }) {
+  const clean = normalizeTask(task);
   return {
-    id: task.id,
-    order: Math.max(1, Math.round(Number(task.order) || 1)),
-    phase: (task.phase || "General").slice(0, 60),
-    title: task.title.trim().slice(0, 300),
-    status: task.status,
-    assignee: task.assignee.slice(0, 100),
-    assigneeUid: task.assigneeUid,
-    milestoneId: task.milestoneId,
+    id: clean.id,
+    order: clean.order,
+    phase: clean.phase,
+    title: clean.title,
+    status: clean.status,
+    assignee: clean.assignee,
+    assigneeUid: clean.assigneeUid,
+    milestoneId: clean.milestoneId,
     revision,
     updatedByUid: user.id,
+    description: clean.description,
+    priority: clean.priority,
+    dueDate: clean.dueDate,
+    timeZone: clean.timeZone,
+    dueAt: clean.dueAt,
+    checklist: encodeChecklist(clean.checklist),
+    branch: clean.branch,
+    createdAt: created.createdAt,
+    createdByUid: created.createdByUid,
   };
-}
-
-function sameTaskContent(a: Task, b: Task) {
-  return a.title === b.title && a.status === b.status && a.assigneeUid === b.assigneeUid && a.milestoneId === b.milestoneId
-    && a.phase === b.phase && a.order === b.order && a.assignee === b.assignee;
 }
 
 // ─── Listeners ──────────────────────────────────────────────────────────────
@@ -82,10 +103,17 @@ export async function initializeProject(project: Project) {
   if (!projectSnapshot.exists()) throw new Error("No encontramos este proyecto o tu acceso fue revocado.");
 }
 
+/**
+ * The one query for a project's tasks. The activity centre listens with this
+ * same query, so Firestore shares a single watch for the open project.
+ */
+export function tasksQuery(api: typeof import("firebase/firestore"), db: import("firebase/firestore").Firestore, projectId: string) {
+  return api.query(api.collection(db, "projects", projectId, "tasks"), api.orderBy("order", "asc"));
+}
+
 export function listenForTasks(projectId: string, onValue: (tasks: Task[], fromCache: boolean) => void, onError: (error: Error) => void) {
   return database().then(({ db, api }) => {
-    const tasksQuery = api.query(api.collection(db, "projects", projectId, "tasks"), api.orderBy("order", "asc"));
-    return api.onSnapshot(tasksQuery, { includeMetadataChanges: true }, (snapshot) => {
+    return api.onSnapshot(tasksQuery(api, db, projectId), { includeMetadataChanges: true }, (snapshot) => {
       onValue(snapshot.docs.map((entry) => readTask(entry.id, entry.data())), snapshot.metadata.fromCache);
     }, onError);
   });
@@ -121,7 +149,7 @@ export async function createTask(projectId: string, draft: Task, user: PanelUser
       if (readTask(id, current.data()).revision === 1 && current.data().updatedByUid === user.id) return;
       throw new ConflictError("Ya existe una tarea con ese identificador.");
     }
-    transaction.set(taskRef, taskDocument(draft, 1, user));
+    transaction.set(taskRef, taskDocument(draft, 1, user, { createdAt: new Date().toISOString(), createdByUid: user.id }));
     transaction.set(api.doc(db, "projects", projectId, "events", eventId), eventDocument({
       id: eventId, projectId, kind: "created", targetType: "task", targetId: id, targetTitle: draft.title.trim(), revision: 1, actor: user, changes: {}, serverTime: api.serverTimestamp(),
     }));
@@ -159,7 +187,7 @@ export async function updateTask(projectId: string, base: Task, next: Task, user
     if (!contentChanged && !options.migration) return;
     const revision = current.revision + 1;
     const eventId = taskEventId(id, revision);
-    transaction.set(taskRef, taskDocument(target, revision, user));
+    transaction.set(taskRef, taskDocument(target, revision, user, { createdAt: current.createdAt, createdByUid: current.createdByUid }));
     transaction.set(api.doc(db, "projects", projectId, "events", eventId), eventDocument({
       id: eventId, projectId, kind: "updated", targetType: "task", targetId: id, targetTitle: target.title, revision, actor: user, changes, serverTime: api.serverTimestamp(),
     }));
@@ -210,9 +238,17 @@ export async function createBranch(projectId: string, branch: BranchEntry, user:
   return { projectId, eventId, countsAsWork: true };
 }
 
-export async function deleteBranch(projectId: string, id: string) {
+/** Removes a register entry together with its "deleted" event, so the team sees who did it. */
+export async function deleteBranch(projectId: string, entry: BranchEntry, user: PanelUser) {
+  const id = validDocumentId(entry.id);
   const { db, api } = await database();
-  await api.deleteDoc(api.doc(db, "projects", projectId, "branches", validDocumentId(id)));
+  const eventId = branchDeletedEventId(id);
+  const batch = api.writeBatch(db);
+  batch.delete(api.doc(db, "projects", projectId, "branches", id));
+  batch.set(api.doc(db, "projects", projectId, "events", eventId), eventDocument({
+    id: eventId, projectId, kind: "deleted", targetType: "branch", targetId: id, targetTitle: entry.name, revision: 2, actor: user, changes: {}, serverTime: api.serverTimestamp(),
+  }));
+  await batch.commit();
 }
 
 // ─── Milestones (owner) ─────────────────────────────────────────────────────

@@ -8,3 +8,6 @@ interface ImportMetaEnv {
   readonly VITE_USE_FIREBASE_EMULATORS: string;
   readonly VITE_FIREBASE_EMULATOR_HOST: string;
 }
+
+/** The app version, from the VERSION file (injected by vite.config.ts). */
+declare const __APP_VERSION__: string;

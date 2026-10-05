@@ -1,0 +1,59 @@
+name: prepare-release
+
+# Pushing a vX.Y.Z tag checks that it matches VERSION, builds and tests, and creates a **draft**
+# release whose notes are that version's CHANGELOG section. Review it and publish it on GitHub;
+# then mark the version as released in src/features/changelog/releases.ts and deploy (AGENTS.md).
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Tag, VERSION and CHANGELOG agree
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: node scripts/version.mjs notes "$RELEASE_TAG" > release-notes.md
+      - run: npm run build
+      - run: npm run test:unit
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-notes
+          path: release-notes.md
+          if-no-files-found: error
+
+  draft:
+    needs: verify
+    runs-on: ubuntu-latest
+    # Only this job can write to the repository.
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: release-notes
+      - name: Create the draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          {
+            cat release-notes.md
+            printf '\n\n---\nLo nuevo, para quien usa Cowork: la página /novedades.\n'
+          } > notes.md
+          gh release create "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --draft --verify-tag \
+            --title "Cowork ${RELEASE_TAG#v}" --notes-file notes.md

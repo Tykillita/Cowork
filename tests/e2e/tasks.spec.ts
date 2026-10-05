@@ -25,7 +25,7 @@ test("create, assign with the member picker, filter and release by account", asy
   await input.fill("Diseñar portada");
   await page.getByRole("button", { name: "Agregar tarea" }).click();
   await expect(input).toHaveValue("");
-  const row = page.locator(".taskRow", { hasText: "Diseñar portada" });
+  const row = page.locator(".taskItem", { hasText: "Diseñar portada" });
   await expect(row).toBeVisible();
 
   // Choose Ana from the accessible menu (keyboard).
@@ -39,18 +39,18 @@ test("create, assign with the member picker, filter and release by account", asy
 
   await input.fill("Revisar textos");
   await input.press("Enter");
-  const second = page.locator(".taskRow", { hasText: "Revisar textos" });
+  const second = page.locator(".taskItem", { hasText: "Revisar textos" });
   await second.getByRole("button", { name: "Asignarme" }).click();
   await expect(second.getByRole("button", { name: /Olga/ })).toBeVisible();
   await expect(second.getByRole("combobox", { name: /Estado/ })).toHaveValue("En curso");
 
   await page.getByRole("button", { name: "Mis tareas", exact: true }).click();
-  await expect(page.locator(".taskRow")).toHaveCount(1);
-  await expect(page.locator(".taskRow")).toContainText("Revisar textos");
+  await expect(page.locator(".taskItem")).toHaveCount(1);
+  await expect(page.locator(".taskItem")).toContainText("Revisar textos");
   await page.getByRole("combobox", { name: "Estado", exact: true }).selectOption("Pendiente");
   await expect(page.getByText("Ninguna tarea coincide con los filtros.")).toBeVisible();
   await page.getByRole("button", { name: "Quitar filtros" }).click();
-  await expect(page.locator(".taskRow")).toHaveCount(2);
+  await expect(page.locator(".taskItem")).toHaveCount(2);
 
   await second.getByRole("button", { name: "Soltar" }).click();
   await expect(second.getByRole("button", { name: /Sin asignar/ })).toBeVisible();
@@ -76,7 +76,7 @@ test("concurrent edits: a stale copy gets a conflict and nothing is overwritten"
   await olgaPage.getByRole("textbox", { name: "Título de la nueva tarea" }).fill("Compartida");
   await olgaPage.getByRole("button", { name: "Agregar tarea" }).click();
   await goToWork(anaPage, ana);
-  await expect(anaPage.locator(".taskRow", { hasText: "Compartida" })).toBeVisible();
+  await expect(anaPage.locator(".taskItem", { hasText: "Compartida" })).toBeVisible();
 
   // Ana keeps the copy she is looking at (same client code the app uses).
   await anaPage.evaluate(async () => {
@@ -89,8 +89,8 @@ test("concurrent edits: a stale copy gets a conflict and nothing is overwritten"
       }, () => resolve());
     });
   });
-  await olgaPage.locator(".taskRow", { hasText: "Compartida" }).getByRole("combobox", { name: /Estado/ }).selectOption("Hecha");
-  await expect(anaPage.locator(".taskRow", { hasText: "Compartida" }).getByRole("combobox", { name: /Estado/ })).toHaveValue("Hecha");
+  await olgaPage.locator(".taskItem", { hasText: "Compartida" }).getByRole("combobox", { name: /Estado/ }).selectOption("Hecha");
+  await expect(anaPage.locator(".taskItem", { hasText: "Compartida" }).getByRole("combobox", { name: /Estado/ })).toHaveValue("Hecha");
 
   const result = await anaPage.evaluate(async (uid) => {
     const workboard = await import("/src/features/workboard/firestoreWorkboard.ts");
@@ -104,7 +104,7 @@ test("concurrent edits: a stale copy gets a conflict and nothing is overwritten"
     }
   }, ana.uid);
   expect(result).toBe("cowork/conflict");
-  const olgaRow = olgaPage.locator(".taskRow", { hasText: "Compartida" });
+  const olgaRow = olgaPage.locator(".taskItem", { hasText: "Compartida" });
   await expect(olgaRow.getByRole("combobox", { name: /Estado/ })).toHaveValue("Hecha");
   await expect(olgaRow.getByRole("button", { name: /Sin asignar/ })).toBeVisible();
   await first.close();
@@ -116,7 +116,7 @@ test("a member who left keeps the historical reference but is not offered", asyn
   const input = page.getByRole("textbox", { name: "Título de la nueva tarea" });
   await input.fill("Tarea de Ana");
   await input.press("Enter");
-  const row = page.locator(".taskRow", { hasText: "Tarea de Ana" });
+  const row = page.locator(".taskItem", { hasText: "Tarea de Ana" });
   await row.getByRole("button", { name: /Responsable de Tarea de Ana/ }).click();
   await page.getByRole("menuitemradio", { name: "Ana" }).click();
   await expect(row.getByRole("button", { name: /: Ana\./ })).toBeVisible();
@@ -151,20 +151,20 @@ test("milestones: empty, partial, complete, reopened and archived", async ({ pag
     await page.getByRole("combobox", { name: "Hito de la nueva tarea" }).selectOption({ label: "Prototipo" });
     await input.fill(title);
     await input.press("Enter");
-    await expect(page.locator(".taskRow", { hasText: title })).toBeVisible();
+    await expect(page.locator(".taskItem", { hasText: title })).toBeVisible();
   }
   await expect(item).toContainText("0 de 2 tareas hechas");
-  await page.locator(".taskRow", { hasText: "Parte A" }).getByRole("combobox", { name: /Estado/ }).selectOption("Hecha");
+  await page.locator(".taskItem", { hasText: "Parte A" }).getByRole("combobox", { name: /Estado/ }).selectOption("Hecha");
   await expect(item).toContainText("1 de 2 tareas hechas");
-  await page.locator(".taskRow", { hasText: "Parte B" }).getByRole("combobox", { name: /Estado/ }).selectOption("Hecha");
+  await page.locator(".taskItem", { hasText: "Parte B" }).getByRole("combobox", { name: /Estado/ }).selectOption("Hecha");
   await expect(item).toContainText("Terminado");
-  await page.locator(".taskRow", { hasText: "Parte B" }).getByRole("combobox", { name: /Estado/ }).selectOption("En curso");
+  await page.locator(".taskItem", { hasText: "Parte B" }).getByRole("combobox", { name: /Estado/ }).selectOption("En curso");
   await expect(item).toContainText("Pendiente");
 
   await page.evaluate(() => { window.location.hash = "#home"; });
-  await expect(page.locator(".milestoneOverview")).toContainText("Prototipo");
+  await expect(page.locator(".homeMilestone")).toContainText("Prototipo");
   await page.evaluate(() => { window.location.hash = "#work"; });
   await item.getByRole("button", { name: "Archivar" }).click();
   await expect(page.locator(".milestoneItem", { hasText: "Prototipo" })).toHaveCount(0);
-  await expect(page.locator(".taskRow", { hasText: "Parte A" })).toContainText("Prototipo");
+  await expect(page.locator(".taskItem", { hasText: "Parte A" })).toContainText("Prototipo");
 });

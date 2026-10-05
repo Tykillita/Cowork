@@ -565,6 +565,14 @@ service cloud.firestore {
       return /databases/$(database)/documents/projects/$(projectId)/milestones/$(milestoneId);
     }
 
+    function fileDraftPath(projectId, draftId) {
+      return /databases/$(database)/documents/projects/$(projectId)/fileDrafts/$(draftId);
+    }
+
+    function fileContentPath(projectId, draftId) {
+      return /databases/$(database)/documents/projects/$(projectId)/fileDraftContents/$(draftId);
+    }
+
     function eventPath(projectId, eventId) {
       return /databases/$(database)/documents/projects/$(projectId)/events/$(eventId);
     }
@@ -629,10 +637,11 @@ service cloud.firestore {
     function validProject(projectId) {
       let data = request.resource.data;
       return data.keys().hasAll(['id', 'name', 'description', 'repositoryUrl', 'previewUrl', 'kind', 'createdAt', 'ownerUid'])
-        && data.keys().hasOnly(['id', 'name', 'description', 'repositoryUrl', 'previewUrl', 'kind', 'createdAt', 'ownerUid', 'schedule', 'iconUrl', 'githubPolicy'])
+        && data.keys().hasOnly(['id', 'name', 'description', 'repositoryUrl', 'previewUrl', 'kind', 'createdAt', 'ownerUid', 'schedule', 'iconUrl', 'githubPolicy', 'changelogUrl'])
         && (!('schedule' in data) || validSchedule(data.schedule))
         && (!('githubPolicy' in data) || validGitHubPolicy(data.githubPolicy))
         && (!('iconUrl' in data) || (data.iconUrl is string && data.iconUrl.size() <= 500 && data.iconUrl.matches('^https://[^\\s]+$')))
+        && (!('changelogUrl' in data) || (data.changelogUrl is string && data.changelogUrl.size() <= 500 && (data.changelogUrl == '' || data.changelogUrl.matches('^https://[^\\s]+$'))))
         && data.id == projectId
         && data.name is string && data.name.size() > 0 && data.name.size() <= 80
         && data.description is string && data.description.size() <= 400
@@ -973,10 +982,48 @@ service cloud.firestore {
       return 'milestone-' + milestoneId + '-' + string(revision);
     }
 
+    function taskCoreKeys() {
+      return ['id', 'order', 'phase', 'title', 'status', 'assignee', 'assigneeUid', 'milestoneId', 'revision', 'updatedByUid'];
+    }
+
+    // Detail fields. Tasks written before they existed lack them; reads use the
+    // same defaults as the client (priority 'media', empty list, empty strings).
+    function taskDetailKeys() {
+      return ['description', 'priority', 'dueDate', 'timeZone', 'dueAt', 'checklist', 'branch', 'createdAt', 'createdByUid'];
+    }
+
+    // The checklist is stored as one JSON string ("" when empty). A list of
+    // maps would cost hundreds of the 1000 expressions a request may evaluate
+    // (every comparison walks each item); the client validates each item.
+    function validTaskDue(data) {
+      return data.get('timeZone', '') is string && data.get('timeZone', '').size() <= 64
+        && ((data.get('dueDate', '') == '' && data.get('dueAt', '') == '')
+          || (data.dueDate is string && data.dueDate.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+            && data.timeZone.size() > 0
+            && data.dueAt is string && data.dueAt.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9:.]+Z$')));
+    }
+
+    function validTaskDetails(data) {
+      return data.get('description', '') is string && data.get('description', '').size() <= 4000
+        && data.get('priority', 'media') in ['baja', 'media', 'alta']
+        && validTaskDue(data)
+        && data.get('checklist', '') is string && data.get('checklist', '').size() <= 8000
+        && data.get('branch', '') is string && data.get('branch', '').size() <= 120
+        && data.get('createdAt', '') is string && data.get('createdAt', '').size() <= 40
+        && data.get('createdByUid', '') is string && data.get('createdByUid', '').size() <= 128;
+    }
+
     function validTask(taskId) {
       let data = request.resource.data;
-      return data.keys().hasAll(['id', 'order', 'phase', 'title', 'status', 'assignee', 'assigneeUid', 'milestoneId', 'revision', 'updatedByUid'])
-        && data.keys().hasOnly(['id', 'order', 'phase', 'title', 'status', 'assignee', 'assigneeUid', 'milestoneId', 'revision', 'updatedByUid'])
+      return data.keys().hasAll(taskCoreKeys())
+        && data.keys().hasOnly(taskCoreKeys().concat(taskDetailKeys()))
+        && validTaskDetails(data)
+        // A tab running an older version cannot erase fields it does not know,
+        // and the creation stamp never changes.
+        && (resource == null
+          || (data.keys().hasAll(resource.data.keys())
+            && data.get('createdAt', '') == resource.data.get('createdAt', '')
+            && data.get('createdByUid', '') == resource.data.get('createdByUid', '')))
         && data.id == taskId
         && data.order is int && data.order > 0
         && data.phase is string && data.phase.size() > 0 && data.phase.size() <= 60
@@ -1046,6 +1093,66 @@ service cloud.firestore {
         && (!('createdByUid' in data) || data.createdByUid == request.auth.uid);
     }
 
+    // Shared proposals extracted from a project's public release notes.
+    // Only bounded text and a content hash are stored; the remote HTML is discarded.
+    function validReleaseSyncItem(proposalId) {
+      let data = request.resource.data;
+      return data.keys().hasAll(['id','sourceUrl','title','body','section','version','suggestedStatus','contentHash','reviewStatus','taskId','createdAt','createdByUid','updatedAt','updatedByUid','reviewedAt','reviewedByUid'])
+        && data.keys().hasOnly(['id','sourceUrl','title','body','section','releaseKind','version','suggestedStatus','contentHash','reviewStatus','taskId','createdAt','createdByUid','updatedAt','updatedByUid','reviewedAt','reviewedByUid'])
+        && proposalId.matches('^[a-f0-9]{64}$') && data.id == proposalId
+        && data.sourceUrl is string && data.sourceUrl.size() > 0 && data.sourceUrl.size() <= 500 && data.sourceUrl.matches('^https://[^\\s]+$')
+        && data.title is string && data.title.size() > 0 && data.title.size() <= 300
+        && data.body is string && data.body.size() <= 1500
+        && data.section in ['added','changed','fixed','general']
+        && (!('releaseKind' in data) || data.releaseKind in ['','major','feature','fix'])
+        && data.version is string && data.version.size() <= 60
+        && data.suggestedStatus in ['', 'Pendiente', 'En curso', 'Hecha']
+        && data.contentHash is string && data.contentHash.matches('^[a-f0-9]{64}$')
+        && data.reviewStatus in ['pending','accepted','ignored']
+        && data.taskId is string && data.taskId.size() <= 60
+        && data.createdAt is timestamp && data.updatedAt is timestamp
+        && data.createdByUid is string && data.createdByUid.size() > 0 && data.createdByUid.size() <= 128
+        && data.updatedByUid is string && data.updatedByUid.size() > 0 && data.updatedByUid.size() <= 128
+        && (data.reviewedAt == null || data.reviewedAt is timestamp)
+        && data.reviewedByUid is string && data.reviewedByUid.size() <= 128;
+    }
+
+    // ─── File drafts: proposed in Cowork, committed to GitHub by a reviewer ──
+    // Reviewers follow the branch policy; GitHub still checks the real write permission.
+    function canReviewFiles(projectId) {
+      return isProjectOwner(projectId)
+        || (isProjectMember(projectId)
+          && get(projectPath(projectId)).data.get('githubPolicy', {}).get('branchWrite', 'owner') == 'members');
+    }
+
+    // Relative path with named parts: no "." or ".." parts, no .git, no backslashes or control characters.
+    function validDraftPath(path) {
+      return path is string && path.size() > 0 && path.size() <= 300
+        && !path.matches('^/.*|.*/$|.*//.*')
+        && !path.matches('(.*/)?[.][.]?(/.*)?')
+        && !path.matches('(.*/)?[.]git(/.*)?')
+        && !path.matches('(?s).*[\\x00-\\x1f\\x7f\\\\].*');
+    }
+
+    function validFileDraft(draftId) {
+      let data = request.resource.data;
+      return data.keys().hasAll(['id', 'ref', 'path', 'encoding', 'size', 'message', 'status', 'authorUid', 'authorName', 'createdAt', 'reviewNote', 'reviewedByUid', 'reviewerName'])
+        && data.keys().hasOnly(['id', 'ref', 'path', 'encoding', 'size', 'message', 'status', 'authorUid', 'authorName', 'createdAt', 'reviewNote', 'reviewedByUid', 'reviewerName'])
+        && data.id == draftId && draftId.size() <= 60
+        && data.ref is string && data.ref.size() > 0 && data.ref.size() <= 250
+        && validDraftPath(data.path)
+        && data.encoding in ['utf-8', 'base64']
+        && data.size is int && data.size >= 0 && data.size <= 665600
+        && data.message is string && data.message.size() > 0 && data.message.size() <= 200
+        && data.status in ['pending', 'rejected']
+        && data.authorUid is string
+        && data.authorName is string && data.authorName.size() <= 100
+        && data.createdAt is string && data.createdAt.size() <= 40
+        && data.reviewNote is string && data.reviewNote.size() <= 300
+        && data.reviewedByUid is string && data.reviewedByUid.size() <= 128
+        && data.reviewerName is string && data.reviewerName.size() <= 100;
+    }
+
     function validMilestone(milestoneId) {
       let data = request.resource.data;
       return data.keys().hasAll(['id', 'title', 'description', 'dueDate', 'timeZone', 'dueAt', 'archived', 'createdAt', 'createdByUid', 'revision', 'updatedByUid'])
@@ -1064,14 +1171,45 @@ service cloud.firestore {
     }
 
     // ─── Activity events: immutable, server-timed, tied to one revision ────
+    // `key` is in the event exactly when the value changed, with the real from/to.
+    // Kept short: a request may evaluate at most 1000 expressions, and a
+    // missing `from` or `to` makes the access fail, which refuses the write.
+    function pairOk(changes, key, before, after) {
+      return (key in changes) == (before != after)
+        && (!(key in changes)
+          || (changes[key].keys().hasOnly(['from', 'to'])
+            && changes[key].from == before
+            && changes[key].to == after));
+    }
+
+    // A flag that is present (and true) exactly when the value changed.
+    function flagOk(changes, key, changed) {
+      return (key in changes) == changed && (!(key in changes) || changes[key] == true);
+    }
+
     function taskChangesConsistent(projectId, before, after, changes) {
-      return changes.keys().hasOnly(['status', 'assignee', 'milestone', 'title', 'migration'])
-        && (('status' in changes) == (before.status != after.status))
-        && (!('status' in changes) || (changes.status.from == before.status && changes.status.to == after.status))
+      return changes.keys().hasOnly(['status', 'assignee', 'milestone', 'title', 'phase', 'priority', 'dueAt', 'branch', 'checklist', 'details', 'order', 'migration'])
+        && pairOk(changes, 'status', before.status, after.status)
         && (('assignee' in changes) == (before.get('assigneeUid', '') != after.assigneeUid))
-        && (!('assignee' in changes) || (changes.assignee.fromUid == before.get('assigneeUid', '') && changes.assignee.toUid == after.assigneeUid))
-        && (('milestone' in changes) == (before.get('milestoneId', '') != after.milestoneId))
-        && (!('title' in changes) || changes.title.to == after.title)
+        && (!('assignee' in changes)
+          || (changes.assignee.keys().hasOnly(['fromUid', 'toUid', 'fromName', 'toName'])
+            && changes.assignee.fromUid == before.get('assigneeUid', '')
+            && changes.assignee.toUid == after.assigneeUid
+            && changes.assignee.get('fromName', '') is string && changes.assignee.get('fromName', '').size() <= 100
+            && changes.assignee.get('toName', '') is string && changes.assignee.get('toName', '').size() <= 100))
+        && pairOk(changes, 'milestone', before.get('milestoneId', ''), after.milestoneId)
+        && pairOk(changes, 'title', before.title, after.title)
+        && pairOk(changes, 'phase', before.phase, after.phase)
+        && pairOk(changes, 'priority', before.get('priority', 'media'), after.get('priority', 'media'))
+        && pairOk(changes, 'dueAt', before.get('dueAt', ''), after.get('dueAt', ''))
+        && pairOk(changes, 'branch', before.get('branch', ''), after.get('branch', ''))
+        && (('checklist' in changes) == (before.get('checklist', '') != after.get('checklist', '')))
+        && (!('checklist' in changes)
+          || (changes.checklist.keys().hasOnly(['done', 'total'])
+            && changes.checklist.total is int && changes.checklist.total <= 20
+            && changes.checklist.done is int && changes.checklist.done >= 0 && changes.checklist.done <= changes.checklist.total))
+        && flagOk(changes, 'details', before.get('description', '') != after.get('description', ''))
+        && flagOk(changes, 'order', before.order != after.order)
         && (!('migration' in changes) || (changes.migration == true && isProjectOwner(projectId)));
     }
 
@@ -1114,13 +1252,47 @@ service cloud.firestore {
 
     function branchEventConsistent(projectId, event) {
       let path = branchPath(projectId, event.targetId);
-      return event.id == 'branch-' + event.targetId
-        && event.kind == 'created'
-        && event.revision == 1
-        && event.changes.size() == 0
-        && !exists(path)
-        && existsAfter(path)
-        && event.targetTitle == getAfter(path).data.name;
+      return event.changes.size() == 0
+        && ((event.id == 'branch-' + event.targetId
+            && event.kind == 'created'
+            && event.revision == 1
+            && !exists(path)
+            && existsAfter(path)
+            && event.targetTitle == getAfter(path).data.name)
+          || (event.id == 'branch-' + event.targetId + '-deleted'
+            && event.kind == 'deleted'
+            && event.revision == 2
+            && exists(path)
+            && !existsAfter(path)
+            && event.targetTitle == get(path).data.name));
+    }
+
+    // Proposed (created), rejected (updated), committed to GitHub ("done") or discarded (deleted).
+    function fileEventConsistent(projectId, event) {
+      let path = fileDraftPath(projectId, event.targetId);
+      return (event.id == 'file-' + event.targetId
+            && event.kind == 'created' && event.revision == 1
+            && !exists(path) && existsAfter(path)
+            && event.changes == {'ref': getAfter(path).data.ref}
+            && event.targetTitle == getAfter(path).data.path)
+        || (event.id == 'file-' + event.targetId + '-rejected'
+            && event.kind == 'updated' && event.revision == 2
+            && exists(path) && existsAfter(path)
+            && get(path).data.status == 'pending' && getAfter(path).data.status == 'rejected'
+            && event.changes == {'review': 'rejected', 'ref': get(path).data.ref}
+            && event.targetTitle == get(path).data.path)
+        || (event.id == 'file-' + event.targetId + '-done'
+            && event.kind == 'deleted' && event.revision == 2
+            && exists(path) && !existsAfter(path)
+            && get(path).data.status == 'pending'
+            && event.changes == {'review': 'approved', 'ref': get(path).data.ref}
+            && event.targetTitle == get(path).data.path)
+        || (event.id == 'file-' + event.targetId + '-discarded'
+            && event.kind == 'deleted'
+            && exists(path) && !existsAfter(path)
+            && event.revision == (get(path).data.status == 'rejected' ? 3 : 2)
+            && event.changes == {'review': 'discarded', 'ref': get(path).data.ref}
+            && event.targetTitle == get(path).data.path);
     }
 
     // Only the owner, only in the batch that creates the project: never added to an existing one.
@@ -1155,7 +1327,8 @@ service cloud.firestore {
         && ((event.targetType == 'task' && taskEventConsistent(projectId, event))
           || (event.targetType == 'milestone' && milestoneEventConsistent(projectId, event))
           || (event.targetType == 'branch' && branchEventConsistent(projectId, event))
-          || (event.targetType == 'project' && projectEventConsistent(projectId, event)));
+          || (event.targetType == 'project' && projectEventConsistent(projectId, event))
+          || (event.targetType == 'file' && fileEventConsistent(projectId, event)));
     }
 
     // Real work that counts for the personal collection.
@@ -1312,7 +1485,7 @@ service cloud.firestore {
       allow update: if (isProjectOwner(projectId)
           && validProject(projectId)
           && request.resource.data.ownerUid == resource.data.ownerUid
-          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'description', 'repositoryUrl', 'previewUrl', 'kind', 'schedule', 'iconUrl', 'githubPolicy']))
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'description', 'repositoryUrl', 'previewUrl', 'kind', 'schedule', 'iconUrl', 'githubPolicy', 'changelogUrl']))
         // Cheap guard first: ordinary edits never pay for the transfer's getAfter() checks.
         || (request.resource.data.ownerUid != resource.data.ownerUid && validProjectOwnershipTransfer(projectId));
       allow delete: if false;
@@ -1372,6 +1545,7 @@ service cloud.firestore {
         allow create: if isProjectMember(projectId)
           && validTask(taskId)
           && request.resource.data.revision == 1
+          && request.resource.data.get('createdByUid', request.auth.uid) == request.auth.uid
           && assigneeAllowed(projectId, '')
           && milestoneAllowed(projectId, '')
           && taskEventWritten(projectId, taskId, 1, 'created');
@@ -1385,6 +1559,51 @@ service cloud.firestore {
         allow delete: if isProjectMember(projectId)
           && (taskEventWritten(projectId, taskId, revisionOf(resource.data) + 1, 'deleted')
             || (transitionOpen() && !('revision' in resource.data)));
+      }
+
+      match /releaseSyncItems/{proposalId} {
+        allow read: if isProjectMember(projectId);
+        allow create: if isProjectMember(projectId)
+          && validReleaseSyncItem(proposalId)
+          && request.resource.data.reviewStatus == 'pending'
+          && request.resource.data.taskId == ''
+          && request.resource.data.createdByUid == request.auth.uid
+          && request.resource.data.updatedByUid == request.auth.uid
+          && request.resource.data.createdAt == request.time
+          && request.resource.data.updatedAt == request.time
+          && request.resource.data.reviewedAt == null
+          && request.resource.data.reviewedByUid == '';
+        allow update: if isProjectMember(projectId)
+          && validReleaseSyncItem(proposalId)
+          && request.resource.data.createdAt == resource.data.createdAt
+          && request.resource.data.createdByUid == resource.data.createdByUid
+          && request.resource.data.updatedAt == request.time
+          && request.resource.data.updatedByUid == request.auth.uid
+          && (
+            (request.resource.data.contentHash != resource.data.contentHash
+              && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['sourceUrl','title','body','section','releaseKind','version','suggestedStatus','contentHash','reviewStatus','updatedAt','updatedByUid','reviewedAt','reviewedByUid'])
+              && request.resource.data.reviewStatus == 'pending'
+              && request.resource.data.taskId == resource.data.taskId
+              && request.resource.data.reviewedAt == null
+              && request.resource.data.reviewedByUid == '')
+            || (request.resource.data.contentHash == resource.data.contentHash
+              && request.resource.data.releaseKind != resource.data.get('releaseKind', '')
+              && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['releaseKind','updatedAt','updatedByUid'])
+              && request.resource.data.reviewStatus == resource.data.reviewStatus
+              && request.resource.data.taskId == resource.data.taskId
+              && request.resource.data.reviewedAt == resource.data.reviewedAt
+              && request.resource.data.reviewedByUid == resource.data.reviewedByUid)
+            || (request.resource.data.contentHash == resource.data.contentHash
+              && resource.data.reviewStatus == 'pending'
+              && request.resource.data.reviewStatus in ['accepted','ignored']
+              && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reviewStatus','taskId','updatedAt','updatedByUid','reviewedAt','reviewedByUid'])
+              && request.resource.data.reviewedByUid == request.auth.uid
+              && request.resource.data.reviewedAt == request.time
+              && (request.resource.data.reviewStatus == 'accepted'
+                ? (request.resource.data.taskId.size() > 0 && exists(taskPath(projectId, request.resource.data.taskId)))
+                : request.resource.data.taskId == resource.data.taskId))
+          );
+        allow delete: if false;
       }
 
       match /milestones/{milestoneId} {
@@ -1417,8 +1636,54 @@ service cloud.firestore {
         allow create: if isProjectMember(projectId)
           && validBranch(branchId)
           && (existsAfter(eventPath(projectId, 'branch-' + branchId)) || transitionOpen());
-        allow update: if isProjectMember(projectId) && validBranch(branchId);
-        allow delete: if isProjectMember(projectId);
+        // The register is append-only for edits; removing an entry leaves its event.
+        allow update: if false;
+        allow delete: if isProjectMember(projectId)
+          && (existsAfter(eventPath(projectId, 'branch-' + branchId + '-deleted')) || transitionOpen());
+      }
+
+      // A proposed file: anyone in the project proposes, a reviewer rejects or
+      // commits it (deleting the draft), the author can always drop it.
+      match /fileDrafts/{draftId} {
+        allow read: if isProjectMember(projectId);
+        allow create: if isProjectMember(projectId)
+          && validFileDraft(draftId)
+          && request.resource.data.status == 'pending'
+          && request.resource.data.authorUid == request.auth.uid
+          && request.resource.data.reviewNote == ''
+          && request.resource.data.reviewedByUid == ''
+          && request.resource.data.reviewerName == ''
+          && existsAfter(fileContentPath(projectId, draftId))
+          && existsAfter(eventPath(projectId, 'file-' + draftId));
+        // Only the review itself: pending → rejected, signed by the reviewer, content untouched.
+        allow update: if canReviewFiles(projectId)
+          && validFileDraft(draftId)
+          && resource.data.status == 'pending'
+          && request.resource.data.status == 'rejected'
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'reviewNote', 'reviewedByUid', 'reviewerName'])
+          && request.resource.data.reviewedByUid == request.auth.uid
+          && existsAfter(eventPath(projectId, 'file-' + draftId + '-rejected'));
+        allow delete: if isProjectMember(projectId)
+          && !existsAfter(fileContentPath(projectId, draftId))
+          && ((existsAfter(eventPath(projectId, 'file-' + draftId + '-discarded'))
+              && (resource.data.authorUid == request.auth.uid || (resource.data.status == 'rejected' && canReviewFiles(projectId))))
+            || (existsAfter(eventPath(projectId, 'file-' + draftId + '-done')) && canReviewFiles(projectId)));
+      }
+
+      // The draft's bytes, written once with the draft and removed with it.
+      match /fileDraftContents/{draftId} {
+        allow read: if isProjectMember(projectId);
+        allow create: if isProjectMember(projectId)
+          && request.resource.data.keys().hasAll(['id', 'content'])
+          && request.resource.data.keys().hasOnly(['id', 'content'])
+          && request.resource.data.id == draftId
+          && request.resource.data.content is string
+          && request.resource.data.content.size() <= 900000
+          && !exists(fileDraftPath(projectId, draftId))
+          && existsAfter(fileDraftPath(projectId, draftId))
+          && getAfter(fileDraftPath(projectId, draftId)).data.authorUid == request.auth.uid;
+        allow update: if false;
+        allow delete: if isProjectMember(projectId) && !existsAfter(fileDraftPath(projectId, draftId));
       }
     }
 

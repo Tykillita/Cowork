@@ -1,0 +1,261 @@
+/* ─── Code page (#code): tree on the left, file on the right ─────────────── */
+
+#code { max-width: 1440px; }
+
+/* ─── Repository bar: like GitHub's header above the files ──────────────────
+ * Branch picker and counts on the left; "go to file", add, refresh and the
+ * light "Código" menu on the right. Selectors carry the bar's class so they
+ * win over the global button colours (`button:hover`).
+ */
+.repoToolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 12px; }
+.repoToolbarRefs, .repoToolbarActions { display: contents; }
+.repoIcon { display: block; flex: none; width: 16px; height: 16px; }
+.repoCaret { width: 12px; height: 12px; opacity: .65; }
+:is(.repoToolbar, .repoFilesDialog) :is(.repoRefButton, .repoButton, .repoIconButton) {
+  display: inline-flex; min-height: 34px; align-items: center; gap: 7px; padding: 0 11px;
+  border: 1px solid rgba(255, 255, 255, .14); border-radius: 10px; background: rgba(255, 255, 255, .06);
+  color: var(--text); font-size: 12px; font-weight: 600; white-space: nowrap;
+}
+:is(.repoToolbar, .repoFilesDialog) :is(.repoRefButton, .repoButton, .repoIconButton):hover { border-color: rgba(255, 255, 255, .24); background: rgba(255, 255, 255, .11); }
+:is(.repoToolbar, .repoFilesDialog) :is(.repoRefButton, .repoButton, .repoIconButton)[aria-expanded="true"] { border-color: rgba(255, 255, 255, .28); background: rgba(255, 255, 255, .12); }
+.repoToolbar .repoFindTrigger { display: none; }
+.repoToolbar .repoRefButton { max-width: 260px; }
+.repoToolbar .repoRefButton:disabled { opacity: 1; }
+.repoRefName { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+:is(.repoToolbar, .repoFilesDialog) .repoIconButton { width: 34px; justify-content: center; padding: 0; color: var(--secondary); }
+:is(.repoToolbar, .repoFilesDialog) .repoIconButton:hover { color: var(--text); }
+:is(.repoToolbar, .repoFilesDialog) :is(button, a, input):focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
+/* The one primary action of the bar: solid light, as in project forms. */
+.repoToolbar .repoCodeButton { border-color: transparent; background: #ececf0; color: #0b0c0e; font-weight: 650; }
+.repoToolbar .repoCodeButton:hover, .repoToolbar .repoCodeButton[aria-expanded="true"] { border-color: transparent; background: #fff; }
+.repoToolbar .repoCount {
+  display: inline-flex; min-height: 34px; align-items: center; gap: 6px; padding: 0 8px;
+  border: 1px solid transparent; border-radius: 10px; background: transparent;
+  color: var(--secondary); font-size: 12px; font-weight: 500; text-decoration: none; white-space: nowrap;
+}
+.repoToolbar .repoCount:is(a, button):hover { border-color: transparent; background: rgba(255, 255, 255, .05); color: var(--text); }
+.repoCount b { color: var(--text); font-weight: 650; }
+.repoCount .repoIcon { color: var(--tertiary); }
+.repoPendingDot { width: 7px; height: 7px; border: 1.5px dashed var(--amber); border-radius: 50%; }
+.isSpinning .repoIcon { animation: repoSpin .8s linear infinite; }
+@keyframes repoSpin { to { transform: rotate(360deg); } }
+
+.repoFind { position: relative; display: flex; min-width: 180px; flex: 0 1 300px; align-items: center; margin-left: auto; }
+.repoFindField { position: relative; display: flex; width: 100%; align-items: center; }
+.repoFindField > .repoIcon { position: absolute; left: 10px; color: var(--tertiary); pointer-events: none; }
+.repoFind input { width: 100%; min-height: 34px; padding: 0 34px 0 32px; border-radius: 10px; background: rgba(255, 255, 255, .03); font-size: 12px; }
+.repoFind input:disabled { opacity: 1; }
+.repoFindKey {
+  position: absolute; right: 8px; display: grid; min-width: 18px; height: 18px; place-items: center; padding: 0 4px;
+  border: 1px solid var(--line-strong); border-radius: 5px; color: var(--tertiary);
+  font: 600 10px/1 ui-monospace, "SFMono-Regular", "Cascadia Code", Consolas, monospace; pointer-events: none;
+}
+.repoFind:focus-within .repoFindKey, .repoFind input:not(:placeholder-shown) ~ .repoFindKey { display: none; }
+.repoFindResults {
+  position: absolute; z-index: 40; top: calc(100% + 6px); right: 0; display: grid; width: min(520px, calc(100vw - 32px));
+  max-height: min(60dvh, 420px); gap: 1px; overflow-y: auto; padding: 6px;
+  border: 1px solid rgba(255, 255, 255, .14); border-radius: 13px; background: rgba(20, 22, 23, .98); box-shadow: 0 18px 50px rgba(0, 0, 0, .5);
+}
+.repoFindOption { display: flex; min-height: 32px; align-items: center; gap: 9px; padding: 0 9px; border-radius: 8px; cursor: pointer; }
+.repoFindOption.isActive { background: rgba(255, 255, 255, .08); }
+.repoFindOption img, .repoFindOption .repoIcon { flex: none; width: 16px; height: 16px; }
+.repoFindPath { min-width: 0; overflow: hidden; color: var(--tertiary); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+.repoFindPath b { color: var(--text); font-weight: 700; }
+
+/* ─── Popovers (src/components/ui/Popover.tsx) ───────────────────────────── */
+.popover { position: relative; display: inline-flex; }
+.popoverPanel {
+  position: absolute; z-index: 40; top: calc(100% + 6px); left: 0; display: grid; width: 320px;
+  max-height: min(70dvh, 480px); align-content: start; gap: 6px; overflow-y: auto; padding: 8px;
+  border: 1px solid rgba(255, 255, 255, .14); border-radius: 13px; background: rgba(20, 22, 23, .98);
+  box-shadow: 0 18px 50px rgba(0, 0, 0, .5); outline: none; animation: popoverIn .16s var(--ease) both;
+}
+.popoverPanel.is-end { right: 0; left: auto; }
+@keyframes popoverIn { from { opacity: 0; transform: translateY(-4px); } }
+.repoCodePanel { width: 360px; }
+.repoPendingPanel { width: 340px; }
+.repoPopHead { display: flex; align-items: center; gap: 8px; padding: 4px 6px 2px; color: var(--text); font-size: 12.5px; }
+.repoPopHead .repoIcon { color: var(--tertiary); }
+.repoPopSearch { position: relative; display: flex; align-items: center; }
+.repoPopSearch .repoIcon { position: absolute; left: 10px; color: var(--tertiary); pointer-events: none; }
+.repoPopSearch input { width: 100%; min-height: 34px; padding: 0 10px 0 32px; border-radius: 9px; font-size: 12px; }
+.popoverPanel .repoTabs { display: flex; gap: 2px; border-bottom: 1px solid var(--line); }
+.popoverPanel .repoTab { min-height: 32px; margin-bottom: -1px; padding: 0 10px; border: 0; border-bottom: 2px solid transparent; border-radius: 0; background: transparent; color: var(--tertiary); font-size: 11.5px; font-weight: 600; }
+.popoverPanel .repoTab:hover { border-bottom-color: var(--line-strong); background: transparent; color: var(--secondary); }
+.popoverPanel .repoTab[aria-selected="true"] { border-bottom-color: var(--text); color: var(--text); }
+.repoRefList { display: grid; max-height: 280px; align-content: start; gap: 1px; overflow-y: auto; }
+.repoRefOption { display: flex; min-height: 32px; align-items: center; gap: 8px; padding: 0 8px; border-radius: 8px; color: var(--secondary); font-size: 12px; cursor: pointer; }
+.repoRefOption.isActive { background: rgba(255, 255, 255, .08); color: var(--text); }
+.repoRefOption[aria-selected="true"] { color: var(--text); font-weight: 600; }
+.repoRefSkeleton { display: grid; gap: 1px; }
+.repoRefSkeleton .repoRefOption { cursor: default; }
+.repoCheck { display: grid; width: 16px; flex: none; place-items: center; }
+.repoRefOptionName { min-width: 0; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.repoDefault { flex: none; padding: 0 7px; border: 1px solid var(--line); border-radius: 999px; color: var(--tertiary); font-size: 10px; font-weight: 600; line-height: 17px; }
+.repoPopEmpty, .repoPopNote { margin: 0; padding: 8px; color: var(--tertiary); font-size: 11px; line-height: 1.5; }
+.repoPopFoot { padding: 6px 4px 0; border-top: 1px solid var(--line); }
+.repoPopFoot a { display: inline-flex; min-height: 28px; align-items: center; padding: 0 6px; border-radius: 7px; color: var(--secondary); font-size: 11.5px; font-weight: 600; text-decoration: none; }
+.repoPopFoot a:hover { background: rgba(255, 255, 255, .05); color: var(--text); }
+.popoverPanel .repoMenuItem {
+  display: flex; width: 100%; min-height: 0; align-items: flex-start; justify-content: flex-start; gap: 10px; padding: 8px 9px;
+  border: 0; border-radius: 9px; background: transparent; color: var(--text); text-align: left; text-decoration: none;
+}
+.popoverPanel .repoMenuItem:hover, .popoverPanel .repoMenuItem:focus-visible { background: rgba(255, 255, 255, .07); outline: none; }
+.repoMenuItem :is(.repoIcon, .ghMark) { width: 16px; height: 16px; margin-top: 1px; color: var(--secondary); }
+.repoMenuItem > span { display: grid; min-width: 0; gap: 2px; }
+.repoMenuItem b { font-size: 12px; font-weight: 600; }
+.repoMenuItem small { overflow: hidden; color: var(--tertiary); font-size: 10.5px; font-weight: 400; line-height: 1.45; text-overflow: ellipsis; }
+.repoMenuItem code { font-size: 10px; }
+.repoCloneField { display: flex; align-items: center; gap: 6px; }
+.repoCloneField input { min-height: 34px; flex: 1; padding: 0 10px; border-radius: 9px; font: 11.5px ui-monospace, "SFMono-Regular", "Cascadia Code", Consolas, monospace; }
+.popoverPanel .repoIconButton { display: grid; width: 34px; min-height: 34px; flex: none; place-items: center; padding: 0; border: 1px solid rgba(255, 255, 255, .14); border-radius: 9px; background: rgba(255, 255, 255, .06); color: var(--secondary); }
+.popoverPanel .repoIconButton:hover { border-color: rgba(255, 255, 255, .24); background: rgba(255, 255, 255, .11); color: var(--text); }
+.repoCloneHint { margin: 0 2px; color: var(--tertiary); font-size: 10.5px; }
+.repoCodeLinks { display: grid; gap: 1px; padding-top: 6px; border-top: 1px solid var(--line); }
+.repoPendingList { display: grid; gap: 1px; }
+
+/* The row is as tall as the tree; the viewer stretches to the same height. */
+.codeLayout { display: grid; grid-template-columns: 320px minmax(0, 1fr); align-items: stretch; gap: 12px; }
+.codeTreePanel { position: sticky; top: 16px; align-self: start; display: grid; max-height: calc(100dvh - 32px); gap: 8px; margin: 0; overflow: auto; padding: 12px; scrollbar-color: rgba(255, 255, 255, .16) transparent; scrollbar-width: thin; }
+.codeTreeHead { display: flex; min-width: 0; align-items: center; justify-content: space-between; gap: 8px; padding: 2px 4px; font-size: 12px; }
+.codeTreeHead strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.codeChangesChip { flex: none; padding: 1px 8px; border: 1px solid var(--tile-line); border-radius: 999px; background: var(--tile); color: var(--secondary); font-size: 10.5px; font-weight: 600; white-space: nowrap; }
+.codeTreePanel .folderTree { border: 0; background: transparent; padding: 0; }
+.codeDeleted { color: var(--tertiary); font-size: 11px; }
+.codeDeleted summary { cursor: pointer; }
+.codeDeleted ul { display: grid; gap: 4px; margin: 8px 0 0; padding: 0; list-style: none; }
+.codeDeleted code { color: var(--red); text-decoration: line-through; }
+
+.codeViewer { position: relative; display: flex; min-width: 0; flex-direction: column; gap: 8px; }
+/* Fills the column down to the end of the tree card; long files scroll inside. */
+.codeViewer > .codeBlock, .codeViewer > .codeEmpty, .codeViewer > .codeDraftEditor { flex: 1; }
+.codeViewer > .codeBlock { min-height: 0; max-height: calc(100dvh - 32px); }
+.codeBack { display: none; align-self: flex-start; }
+.codeEmpty { display: grid; justify-items: start; gap: 8px; margin: 0; }
+.codeEmpty h2 { margin: 0; font-size: 16px; }
+.codeEmpty p { max-width: 60ch; margin: 0; color: var(--tertiary); font-size: 12px; line-height: 1.6; }
+.codePlaceholder { min-height: 320px; align-content: start; }
+.codePlaceholder > .codeBlock { width: 100%; }
+.codeEmptyAction { display: inline-flex; min-height: 32px; align-items: center; padding: 0 12px; color: var(--secondary); font-size: 11px; text-decoration: none; }
+.codeEmpty kbd { padding: 0 5px; border: 1px solid var(--line-strong); border-radius: 5px; font: 600 10px/1.5 ui-monospace, "SFMono-Regular", Consolas, monospace; }
+
+.codeNotice { display: flex; align-items: center; gap: 8px; margin: 0 0 12px; padding: 6px 6px 6px 12px; border: 1px solid var(--line); border-radius: 11px; background: rgba(255, 255, 255, .04); color: var(--secondary); font-size: 11.5px; line-height: 1.5; }
+.codeNotice.is-error { border-color: rgba(255, 124, 135, .32); }
+.codeNotice span { min-width: 0; flex: 1; }
+.codeNotice button { width: 28px; min-height: 28px; flex: none; padding: 0; font-size: 15px; }
+.codeRepositoryNotice { flex-wrap: wrap; }
+.codeRepositoryNotice span { flex-basis: 200px; }
+.codeNotice .codeConnect { width: auto; padding: 4px 10px; font-size: 11.5px; }
+
+/* Proposed files: the editor, and the review strip above a draft. */
+.codeDraftEditor { display: flex; flex-direction: column; gap: 12px; margin: 0; padding: 16px; }
+.codeDraftHead h2 { margin: 0 0 4px; font-size: 15px; }
+.codeDraftHead p { max-width: 70ch; margin: 0; color: var(--tertiary); font-size: 11.5px; line-height: 1.6; }
+.codeDraftEditor input { font-size: 12px; }
+.codeDraftContent { display: flex; min-height: 0; flex: 1; flex-direction: column; }
+.codeDraftContent textarea { min-height: 320px; flex: 1; resize: vertical; font: 400 12px/1.6 ui-monospace, "SFMono-Regular", "Cascadia Code", "JetBrains Mono", Consolas, monospace; tab-size: 2; white-space: pre; }
+.codeDraftHint { margin: -6px 0 0; color: var(--amber); font-size: 11px; }
+.codeDraftActions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; }
+.codeDraftSize { margin-right: auto; color: var(--tertiary); font-size: 11px; font-variant-numeric: tabular-nums; }
+.codeReview { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; gap: 10px 16px; margin: 0; padding: 12px 14px; border-style: dashed; border-color: rgba(246, 207, 134, .32); }
+.codeReview.is-rejected { border-color: rgba(255, 124, 135, .32); }
+.codeReview > :is(.codeReviewReject, .codeReviewWhy, .projectSettingsError) { grid-column: 1 / -1; }
+.codeReviewInfo { display: grid; min-width: 0; gap: 4px; }
+.codeReviewInfo p { margin: 0; color: var(--secondary); font-size: 12px; line-height: 1.55; overflow-wrap: anywhere; }
+.codeReviewInfo b { color: var(--text); font-weight: 600; }
+.codeReviewBadge { justify-self: start; padding: 0 8px; border: 1px dashed rgba(246, 207, 134, .5); border-radius: 999px; color: var(--amber); font-size: 10px; font-weight: 650; line-height: 18px; }
+.is-rejected .codeReviewBadge { border-color: rgba(255, 124, 135, .45); color: var(--red); }
+.codeReviewInfo .codeReviewMessage { color: var(--tertiary); }
+.codeReviewActions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; }
+.codeReview .codeReviewApprove { border-color: transparent; background: #ececf0; color: #0b0c0e; font-weight: 650; }
+.codeReview .codeReviewApprove:hover { border-color: transparent; background: #fff; }
+.codeReview .codeReviewApprove:disabled { opacity: .45; }
+.codeReviewReject { display: grid; gap: 8px; }
+.codeReviewReject textarea { resize: vertical; font-size: 12px; }
+.codeReviewWhy { margin: 0; color: var(--tertiary); font-size: 11px; line-height: 1.5; }
+.codeDropHint { position: absolute; z-index: 5; inset: 0; display: grid; place-items: center; border: 1.5px dashed rgba(255, 255, 255, .38); border-radius: 18px; background: rgba(8, 9, 11, .78); color: var(--text); font-size: 13px; font-weight: 600; pointer-events: none; }
+
+
+@media (max-width: 1119px) {
+  .codeLayout { grid-template-columns: 260px minmax(0, 1fr); }
+}
+
+@media (max-width: 800px) {
+  .repoToolbar { flex-wrap: nowrap; gap: 8px; }
+  .repoToolbarRefs, .repoToolbarActions { display: flex; align-items: center; gap: 6px; }
+  .repoToolbarRefs { min-width: 0; flex: 1; }
+  .repoToolbarActions { flex: none; }
+  .repoToolbar .repoPicker { min-width: 0; flex: 0 1 160px; }
+  .repoToolbar .repoRefButton { width: 100%; max-width: 160px; }
+  .repoRefName { flex: 1; text-align: left; }
+  .repoToolbar .repoCount { flex: none; padding: 0 6px; }
+  .repoToolbar :is(.repoBranches, .repoTags) { width: 34px; justify-content: center; padding: 0; }
+  .repoToolbar :is(.repoBranches, .repoTags) :is(b, .sk), .repoToolbar .repoCountLabel { display: none; }
+  .repoToolbar .repoAddButton { width: 34px; justify-content: center; padding: 0; }
+  .repoToolbar :is(.repoButtonLabel, .repoAddButton .repoCaret, .repoFind) { display: none; }
+  .repoToolbar .repoFindTrigger { display: inline-flex; justify-content: center; padding: 0 9px; }
+  .repoToolbar .repoCodeButton { gap: 5px; padding: 0 9px; }
+}
+
+@media (max-width: 599px) {
+  .repoToolbar { flex-direction: column; align-items: stretch; gap: 6px; }
+  .repoToolbarRefs, .repoToolbarActions { width: 100%; }
+  .repoToolbar .repoPicker { flex: 1; }
+  .repoToolbar .repoRefButton { max-width: none; }
+  .repoToolbar .repoFindTrigger { min-width: 0; flex: 1; }
+}
+
+@media (max-width: 640px) {
+  .codeLayout { grid-template-columns: minmax(0, 1fr); }
+  .codeTreePanel { position: static; max-height: none; }
+  /* One thing at a time on phones: the tree, or the open file with a way back. */
+  .codeLayout.hasFile .codeTreePanel { display: none; }
+  .codeLayout:not(.hasFile) .codeViewer { display: none; }
+  .codeBack { display: inline-flex; }
+  /* Menus open as a centred modal over a dimmed page (DESIGN.md). */
+  .popoverPanel, .popoverPanel.is-end {
+    position: fixed; z-index: 1000; inset: 0; width: min(420px, calc(100vw - 28px)); height: fit-content; max-height: min(78dvh, 600px);
+    margin: auto; padding: 12px; border-radius: 20px; box-shadow: 0 0 0 100vmax rgba(4, 6, 7, .72), 0 24px 80px rgba(0, 0, 0, .5);
+    animation: mobilePopoverIn .3s cubic-bezier(.16, 1, .3, 1) both;
+  }
+  .repoRefOption, .repoFindOption { min-height: 42px; }
+  .codeReview { grid-template-columns: minmax(0, 1fr); }
+  .codeReviewActions { justify-content: flex-start; }
+  .codeDraftContent textarea { min-height: 240px; }
+}
+
+/* Files explorer: controls stay put while the tree or search results scroll. */
+dialog.repoFilesDialog {
+  display: flex; flex-direction: column; gap: 10px; width: min(600px, calc(100vw - 28px)); height: min(680px, 88dvh);
+  max-width: none; max-height: 88dvh; margin: auto; padding: 16px; overflow: hidden;
+  border: 1px solid var(--line-strong); border-radius: 20px; background: var(--surface-solid); color: var(--text);
+  box-shadow: 0 24px 80px rgba(0, 0, 0, .5); animation: mobilePopoverIn .2s var(--ease) both;
+}
+dialog.repoFilesDialog::backdrop { background: rgba(4, 6, 7, .72); backdrop-filter: blur(4px); }
+dialog.repoFilesDialog:not([open]) { display: none; }
+.repoFilesHeader { display: flex; flex: none; align-items: center; justify-content: space-between; gap: 12px; }
+.repoFilesHeader h2 { margin: 0; font-size: 14px; font-weight: 650; }
+.repoFilesControls { display: flex; flex: none; min-width: 0; align-items: center; gap: 8px; }
+.repoFilesControls .repoPicker { min-width: 0; flex: 1; }
+.repoFilesDialog .repoRefButton { width: 100%; }
+.repoFilesDialog .repoRefButton .sk { max-width: 100%; }
+.repoFilesDialog .repoAddButton { width: 34px; justify-content: center; padding: 0; }
+.repoFilesDialog :is(.repoButtonLabel, .repoAddButton .repoCaret) { display: none; }
+.repoFilesDialog .repoFilesFinder { display: flex; min-width: 0; min-height: 0; flex: 1; flex-direction: column; align-items: stretch; gap: 10px; margin: 0; }
+.repoFilesFinder .repoFindField { flex: none; }
+.repoFilesDialog .repoFilesFinder .repoFindKey { display: grid; }
+.repoFilesFinder input:focus { border-color: var(--line-strong); box-shadow: none; }
+.repoFilesDialog .repoFind input:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
+.repoFilesContent { min-height: 0; flex: 1; overflow: auto; overscroll-behavior: contain; scrollbar-color: var(--line-strong) transparent; scrollbar-width: thin; }
+.repoFilesContent .folderTree { border: 0; background: transparent; padding: 0; }
+.repoFilesContent .repoFindResults { position: static; width: 100%; max-height: none; padding: 0; border: 0; background: transparent; box-shadow: none; }
+.repoFilesContent :is(.ftRow, .repoFindOption) { min-height: 36px; }
+/* Nested controls remain in the native dialog's top layer, including on phones. */
+.repoFilesDialog .popoverPanel, .repoFilesDialog .popoverPanel.is-end {
+  position: absolute; inset: auto; top: calc(100% + 6px); left: 0; width: min(360px, calc(100vw - 62px)); height: auto;
+  max-height: min(60dvh, 420px); margin: 0; padding: 8px; border-radius: 13px;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, .5); animation: popoverIn .16s var(--ease) both;
+}
+.repoFilesDialog .popoverPanel.is-end { right: 0; left: auto; }
+html[data-motion="reduced"] :is(.popoverPanel, .repoFilesDialog, .isSpinning .repoIcon) { animation: none; }
+@media (prefers-reduced-motion: reduce) { html:not([data-motion="full"]) :is(.popoverPanel, .repoFilesDialog, .isSpinning .repoIcon) { animation: none; } }

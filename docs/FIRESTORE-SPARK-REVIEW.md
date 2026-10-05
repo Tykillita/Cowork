@@ -45,6 +45,14 @@ No hay un SDK administrativo en la aplicación ni funciones con permisos privile
 
 Los ataques enumerados se revisaron; las pruebas que esperan denegaciones generan mensajes PERMISSION_DENIED intencionados. Las reglas siguen siendo un prototipo que debe revisarse antes de una distribución amplia: esta revisión no demuestra la ausencia de cualquier vulnerabilidad.
 
+## Lecturas compartidas de tareas
+
+El plan de trabajo (`useWorkboard`) y el centro de actividad (`useActivityCenter`) escuchan las tareas del proyecto abierto con la misma consulta, `tasksQuery()` de `src/features/workboard/firestoreWorkboard.ts` (`orderBy("order")`). Con consultas idénticas, el SDK comparte una sola escucha, y las tareas del proyecto abierto ya no se leen dos veces (1 de octubre de 2026).
+
+## Archivos propuestos
+
+Los archivos que esperan revisión (`fileDrafts`) guardan sus datos y su contenido en dos documentos: `fileDrafts/{id}` (pequeño) y `fileDraftContents/{id}` (hasta unos 900 000 caracteres). La página Código y el centro de actividad solo escuchan `fileDrafts`, con la misma consulta (`orderBy("createdAt", "desc")`), que el SDK comparte. El contenido se lee una vez por propuesta, al abrirla. Las reglas exigen que los dos documentos se creen y se borren juntos, y siempre con su evento.
+
 ## Ampliación: códigos de amigo
 El modelo exacto y la publicación coordinada se describen en [FRIEND-CODES.md](FRIEND-CODES.md).
 - El directorio separa uid/nombre/avatar del documento privado de asignación. Solo permite get autenticado por código completo; list, lecturas anónimas y cambios de propietario se rechazan.

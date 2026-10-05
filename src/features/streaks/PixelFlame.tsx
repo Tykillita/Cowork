@@ -1,4 +1,5 @@
-import { useEffect, useState, type CSSProperties } from "react";
+import { useEffect, useId, useState, type CSSProperties } from "react";
+import { usePersonal } from "../personal/PersonalContext";
 
 /** Original pixel art, drawn with whole-pixel cells and no external assets. */
 const rows = [
@@ -18,6 +19,20 @@ const FRAMES = [
   patch({ 0: "0000000100000000", 1: "0000001110000000", 2: "0000001211000000", 3: "0000011221000000", 4: "0001122210000000", 12: "1223333333222210", 13: "1223333433322210" }),
   patch({ 0: "0000010000000000", 1: "0000111000000000", 2: "0000121100000000", 3: "0001122100010000", 5: "0001222211110000", 13: "1223344433322210", 14: "1223344433322210" }),
 ];
+// One path per colour instead of one SVG node per cell. The silhouettes and
+// slight overlap at cell edges stay the same while each frame is cheap to move.
+const FRAME_PATHS = FRAMES.map((frame) => [1, 2, 3, 4].map((color) => {
+  let path = "";
+  frame.forEach((row, y) => {
+    [...row].forEach((cell, x) => {
+      if (Number(cell) !== color) return;
+      const width = row[x + 1] > "0" ? 1.1 : 1;
+      const height = frame[y + 1]?.[x] > "0" ? 1.1 : 1;
+      path += `M${x} ${y}h${width}v${height}h-${width}z`;
+    });
+  });
+  return path;
+}));
 const PALETTES = {
   lit: ["none", "#cc7136", "#f4a943", "#f6cf86", "#fff1bd"],
   frozen: ["none", "#358dbb", "#69d9f3", "#b8f1f9", "#e9fbff"],
@@ -46,19 +61,28 @@ export function PixelFlame({ state, frozen = false, small = false, motion = "non
 }) {
   const tone: FlameState = state ?? (frozen ? "frozen" : "lit");
   const colors = PALETTES[tone];
-  const [bursting, setBursting] = useState(!!burst);
-  // Reduced motion: no burst at all (CSS also stops every animation there).
-  useEffect(() => { setBursting(!!burst && document.documentElement.dataset.motion !== "reduced"); }, [burst, burstKey]);
+  const clipId = useId().replace(/:/g, "");
+  const { reducedMotion } = usePersonal();
+  const [bursting, setBursting] = useState(!!burst && !reducedMotion);
+  useEffect(() => { setBursting(!!burst && !reducedMotion); }, [burst, burstKey]);
+  // Stopping a burst mid-flight must leave the steady flame visible, and
+  // switching motion back on must not replay an old celebration.
+  useEffect(() => { if (reducedMotion) setBursting(false); }, [reducedMotion]);
   const active = bursting && burst ? burst : motion;
   const sparks = bursting ? (burst === "ignite" ? SPARKS : SPARKS.slice(0, 4)) : [];
   return <span className={`pixelFlame${small ? " isSmall" : ""}${tone === "frozen" ? " isFrozen" : ""}`} data-motion={active} data-tone={tone} data-ignite-from={igniteFrom} aria-hidden="true"
     onAnimationEnd={(event) => { if (event.animationName === "flameIgnite" || event.animationName === "flamePop") setBursting(false); }}>
     <svg viewBox="0 0 16 20" shapeRendering="crispEdges">
-      {FRAMES.map((frame, index) => <g key={index} className="pixelFlameFrame" style={{ "--frame": index } as CSSProperties}>
-        {/* Cells overlap the next filled row/column slightly: at fractional zoom crispEdges
-            rounding otherwise leaves hairline seams that show the background through. */}
-        {frame.flatMap((row, y) => [...row].map((color, x) => color === "0" ? null : <rect key={`${x}-${y}`} x={x} y={y} width={row[x + 1] > "0" ? 1.1 : 1} height={frame[y + 1]?.[x] > "0" ? 1.1 : 1} fill={colors[Number(color)]} />))}
-      </g>)}
+      <defs><clipPath id={clipId} clipPathUnits="userSpaceOnUse"><rect width="16" height="20" /></clipPath></defs>
+      <g clipPath={`url(#${clipId})`}>
+        <g className="pixelFlameStrip" transform="translate(0 0)">
+          {FRAME_PATHS.map((paths, index) => <g key={index} transform={`translate(${index * 16} 0)`}>
+            {/* Whole frames sit side by side; the clip always shows exactly one. */}
+            {paths.map((path, color) => <path key={color} d={path} fill={colors[color + 1]} />)}
+          </g>)}
+          {active === "idle" && !reducedMotion && <animateTransform attributeName="transform" type="translate" calcMode="discrete" values="0 0;-16 0;-32 0" keyTimes="0;0.333333;0.666667" dur="0.54s" repeatCount="indefinite" />}
+        </g>
+      </g>
       {tone === "frozen" && <path d="M5 3h1v4H5zM4 7h2v1H4zM10 10h1v5h-1zM9 15h2v1H9z" fill="#eefaff" />}
     </svg>
     {sparks.map(([dx, dy], index) => <i key={`${burstKey}-${index}`} className="pixelFlameSpark" style={{ "--dx": dx, "--dy": dy, "--n": index } as CSSProperties} />)}

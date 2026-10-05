@@ -42,7 +42,7 @@ test("layout at every reference width", async ({ page }) => {
   const input = page.getByRole("textbox", { name: "Título de la nueva tarea" });
   await input.fill("Una tarea con un título bastante largo para comprobar el ajuste de línea en pantallas estrechas");
   await input.press("Enter");
-  await expect(page.locator(".taskRow")).toHaveCount(1);
+  await expect(page.locator(".taskItem")).toHaveCount(1);
   await page.getByRole("button", { name: "Nuevo hito" }).click();
   await page.getByRole("textbox", { name: "Título", exact: true }).fill("Prototipo navegable");
   await page.locator(".milestoneForm input[type=date]").fill("2031-05-10");

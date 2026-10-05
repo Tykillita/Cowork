@@ -33,6 +33,8 @@ export interface Project {
   schedule?: ProjectSchedule;
   /** Optional icon chosen by the owner; otherwise the preview site's own icon is detected. */
   iconUrl?: string;
+  /** Optional public release-notes source, read from the browser when the work board opens. */
+  changelogUrl?: string;
   /** Who may create and delete GitHub branches from Cowork. Missing means "owner". */
   githubPolicy?: ProjectGitHubPolicy;
 }
@@ -136,7 +138,35 @@ export interface Task {
   milestoneId: string;
   /** Incremented on every write; each revision has exactly one activity event. */
   revision: number;
+  /** Free text, up to TASK_LIMITS.description characters. */
+  description: string;
+  priority: TaskPriority;
+  /** Calendar day the task is due ("YYYY-MM-DD"), or "" for none. */
+  dueDate: string;
+  /** Zone the due day is read in; "" without a due date. */
+  timeZone: string;
+  /** End of `dueDate` in `timeZone`, as an ISO instant, or "". */
+  dueAt: string;
+  checklist: TaskCheckItem[];
+  /** Branch the work lives in (register or GitHub name), or "". */
+  branch: string;
+  /** "" for tasks created before these fields existed. */
+  createdAt: string;
+  createdByUid: string;
 }
+
+export type TaskPriority = "baja" | "media" | "alta";
+export const TASK_PRIORITIES: TaskPriority[] = ["alta", "media", "baja"];
+export const DEFAULT_TASK_PRIORITY: TaskPriority = "media";
+
+export interface TaskCheckItem {
+  id: string;
+  text: string;
+  done: boolean;
+}
+
+/** Same limits as firestore.rules. */
+export const TASK_LIMITS = { title: 300, phase: 60, description: 4000, checklist: 20, checkText: 200, checkId: 24, branch: 120 } as const;
 
 export interface TeamDirectoryEntry {
   uid: string;
@@ -158,7 +188,7 @@ export interface Milestone {
   revision: number;
 }
 
-export type ActivityTarget = "task" | "milestone" | "branch" | "project";
+export type ActivityTarget = "task" | "milestone" | "branch" | "project" | "file";
 export type ActivityKind = "created" | "updated" | "deleted";
 
 export interface ActivityChanges {
@@ -168,8 +198,50 @@ export interface ActivityChanges {
   title?: { from: string; to: string };
   dueAt?: { from: string; to: string };
   archived?: { from: boolean; to: boolean };
+  phase?: { from: string; to: string };
+  priority?: { from: string; to: string };
+  branch?: { from: string; to: string };
+  /** The checklist changed; counts after the change. */
+  checklist?: { done: number; total: number };
+  /** The description changed (its text is not copied into the feed). */
+  details?: true;
+  /** File drafts: the review outcome and the branch the file is for. */
+  review?: FileReview;
+  ref?: string;
+  /** Only the position changed; such events stay out of the feed. */
+  order?: true;
   migration?: boolean;
 }
+
+export type FileReview = "approved" | "rejected" | "discarded";
+export type FileDraftEncoding = "utf-8" | "base64";
+
+/**
+ * A file proposed in Cowork and waiting for review before it is committed to
+ * GitHub. The content lives in a sibling document (`fileDraftContents/{id}`),
+ * so listing drafts stays light.
+ */
+export interface FileDraft {
+  id: string;
+  /** Branch the file is committed to once approved. */
+  ref: string;
+  path: string;
+  encoding: FileDraftEncoding;
+  /** Real size in bytes. */
+  size: number;
+  /** Proposed commit message. */
+  message: string;
+  status: "pending" | "rejected";
+  authorUid: string;
+  authorName: string;
+  createdAt: string;
+  reviewNote: string;
+  reviewedByUid: string;
+  reviewerName: string;
+}
+
+/** Same limits as firestore.rules; 650 KB still fits a Firestore document once in base64. */
+export const FILE_DRAFT_LIMITS = { path: 300, ref: 250, message: 200, reviewNote: 300, bytes: 650 * 1024, content: 900_000 } as const;
 
 export interface ActivityEvent {
   id: string;
@@ -248,7 +320,7 @@ export interface BranchEntry {
 }
 
 export type WorkboardMode = "connecting" | "remote" | "offline";
-export type PageId = "home" | "work" | "branches-page" | "settings-page";
+export type PageId = "home" | "work" | "branches-page" | "code" | "settings-page";
 export type WallpaperId = "silver-wave" | "silver-rings";
 
 export interface GitHubBranch {
@@ -272,6 +344,54 @@ export interface GitHubCommit {
     message?: string;
     author?: { name?: string; date?: string };
     committer?: { date?: string };
+    tree?: { sha?: string };
   };
   author?: { login?: string } | null;
+}
+
+/** `GET /repos/{repo}/tags`. */
+export interface GitHubTag {
+  name: string;
+  commit?: { sha?: string };
+}
+
+/** Open pull request, as listed by `GET /repos/{repo}/pulls`. */
+export interface GitHubPull {
+  number: number;
+  title: string;
+  html_url: string;
+  draft?: boolean;
+  head: { ref: string; sha?: string };
+  base?: { ref: string };
+  user?: { login?: string } | null;
+}
+
+export interface GitHubCompareFile {
+  filename: string;
+  status: "added" | "removed" | "modified" | "renamed" | "copied" | "changed" | "unchanged";
+  previous_filename?: string;
+}
+
+/** `GET /repos/{repo}/compare/{base}...{head}`. */
+export interface GitHubCompare {
+  ahead_by: number;
+  behind_by: number;
+  total_commits: number;
+  commits?: GitHubCommit[];
+  files?: GitHubCompareFile[];
+}
+
+export interface GitHubTreeEntry {
+  path: string;
+  type: "blob" | "tree" | "commit";
+  sha: string;
+  size?: number;
+  mode?: string;
+}
+
+/** `GET /repos/{repo}/git/trees/{sha}`; `truncated` means the recursive listing is incomplete. */
+export interface GitHubTree {
+  sha: string;
+  tree: GitHubTreeEntry[];
+  truncated: boolean;
 }
