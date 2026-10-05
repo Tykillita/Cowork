@@ -46,7 +46,7 @@ export const RELEASES: Release[] = [
   {
     version: "0.3.2",
     date: "2026-10-05",
-    released: false,
+    released: true,
     kind: "arreglo",
     summary: {
       es: "El resplandor de novedades usa tonos neutros y su rótulo vuelve al verde de Cowork.",
