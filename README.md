@@ -8,7 +8,7 @@
 
 <!-- La placa de versión repite VERSION: la actualiza `npm run version:bump` (AGENTS.md, «Versiones»). -->
 <p align="center">
-  <a href="CHANGELOG.md"><img alt="version 0.3.1" src="https://img.shields.io/badge/version-0.3.1-0b7a5b"></a>
+  <a href="CHANGELOG.md"><img alt="version 0.3.2" src="https://img.shields.io/badge/version-0.3.2-0b7a5b"></a>
   <a href="https://react.dev"><img alt="React 19" src="https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=111827"></a>
   <a href="https://www.typescriptlang.org"><img alt="TypeScript 5" src="https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white"></a>
   <a href="https://vite.dev"><img alt="Vite 7" src="https://img.shields.io/badge/Vite-7-646CFF?logo=vite&logoColor=white"></a>
@@ -65,7 +65,7 @@ La portada presenta Cowork sin exponer información del equipo. Para crear o abr
 | Ramas y cambios | Una sola lista con las ramas del registro y las de GitHub: dónde existe cada una, su pull request, cuánto se ha separado de la principal, sus commits y sus tareas. Permite registrar, crear en GitHub, borrar y quitar del registro. |
 | Código | Explorador de archivos de cualquier rama o etiqueta, con los iconos de lenguajes de [Material Icon Theme](https://github.com/material-extensions/vscode-material-icon-theme) (MIT), resaltado de sintaxis, marcas de cambios y enlaces a líneas. Una barra como la de GitHub: selector de rama o etiqueta, «Ir a archivo» con la tecla `T`, clonar por HTTPS, SSH o GitHub CLI y descargar el ZIP. Las imágenes y los SVG tienen vista previa. Ver [docs/CODE-VIEWER.md](docs/CODE-VIEWER.md). |
 | Archivos en revisión | Crear o subir un archivo desde Cowork lo deja pendiente de revisión; quien puede escribir en el repositorio lo aprueba y se sube a GitHub con su cuenta, o lo rechaza con un motivo. |
-| Novedades | Cada versión, función por función, en [/novedades](https://cwspace.web.app/novedades): página pública en español e inglés, con temas del sistema, claro u oscuro y controles visibles en la cabecera, enlazada desde el pie de la portada. |
+| Novedades | Cada versión, función por función, en [/novedades](https://cwspace.web.app/novedades): página pública en español e inglés, con temas del sistema, claro u oscuro, resplandor gris/negro bajo la cabecera y rótulo en verde, enlazada desde el pie de la portada. |
 | Novedades del proyecto en tareas | Configura una página pública de novedades: Cowork lee el tipo de cada versión (Major, Feature o Fix) con badges de distinto color y marca Unreleased en azul, además del grupo de cada tarjeta (Nuevo, Cambios o Arreglos), detecta estados y crea o actualiza tareas solo cuando aceptas cada propuesta. Si CORS bloquea el acceso, indica el origen que debe permitirse. |
 | GitHub | Iniciar sesión o vincular GitHub, consultar ramas y commits del repositorio (también privados), y borrar ramas con confirmación. Quien es propietario del proyecto elige si pueden modificar ramas solo esa cuenta o todo el equipo. |
 

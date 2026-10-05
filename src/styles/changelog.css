@@ -18,12 +18,12 @@
   --s-accent: #8de7bd;
   --s-accent-wash: rgba(141, 231, 189, .1);
   --s-accent-text: #8de7bd;
-  --s-eyebrow: #91bbf2;
-  --s-hero-glow: radial-gradient(ellipse 86% 84% at 50% 0%, rgba(79, 145, 224, .17) 0%, rgba(79, 145, 224, .065) 42%, transparent 78%);
+  --s-eyebrow: var(--s-accent-text);
+  --s-hero-glow: radial-gradient(ellipse 86% 84% at 50% 0%, rgba(255, 255, 255, .075) 0%, rgba(255, 255, 255, .025) 42%, transparent 78%);
   --s-solid: #ececf0;
   --s-solid-text: #0b0c0e;
   --s-nav: rgba(8, 9, 11, .72);
-  --s-glow: radial-gradient(560px 540px at 12% 30%, rgba(126, 180, 255, .035), transparent 70%);
+  --s-glow: radial-gradient(560px 540px at 12% 30%, rgba(255, 255, 255, .025), transparent 70%);
   --s-mono: ui-monospace, "SFMono-Regular", "Cascadia Code", "JetBrains Mono", Consolas, monospace;
   min-height: 100dvh;
   background: var(--s-glow), var(--s-bg);
@@ -46,8 +46,8 @@
   --s-accent: #0b7a5b;
   --s-accent-wash: #e3f5ee;
   --s-accent-text: #0b6a50;
-  --s-eyebrow: #1769d2;
-  --s-hero-glow: radial-gradient(ellipse 86% 84% at 50% 0%, rgba(66, 142, 235, .13) 0%, rgba(66, 142, 235, .05) 43%, transparent 78%);
+  --s-eyebrow: var(--s-accent-text);
+  --s-hero-glow: radial-gradient(ellipse 86% 84% at 50% 0%, rgba(17, 18, 20, .09) 0%, rgba(17, 18, 20, .025) 43%, transparent 78%);
   --s-solid: #111214;
   --s-solid-text: #ffffff;
   --s-nav: rgba(255, 255, 255, .78);

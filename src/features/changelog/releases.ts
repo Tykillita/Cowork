@@ -44,6 +44,27 @@ export const NEXT: Upcoming = { summary: { es: "", en: "" }, added: [], changed:
 
 export const RELEASES: Release[] = [
   {
+    version: "0.3.2",
+    date: "2026-10-05",
+    released: false,
+    kind: "arreglo",
+    summary: {
+      es: "El resplandor de novedades usa tonos neutros y su rótulo vuelve al verde de Cowork.",
+      en: "The changelog glow now uses neutral tones, and its eyebrow returns to Cowork green.",
+    },
+    added: [],
+    changed: [],
+    fixed: [
+      {
+        title: { es: "Color de novedades corregido", en: "Changelog colors corrected" },
+        body: {
+          es: "El resplandor bajo la cabecera pasa a gris/negro, sin matiz azul, y el rótulo «Novedades» usa el verde de acento en ambos temas.",
+          en: "The glow below the header is now gray/black with no blue tint, and the “What's new” label uses the accent green in both themes.",
+        },
+      },
+    ],
+  },
+  {
     version: "0.3.1",
     date: "2026-10-05",
     released: true,

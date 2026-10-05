@@ -7,6 +7,11 @@ subirla están en [AGENTS.md](AGENTS.md#versiones). La versión pública de esto
 
 ## [Unreleased]
 
+## [0.3.2] — 2026-10-05
+
+### Fixed
+- **Colores de novedades**: el resplandor bajo la cabecera ahora es gris/negro, sin matiz azul, y el rótulo «Novedades» vuelve al verde de acento.
+
 ## [0.3.1] — 2026-10-05
 
 ### Changed
@@ -107,7 +112,8 @@ subirla están en [AGENTS.md](AGENTS.md#versiones). La versión pública de esto
 - Registro de ramas y conexión con GitHub: repositorios privados, crear y borrar ramas según la política del proyecto.
 - Pruebas unitarias, de reglas, del backend Spark y e2e con Playwright contra los emuladores.
 
-[Unreleased]: https://github.com/Tykillita/Cowork/compare/v0.3.1...HEAD
+[Unreleased]: https://github.com/Tykillita/Cowork/compare/v0.3.2...HEAD
+[0.3.2]: https://github.com/Tykillita/Cowork/compare/v0.3.1...v0.3.2
 [0.3.1]: https://github.com/Tykillita/Cowork/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/Tykillita/Cowork/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/Tykillita/Cowork/compare/50df786...v0.2.0
