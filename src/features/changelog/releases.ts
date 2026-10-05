@@ -44,6 +44,27 @@ export const NEXT: Upcoming = { summary: { es: "", en: "" }, added: [], changed:
 
 export const RELEASES: Release[] = [
   {
+    version: "0.3.3",
+    date: "2026-10-05",
+    released: false,
+    kind: "arreglo",
+    summary: {
+      es: "El logo de Cowork en novedades conserva sus colores al cambiar de tema.",
+      en: "Cowork's changelog logo keeps its colors when the theme changes.",
+    },
+    added: [],
+    changed: [],
+    fixed: [
+      {
+        title: { es: "Logo estable entre temas", en: "Logo stays the same across themes" },
+        body: {
+          es: "El icono del encabezado y del pie mantiene el fondo negro y el símbolo blanco, tanto en claro como en oscuro.",
+          en: "The header and footer mark keeps its black background and white symbol in both light and dark themes.",
+        },
+      },
+    ],
+  },
+  {
     version: "0.3.2",
     date: "2026-10-05",
     released: true,
