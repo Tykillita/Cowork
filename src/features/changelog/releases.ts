@@ -46,7 +46,7 @@ export const RELEASES: Release[] = [
   {
     version: "0.3.3",
     date: "2026-10-05",
-    released: false,
+    released: true,
     kind: "arreglo",
     summary: {
       es: "El logo de Cowork en novedades conserva sus colores al cambiar de tema.",
