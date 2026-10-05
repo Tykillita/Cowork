@@ -46,7 +46,7 @@ export const RELEASES: Release[] = [
   {
     version: "0.3.4",
     date: "2026-10-05",
-    released: false,
+    released: true,
     kind: "arreglo",
     summary: {
       es: "El degradado de novedades ahora empieza justo debajo de la cabecera y ocupa todo el ancho.",
