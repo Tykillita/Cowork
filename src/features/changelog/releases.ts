@@ -46,7 +46,7 @@ export const RELEASES: Release[] = [
   {
     version: "0.5.0",
     date: "2026-10-08",
-    released: false,
+    released: true,
     kind: "feature",
     summary: {
       es: "Une dos cuentas y amplía tu lista de amigos, con un máximo de cinco rachas activas.",
