@@ -7,6 +7,11 @@ subirla están en [AGENTS.md](AGENTS.md#versiones). La versión pública de esto
 
 ## [Unreleased]
 
+## [0.4.0] — 2026-10-08
+
+### Added
+- **Portafolio manga de Linus Torvalds**: página pública bilingüe, adaptable a móvil, que cuenta en viñetas el origen y desarrollo comunitario de Linux y Git como caso de estudio. Incluye ilustraciones SVG originales, cronología, fuentes enlazadas y nota de independencia.
+
 ## [0.3.4] — 2026-10-05
 
 ### Fixed
@@ -122,7 +127,8 @@ subirla están en [AGENTS.md](AGENTS.md#versiones). La versión pública de esto
 - Registro de ramas y conexión con GitHub: repositorios privados, crear y borrar ramas según la política del proyecto.
 - Pruebas unitarias, de reglas, del backend Spark y e2e con Playwright contra los emuladores.
 
-[Unreleased]: https://github.com/Tykillita/Cowork/compare/v0.3.4...HEAD
+[Unreleased]: https://github.com/Tykillita/Cowork/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/Tykillita/Cowork/compare/v0.3.4...v0.4.0
 [0.3.4]: https://github.com/Tykillita/Cowork/compare/v0.3.3...v0.3.4
 [0.3.3]: https://github.com/Tykillita/Cowork/compare/v0.3.2...v0.3.3
 [0.3.2]: https://github.com/Tykillita/Cowork/compare/v0.3.1...v0.3.2

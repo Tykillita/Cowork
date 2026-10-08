@@ -1,0 +1,434 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f1eee5">
+  <meta name="description" content="Un portafolio narrado en viñetas: Linus Torvalds, Linux, Git y el trabajo compartido que los mantiene vivos.">
+  <title>Linus Torvalds — Archivo en viñetas</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --paper: #f1eee5;
+      --paper-bright: #fbf9f2;
+      --ink: #171715;
+      --ink-soft: #46443e;
+      --rule: rgba(23, 23, 21, .26);
+      --red: #d84531;
+      --blue: #315a70;
+      --yellow: #f0c857;
+      --shadow: 6px 7px 0 var(--ink);
+      --sans: "Arial Narrow", "Helvetica Neue", Arial, sans-serif;
+      --serif: Georgia, "Times New Roman", serif;
+      --mono: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+      font-family: var(--sans);
+      background: var(--paper);
+      color: var(--ink);
+      font-synthesis: none;
+      text-rendering: optimizeLegibility;
+    }
+    *, *::before, *::after { box-sizing: border-box; }
+    html { scroll-behavior: smooth; scroll-padding-top: 84px; }
+    body { margin: 0; min-width: 320px; background: var(--paper); }
+    a { color: inherit; }
+    button { font: inherit; }
+    :focus-visible { outline: 3px solid var(--red); outline-offset: 4px; }
+    .skip { position: absolute; z-index: 10; top: -4rem; left: 1rem; padding: .75rem 1rem; background: var(--ink); color: white; }
+    .skip:focus { top: 1rem; }
+    .masthead { position: sticky; z-index: 5; top: 0; display: flex; min-height: 62px; align-items: center; justify-content: space-between; gap: 1rem; padding: .65rem clamp(1rem, 4vw, 3.5rem); border-bottom: 2px solid var(--ink); background: rgba(241, 238, 229, .96); }
+    .brand { display: inline-flex; align-items: center; gap: .7rem; font-size: .86rem; font-weight: 900; letter-spacing: .08em; text-decoration: none; text-transform: uppercase; }
+    .brand-mark { display: grid; width: 30px; height: 30px; place-items: center; border: 2px solid var(--ink); border-radius: 50%; background: var(--red); color: white; font: 700 15px var(--mono); }
+    .mast-actions { display: flex; align-items: center; gap: .7rem; }
+    .issue-stamp { color: var(--ink-soft); font: 700 .68rem var(--mono); letter-spacing: .08em; text-transform: uppercase; }
+    .lang-switch { min-height: 36px; padding: .35rem .7rem; border: 2px solid var(--ink); border-radius: 999px; background: transparent; color: var(--ink); font-size: .75rem; font-weight: 800; cursor: pointer; }
+    .lang-switch:hover { background: var(--ink); color: var(--paper-bright); }
+    main { width: min(1200px, 100%); margin: 0 auto; padding: 0 clamp(1rem, 4vw, 3.5rem) 5rem; }
+    .hero { position: relative; display: grid; min-height: 620px; grid-template-columns: minmax(0, 1fr) minmax(280px, .83fr); align-items: center; gap: clamp(2rem, 6vw, 5rem); padding: clamp(3.5rem, 9vw, 7rem) 0 4.5rem; }
+    .hero::before { position: absolute; z-index: -1; inset: 0 -10vw auto; height: 470px; background: radial-gradient(ellipse 70% 95% at 20% 0%, rgba(216, 69, 49, .17), transparent 75%); content: ""; pointer-events: none; }
+    .kicker, .chapter-kicker { margin: 0 0 .85rem; color: var(--red); font: 800 .72rem var(--mono); letter-spacing: .13em; text-transform: uppercase; }
+    h1, h2, h3, p { margin-top: 0; }
+    h1 { max-width: 100%; margin-bottom: 1.2rem; font: 900 clamp(3.4rem, 7vw, 6.5rem)/.86 var(--sans); letter-spacing: -.095em; text-transform: uppercase; }
+    h1 span { display: block; }
+    h1 .name-last { padding-left: .16em; color: var(--red); }
+    .hero-deck { max-width: 38rem; margin: 0; color: var(--ink-soft); font: 500 clamp(1.05rem, 1.8vw, 1.35rem)/1.55 var(--serif); }
+    .hero-note { display: inline-flex; align-items: center; gap: .5rem; margin-top: 1.5rem; padding: .45rem .7rem; border: 1px solid var(--ink); background: var(--yellow); font: 800 .7rem var(--mono); letter-spacing: .04em; text-transform: uppercase; transform: rotate(-2deg); }
+    .hero-art { position: relative; margin: 0; padding: 1rem; border: 3px solid var(--ink); background: var(--paper-bright); box-shadow: var(--shadow); transform: rotate(1.5deg); }
+    .hero-art svg { display: block; width: 100%; height: auto; }
+    .art-caption { display: flex; justify-content: space-between; gap: 1rem; margin: .65rem 0 0; font: 700 .67rem var(--mono); letter-spacing: .04em; text-transform: uppercase; }
+    .chapter-index { display: flex; flex-wrap: wrap; gap: .55rem; margin: 0 0 1.6rem; padding: .85rem 0; border-top: 2px solid var(--ink); border-bottom: 1px solid var(--rule); }
+    .chapter-index a { padding: .48rem .7rem; border: 1px solid var(--ink); border-radius: 2px; font: 800 .68rem var(--mono); text-decoration: none; text-transform: uppercase; transition: color .16s, background .16s; }
+    .chapter-index a:hover { background: var(--ink); color: var(--paper-bright); }
+    .page { position: relative; padding: clamp(2.2rem, 5vw, 4.4rem) 0; border-bottom: 2px solid var(--ink); }
+    .page-head { display: grid; grid-template-columns: minmax(150px, .32fr) minmax(0, 1fr); align-items: end; gap: 1.2rem; margin-bottom: 1.6rem; }
+    .chapter-no { color: var(--red); font: 900 clamp(2.7rem, 6vw, 5.5rem)/.8 var(--mono); letter-spacing: -.12em; }
+    .page h2 { max-width: 760px; margin-bottom: 0; font: 900 clamp(2rem, 4.2vw, 4rem)/.92 var(--sans); letter-spacing: -.055em; text-transform: uppercase; }
+    .panel-grid { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 1rem; }
+    .panel { min-width: 0; overflow: hidden; border: 2px solid var(--ink); background: var(--paper-bright); box-shadow: 3px 4px 0 var(--ink); }
+    .panel-pad { padding: clamp(1rem, 2.5vw, 1.8rem); }
+    .panel-label { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: .8rem; color: var(--red); font: 800 .68rem var(--mono); letter-spacing: .09em; text-transform: uppercase; }
+    .panel h3 { margin: 0 0 .6rem; font: 900 clamp(1.2rem, 2.3vw, 1.8rem)/1.05 var(--sans); letter-spacing: -.035em; text-transform: uppercase; }
+    .panel p { margin: 0; color: var(--ink-soft); font: 500 1rem/1.6 var(--serif); }
+    .panel p + p { margin-top: .8rem; }
+    .panel-art { display: grid; min-height: 230px; place-items: center; padding: 1rem; background: #ded8ca; }
+    .panel-art svg { display: block; width: 100%; max-height: 320px; }
+    .origin-art { grid-column: span 5; }
+    .origin-copy { grid-column: span 7; align-self: stretch; display: flex; flex-direction: column; justify-content: center; }
+    .origin-copy blockquote { margin: 1.2rem 0 0; padding: .75rem 1rem; border-left: 5px solid var(--red); background: #f0e8d5; font: italic 700 1.1rem/1.4 var(--serif); }
+    .origin-copy blockquote cite { display: block; margin-top: .5rem; font: 700 .65rem var(--mono); letter-spacing: .05em; text-transform: uppercase; }
+    .wide { grid-column: span 12; }
+    .half { grid-column: span 6; }
+    .third { grid-column: span 4; }
+    .truth-card { position: relative; padding-top: 2.6rem; }
+    .truth-card::before { position: absolute; top: .9rem; left: 1rem; padding: .25rem .4rem; border: 1px solid var(--ink); background: var(--yellow); color: var(--ink); content: "DATO VERIFICADO"; font: 800 .58rem var(--mono); letter-spacing: .07em; }
+    html[lang="en"] .truth-card::before { content: "FACT CHECK"; }
+    .flow { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: .6rem; align-items: stretch; margin-top: 1.2rem; }
+    .flow-step { display: grid; min-height: 104px; align-content: center; gap: .45rem; padding: .8rem; border: 2px solid var(--ink); background: var(--paper); text-align: center; }
+    .flow-step b { font: 900 .82rem var(--sans); text-transform: uppercase; }
+    .flow-step span { color: var(--ink-soft); font: 600 .65rem/1.4 var(--mono); }
+    .flow-arrow { align-self: center; color: var(--red); font: 900 1.6rem var(--mono); text-align: center; }
+    .quote { position: relative; display: grid; min-height: 210px; align-content: center; padding: clamp(1.3rem, 4vw, 3rem); background: var(--ink); color: var(--paper-bright); }
+    .quote::after { position: absolute; inset: 0; background-image: radial-gradient(rgba(255,255,255,.24) .75px, transparent .9px); background-size: 7px 7px; content: ""; opacity: .18; pointer-events: none; }
+    .quote > * { position: relative; z-index: 1; }
+    .quote p { color: var(--paper-bright); font: 900 clamp(1.4rem, 3.3vw, 2.7rem)/1.05 var(--sans); letter-spacing: -.03em; }
+    .quote small { font: 700 .65rem var(--mono); letter-spacing: .08em; text-transform: uppercase; }
+    .timeline { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .75rem; padding: 1rem 0; }
+    .time-stop { position: relative; min-height: 145px; padding: 1rem; border-top: 5px solid var(--red); background: #e8e2d6; }
+    .time-stop time { display: block; margin-bottom: .65rem; font: 900 1.4rem var(--mono); }
+    .time-stop b { display: block; margin-bottom: .4rem; font: 900 .78rem var(--sans); text-transform: uppercase; }
+    .time-stop p { font-size: .88rem; }
+    .folio { display: grid; grid-template-columns: 1.2fr .8fr; gap: 1rem; }
+    .folio-card { display: flex; min-height: 220px; flex-direction: column; justify-content: space-between; padding: clamp(1rem,3vw,2rem); background: var(--blue); color: white; }
+    .folio-card:nth-child(2) { background: var(--red); }
+    .folio-card .folio-number { align-self: flex-end; font: 800 .72rem var(--mono); }
+    .folio-card h3 { max-width: 14ch; font-size: clamp(1.8rem, 4vw, 3.8rem); }
+    .folio-card p { max-width: 45ch; color: rgba(255,255,255,.9); }
+    .credits { display: grid; grid-template-columns: minmax(0, 1fr) minmax(260px, .7fr); gap: 2rem; padding-top: 2rem; }
+    .credits h2 { font-size: clamp(1.7rem, 3vw, 2.5rem); }
+    .source-list { display: grid; gap: .6rem; margin: 0; padding: 0; list-style: none; }
+    .source-list a { display: inline-flex; gap: .45rem; align-items: baseline; font: 700 .78rem/1.45 var(--mono); text-decoration-thickness: 1px; text-underline-offset: 3px; }
+    .source-list a:hover { color: var(--red); }
+    .disclaimer { padding: 1rem; border: 1px solid var(--ink); background: var(--yellow); font: 700 .76rem/1.55 var(--mono); }
+    footer { display: flex; flex-wrap: wrap; justify-content: space-between; gap: .8rem; padding: 1.2rem 0 0; color: var(--ink-soft); font: 700 .65rem var(--mono); text-transform: uppercase; }
+    @media (max-width: 760px) {
+      .hero { min-height: auto; grid-template-columns: minmax(0,1fr); gap: 2rem; padding-top: 4rem; }
+      .hero-art { width: min(100%, 470px); justify-self: center; }
+      .hero::before { inset: 0 -1rem auto; height: 360px; }
+      .page-head { grid-template-columns: 90px minmax(0,1fr); }
+      .origin-art { grid-column: span 5; }
+      .origin-copy { grid-column: span 7; }
+      .third { grid-column: span 6; }
+      .third:last-child { grid-column: span 12; }
+      .credits { grid-template-columns: minmax(0,1fr); }
+    }
+    @media (max-width: 560px) {
+      .masthead { min-height: 56px; padding-inline: 1rem; }
+      .issue-stamp { display: none; }
+      main { padding-inline: 1rem; }
+      .hero { padding: 3.4rem 0 3rem; }
+      h1 { font-size: clamp(3.3rem, 17vw, 5.2rem); }
+      .chapter-index { gap: .4rem; }
+      .chapter-index a { font-size: .59rem; padding: .45rem .52rem; }
+      .page { padding: 2.5rem 0; }
+      .page-head { grid-template-columns: 1fr; gap: .5rem; }
+      .chapter-no { font-size: 2.25rem; }
+      .origin-art, .origin-copy, .wide, .half, .third, .third:last-child { grid-column: span 12; }
+      .panel-art { min-height: 190px; }
+      .flow { grid-template-columns: 1fr; }
+      .flow-step { min-height: 76px; }
+      .flow-arrow { transform: rotate(90deg); }
+      .timeline, .folio { grid-template-columns: 1fr; }
+      .time-stop { min-height: 0; }
+      .folio-card { min-height: 190px; }
+      footer { flex-direction: column; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+      *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; }
+    }
+    @media print {
+      .masthead, .chapter-index, .lang-switch { display: none; }
+      body, :root { background: white; }
+      main { width: 100%; padding: 0; }
+      .hero { min-height: auto; padding: 1rem 0; }
+      .panel, .hero-art { box-shadow: none; break-inside: avoid; }
+      .page { break-inside: avoid; }
+    }
+  </style>
+</head>
+<body>
+  <a class="skip" href="#main" data-es="Saltar al portafolio" data-en="Skip to the portfolio">Saltar al portafolio</a>
+  <header class="masthead">
+    <a class="brand" href="#top" aria-label="Linus Torvalds — inicio">
+      <span class="brand-mark" aria-hidden="true">L</span>
+      <span>Archivo abierto <span aria-hidden="true">/</span> LT</span>
+    </a>
+    <div class="mast-actions">
+      <span class="issue-stamp" data-es="Portafolio narrado · edición 01" data-en="Narrative portfolio · issue 01">Portafolio narrado · edición 01</span>
+      <button class="lang-switch" id="language" type="button" aria-label="Cambiar idioma" aria-pressed="false">EN</button>
+    </div>
+  </header>
+  <main id="main">
+    <section class="hero" id="top" aria-labelledby="title">
+      <div>
+        <p class="kicker" data-es="Un portafolio en viñetas · 1991 — hoy" data-en="A portfolio in panels · 1991 — now">Un portafolio en viñetas · 1991 — hoy</p>
+        <h1 id="title"><span>Linus</span><span class="name-last">Torvalds</span></h1>
+        <p class="hero-deck" data-es="Una historia sobre curiosidad técnica, herramientas abiertas y el trabajo de miles de personas que convirtió una idea pequeña en infraestructura compartida." data-en="A story about technical curiosity, open tools, and the work of thousands of people who turned a small idea into shared infrastructure.">Una historia sobre curiosidad técnica, herramientas abiertas y el trabajo de miles de personas que convirtió una idea pequeña en infraestructura compartida.</p>
+        <div class="hero-note" data-es="Caso de estudio · software abierto" data-en="Case study · open software">Caso de estudio · software abierto</div>
+      </div>
+      <figure class="hero-art">
+        <svg viewBox="0 0 560 430" role="img" aria-labelledby="hero-art-title hero-art-desc">
+          <title id="hero-art-title" data-es="Estudio ilustrado de una computadora de 1991" data-en="Illustrated study of a 1991 computer">Estudio ilustrado de una computadora de 1991</title>
+          <desc id="hero-art-desc" data-es="Una figura de espaldas trabaja frente a un monitor CRT con una terminal abstracta; no es un retrato fotográfico." data-en="A figure seen from behind works at a CRT monitor with an abstract terminal; this is not a photographic portrait.">Una figura de espaldas trabaja frente a un monitor CRT con una terminal abstracta; no es un retrato fotográfico.</desc>
+          <defs>
+            <pattern id="hero-dots" width="8" height="8" patternUnits="userSpaceOnUse"><circle cx="1.5" cy="1.5" r="1" fill="#171715" opacity=".24"/></pattern>
+            <linearGradient id="screen" x2="0" y2="1"><stop stop-color="#182d36"/><stop offset="1" stop-color="#101719"/></linearGradient>
+          </defs>
+          <rect width="560" height="430" fill="#e3ddcf"/>
+          <path d="M0 330 560 250v180H0Z" fill="url(#hero-dots)"/>
+          <path d="M55 75h350q18 0 18 18v205H38V94q0-19 17-19Z" fill="#252522" stroke="#171715" stroke-width="8"/>
+          <rect x="59" y="102" width="310" height="165" rx="5" fill="url(#screen)" stroke="#a9a18f" stroke-width="4"/>
+          <path d="M84 135h112M84 158h177M84 181h95M84 204h203M84 227h132" stroke="#b7d9c2" stroke-width="5" stroke-linecap="round" opacity=".86"/>
+          <path d="M193 298v39m-63 13h172l-18-15H151Z" fill="#3b3a35" stroke="#171715" stroke-width="6" stroke-linejoin="round"/>
+          <path d="M269 156 418 117l73 147-147 43Z" fill="#f4c954" stroke="#171715" stroke-width="7" stroke-linejoin="round"/>
+          <path d="M313 258c7-52 29-92 66-99 39-7 56 35 50 87l34 45-19 57-86 13-56-36Z" fill="#d84531" stroke="#171715" stroke-width="7" stroke-linejoin="round"/>
+          <path d="M348 163c-8-28 9-52 32-51 26 1 39 25 27 47l-27 18Z" fill="#c79a73" stroke="#171715" stroke-width="6" stroke-linejoin="round"/>
+          <path d="m311 282-54 34m101 50-11 24m60-29 22 25" stroke="#171715" stroke-width="12" stroke-linecap="round"/>
+          <path d="m403 81 15-25m27 18 23-15m-4 50 31-5" stroke="#d84531" stroke-width="6" stroke-linecap="round"/>
+          <path d="M54 315h448" stroke="#171715" stroke-width="8"/>
+        </svg>
+        <figcaption class="art-caption"><span data-es="Recreación visual · arte original" data-en="Visual recreation · original artwork">Recreación visual · arte original</span><span>FIG. 01</span></figcaption>
+      </figure>
+    </section>
+
+    <nav class="chapter-index" aria-label="Índice del portafolio" data-aria-es="Índice del portafolio" data-aria-en="Portfolio contents">
+      <a href="#origin">01 · <span data-es="El mensaje" data-en="The message">El mensaje</span></a>
+      <a href="#release">02 · <span data-es="El archivo" data-en="The archive">El archivo</span></a>
+      <a href="#method">03 · <span data-es="El método" data-en="The method">El método</span></a>
+      <a href="#git">04 · Git</a>
+      <a href="#credits">05 · <span data-es="Créditos" data-en="Credits">Créditos</span></a>
+    </nav>
+
+    <section class="page" id="origin" aria-labelledby="origin-title">
+      <div class="page-head">
+        <span class="chapter-no" aria-hidden="true">01</span>
+        <div><p class="chapter-kicker" data-es="Origen · Helsinki, 1991" data-en="Origin · Helsinki, 1991">Origen · Helsinki, 1991</p><h2 id="origin-title" data-es="Una nota abre la conversación." data-en="A note opens the conversation.">Una nota abre la conversación.</h2></div>
+      </div>
+      <div class="panel-grid">
+        <figure class="panel panel-art origin-art">
+          <svg viewBox="0 0 420 310" role="img" aria-labelledby="letter-title letter-desc">
+            <title id="letter-title" data-es="Sobre de correo convertido en una viñeta" data-en="An email envelope turned into a comic panel">Sobre de correo convertido en una viñeta</title>
+            <desc id="letter-desc" data-es="Una hoja sale de un sobre y sus líneas se transforman en ondas que conectan varias computadoras." data-en="A sheet rises from an envelope and its lines become waves connecting several computers.">Una hoja sale de un sobre y sus líneas se transforman en ondas que conectan varias computadoras.</desc>
+            <rect width="420" height="310" fill="#ded8ca"/>
+            <path d="M30 60h224v164H30z" fill="#fbf9f2" stroke="#171715" stroke-width="7"/>
+            <path d="m33 67 108 88L251 67M34 220l78-65m139 65-78-65" fill="none" stroke="#171715" stroke-width="7" stroke-linejoin="round"/>
+            <path d="M92 40h130v164H92z" fill="#f0c857" stroke="#171715" stroke-width="7" transform="rotate(-7 157 122)"/>
+            <path d="m112 91 83-10m-81 35 94-11m-89 37 61-7" stroke="#171715" stroke-width="5" stroke-linecap="round"/>
+            <path d="M264 111c37-29 64-23 89 2m-83 19c27-19 47-14 65 3m-61 20c17-10 28-8 39 2" fill="none" stroke="#d84531" stroke-width="6" stroke-linecap="round"/>
+            <circle cx="365" cy="106" r="20" fill="#315a70" stroke="#171715" stroke-width="6"/>
+            <rect x="333" y="171" width="62" height="48" rx="5" fill="#fbf9f2" stroke="#171715" stroke-width="6"/>
+            <path d="M343 184h42m-42 12h27m-13 23v15m-14 0h29" stroke="#171715" stroke-width="5" stroke-linecap="round"/>
+            <path d="m270 74 18-14m5 41 24-5" stroke="#d84531" stroke-width="5" stroke-linecap="round"/>
+          </svg>
+        </figure>
+        <article class="panel panel-pad origin-copy">
+          <div class="panel-label"><span data-es="Viñeta 01 · Señal" data-en="Panel 01 · Signal">Viñeta 01 · Señal</span><span>25.08.1991</span></div>
+          <h3 data-es="No era un anuncio de lanzamiento." data-en="It was not a launch announcement.">No era un anuncio de lanzamiento.</h3>
+          <p data-es="En agosto de 1991, Linus Torvalds escribió en comp.os.minix sobre un sistema que estaba desarrollando y pidió comentarios. La escena empieza con una invitación a conversar, no con la leyenda de un producto terminado." data-en="In August 1991, Linus Torvalds wrote to comp.os.minix about a system he was developing and asked for feedback. The scene begins with an invitation to talk, not a legend about a finished product.">En agosto de 1991, Linus Torvalds escribió en comp.os.minix sobre un sistema que estaba desarrollando y pidió comentarios. La escena empieza con una invitación a conversar, no con la leyenda de un producto terminado.</p>
+          <blockquote>
+            <span data-es="La historia se cuenta con fuentes: separar el mensaje real de la dramatización." data-en="Tell the story with sources: keep the real message separate from the dramatization.">La historia se cuenta con fuentes: separar el mensaje real de la dramatización.</span>
+            <cite data-es="Nota editorial" data-en="Editorial note">Nota editorial</cite>
+          </blockquote>
+        </article>
+      </div>
+    </section>
+
+    <section class="page" id="release" aria-labelledby="release-title">
+      <div class="page-head">
+        <span class="chapter-no" aria-hidden="true">02</span>
+        <div><p class="chapter-kicker" data-es="El archivo · Linux 0.01" data-en="The archive · Linux 0.01">El archivo · Linux 0.01</p><h2 id="release-title" data-es="Pequeño, privado, incompleto." data-en="Small, private, unfinished.">Pequeño, privado, incompleto.</h2></div>
+      </div>
+      <div class="panel-grid">
+        <article class="panel panel-pad half truth-card">
+          <div class="panel-label"><span data-es="Viñeta 02 · Precisión" data-en="Panel 02 · Precision">Viñeta 02 · Precisión</span><span>17.09.1991</span></div>
+          <h3 data-es="Una carga privada, no un estreno público." data-en="A private upload, not a public debut.">Una carga privada, no un estreno público.</h3>
+          <p data-es="Torvalds aclaró después que Linux 0.01 se subió en privado el 17 de septiembre de 1991 y que nunca se anunció públicamente. Por eso, esta página dibuja un archivo que viaja entre personas, no una multitud frente a un escenario." data-en="Torvalds later clarified that Linux 0.01 was uploaded privately on September 17, 1991, and was never publicly announced. This page therefore draws an archive passed between people, not a crowd at a launch.">Torvalds aclaró después que Linux 0.01 se subió en privado el 17 de septiembre de 1991 y que nunca se anunció públicamente. Por eso, esta página dibuja un archivo que viaja entre personas, no una multitud frente a un escenario.</p>
+        </article>
+        <figure class="panel panel-art half">
+          <svg viewBox="0 0 500 300" role="img" aria-labelledby="disk-title disk-desc">
+            <title id="disk-title" data-es="Disquete ilustrado con etiqueta Linux 0.01" data-en="Illustrated floppy disk labelled Linux 0.01">Disquete ilustrado con etiqueta Linux 0.01</title>
+            <desc id="disk-desc" data-es="Un disquete pasa de una mano a otra sobre una mesa de trabajo." data-en="A floppy disk passes from one hand to another across a work table.">Un disquete pasa de una mano a otra sobre una mesa de trabajo.</desc>
+            <rect width="500" height="300" fill="#ded8ca"/>
+            <path d="M60 57h218l57 57v123H60z" fill="#252522" stroke="#171715" stroke-width="8" stroke-linejoin="round"/>
+            <path d="M115 57v86h154V82l-25-25" fill="#d9d5ca" stroke="#171715" stroke-width="7"/>
+            <rect x="108" y="161" width="174" height="55" fill="#fbf9f2" stroke="#171715" stroke-width="5"/>
+            <text x="195" y="196" text-anchor="middle" fill="#171715" font-family="monospace" font-size="25" font-weight="700">LINUX 0.01</text>
+            <circle cx="320" cy="109" r="17" fill="#d84531" stroke="#171715" stroke-width="5"/>
+            <path d="M360 188c29-39 57-40 84-13l25 25m-121 12 47 23c22 11 37 1 43-8" fill="none" stroke="#171715" stroke-width="12" stroke-linecap="round"/>
+            <path d="M31 268h438" stroke="#171715" stroke-width="8"/>
+            <path d="m391 73 21-18m13 40 29-7" stroke="#315a70" stroke-width="5" stroke-linecap="round"/>
+          </svg>
+        </figure>
+        <article class="panel panel-pad half truth-card">
+          <div class="panel-label"><span data-es="Viñeta 03 · Primer material" data-en="Panel 03 · Early material">Viñeta 03 · Primer material</span><span>v0.01</span></div>
+          <h3 data-es="Una base para seguir trabajando." data-en="A base for more work.">Una base para seguir trabajando.</h3>
+          <p data-es="El archivo histórico conserva el árbol temprano y sus notas. Linux 0.01 era limitado y estaba incompleto: un punto de partida técnico, no la obra de una sola persona ya concluida." data-en="The historical archive preserves the early tree and its notes. Linux 0.01 was limited and unfinished: a technical starting point, not one person's completed work.">El archivo histórico conserva el árbol temprano y sus notas. Linux 0.01 era limitado y estaba incompleto: un punto de partida técnico, no la obra de una sola persona ya concluida.</p>
+        </article>
+        <article class="panel quote half" aria-label="Nota sobre trabajo abierto">
+          <p data-es="“Una versión es una invitación a revisar, probar y construir encima.”" data-en="“A version is an invitation to review, test, and build on top.”">“Una versión es una invitación a revisar, probar y construir encima.”</p>
+          <small data-es="Síntesis editorial · no es una cita literal" data-en="Editorial summary · not a direct quote">Síntesis editorial · no es una cita literal</small>
+        </article>
+      </div>
+    </section>
+
+    <section class="page" id="method" aria-labelledby="method-title">
+      <div class="page-head">
+        <span class="chapter-no" aria-hidden="true">03</span>
+        <div><p class="chapter-kicker" data-es="Método · comunidad" data-en="Method · community">Método · comunidad</p><h2 id="method-title" data-es="El código cambia de manos." data-en="The code changes hands.">El código cambia de manos.</h2></div>
+      </div>
+      <div class="panel-grid">
+        <article class="panel panel-pad wide">
+          <div class="panel-label"><span data-es="Viñeta 04 · Flujo de trabajo" data-en="Panel 04 · Workflow">Viñeta 04 · Flujo de trabajo</span><span>PATCH → REVIEW → MERGE</span></div>
+          <h3 data-es="El kernel se mantiene mediante colaboración distribuida." data-en="The kernel is maintained through distributed collaboration.">El kernel se mantiene mediante colaboración distribuida.</h3>
+          <p data-es="Quien propone un cambio lo documenta; las personas revisoras y mantenedoras de subsistemas discuten, prueban y encaminan el parche. El flujo real varía según el área, pero el trabajo depende de muchas voces." data-en="A contributor documents a change; reviewers and subsystem maintainers discuss, test, and route the patch. The exact flow varies by area, but the work depends on many voices.">Quien propone un cambio lo documenta; las personas revisoras y mantenedoras de subsistemas discuten, prueban y encaminan el parche. El flujo real varía según el área, pero el trabajo depende de muchas voces.</p>
+          <div class="flow" aria-label="Flujo ilustrativo de una contribución" data-aria-es="Flujo ilustrativo de una contribución" data-aria-en="Illustrated contribution workflow">
+            <div class="flow-step"><b data-es="Proponer" data-en="Propose">Proponer</b><span data-es="cambio + contexto" data-en="change + context">cambio + contexto</span></div>
+            <div class="flow-step"><b data-es="Revisar" data-en="Review">Revisar</b><span data-es="discusión técnica" data-en="technical discussion">discusión técnica</span></div>
+            <div class="flow-step"><b data-es="Mantener" data-en="Maintain">Mantener</b><span data-es="integración por área" data-en="subsystem integration">integración por área</span></div>
+            <div class="flow-step"><b data-es="Probar" data-en="Test">Probar</b><span data-es="verificación continua" data-en="ongoing verification">verificación continua</span></div>
+          </div>
+        </article>
+        <figure class="panel panel-art wide">
+          <svg viewBox="0 0 950 270" role="img" aria-labelledby="network-title network-desc">
+            <title id="network-title" data-es="Red de personas revisando cambios de código" data-en="A network of people reviewing code changes">Red de personas revisando cambios de código</title>
+            <desc id="network-desc" data-es="Cuatro figuras distintas conectadas por hojas de parche y líneas de revisión." data-en="Four distinct figures connected by patch sheets and review lines.">Cuatro figuras distintas conectadas por hojas de parche y líneas de revisión.</desc>
+            <rect width="950" height="270" fill="#ded8ca"/>
+            <path d="M132 148h158m82 0h166m80 0h188" stroke="#171715" stroke-width="5" stroke-dasharray="9 10"/>
+            <path d="m271 136 20 12-20 12m198-24 20 12-20 12m246-24 20 12-20 12" fill="none" stroke="#d84531" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+            <g transform="translate(40 47)">
+              <circle cx="70" cy="53" r="29" fill="#c79a73" stroke="#171715" stroke-width="6"/>
+              <path d="M25 194c3-58 20-93 45-93s42 35 45 93Z" fill="#315a70" stroke="#171715" stroke-width="6"/>
+              <path d="M51 52c6-43 59-44 70-2-22-9-42-18-70 2Z" fill="#252522" stroke="#171715" stroke-width="5"/>
+            </g>
+            <g transform="translate(295 68)">
+              <rect x="0" y="0" width="105" height="94" fill="#fbf9f2" stroke="#171715" stroke-width="6" transform="rotate(-6 50 45)"/>
+              <path d="m20 29 15 16-15 16m30 0h31m-31 17h42" fill="none" stroke="#d84531" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+            </g>
+            <g transform="translate(485 47)">
+              <circle cx="70" cy="53" r="29" fill="#d9b796" stroke="#171715" stroke-width="6"/>
+              <path d="M25 194c3-58 20-93 45-93s42 35 45 93Z" fill="#d84531" stroke="#171715" stroke-width="6"/>
+              <path d="M39 47c9-38 63-39 77-4" fill="none" stroke="#171715" stroke-width="12" stroke-linecap="round"/>
+            </g>
+            <g transform="translate(749 47)">
+              <circle cx="70" cy="53" r="29" fill="#a87959" stroke="#171715" stroke-width="6"/>
+              <path d="M25 194c3-58 20-93 45-93s42 35 45 93Z" fill="#f0c857" stroke="#171715" stroke-width="6"/>
+              <path d="M38 43c5-38 62-42 78-5l-5 18c-18-20-47-19-73-4Z" fill="#252522" stroke="#171715" stroke-width="5"/>
+            </g>
+          </svg>
+        </figure>
+      </div>
+    </section>
+
+    <section class="page" id="git" aria-labelledby="git-title">
+      <div class="page-head">
+        <span class="chapter-no" aria-hidden="true">04</span>
+        <div><p class="chapter-kicker" data-es="Herramientas · Git" data-en="Tools · Git">Herramientas · Git</p><h2 id="git-title" data-es="Cuando el flujo pide otra herramienta." data-en="When the workflow calls for another tool.">Cuando el flujo pide otra herramienta.</h2></div>
+      </div>
+      <div class="panel-grid">
+        <article class="panel panel-pad half truth-card">
+          <div class="panel-label"><span data-es="Viñeta 05 · Caso de estudio" data-en="Panel 05 · Case study">Viñeta 05 · Caso de estudio</span><span>2005</span></div>
+          <h3>Git</h3>
+          <p data-es="En 2005, Torvalds comenzó Git para apoyar el desarrollo distribuido del kernel. El sistema de control de versiones creció alrededor de rapidez, integridad y trabajo local que luego se comparte." data-en="In 2005, Torvalds started Git to support distributed kernel development. The version control system grew around speed, integrity, and local work that can be shared later.">En 2005, Torvalds comenzó Git para apoyar el desarrollo distribuido del kernel. El sistema de control de versiones creció alrededor de rapidez, integridad y trabajo local que luego se comparte.</p>
+        </article>
+        <figure class="panel panel-art half">
+          <svg viewBox="0 0 540 310" role="img" aria-labelledby="git-art-title git-art-desc">
+            <title id="git-art-title" data-es="Ramas de cambios de software" data-en="Branches of software changes">Ramas de cambios de software</title>
+            <desc id="git-art-desc" data-es="Una línea de commits se divide en varias ramas y vuelve a integrarse." data-en="A line of commits branches into parallel paths and merges again.">Una línea de commits se divide en varias ramas y vuelve a integrarse.</desc>
+            <rect width="540" height="310" fill="#ded8ca"/>
+            <path d="M72 227h400M112 227V92h115m0 0v82h113m0-82v-36h96m-96 36v82h97" fill="none" stroke="#171715" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M225 92c68 0 78 82 115 82m0-82c68 0 76-36 96-36m-96 118c64 0 83 0 97 0" fill="none" stroke="#d84531" stroke-width="6" stroke-dasharray="8 8"/>
+            <g fill="#f0c857" stroke="#171715" stroke-width="7">
+              <circle cx="112" cy="227" r="18"/><circle cx="112" cy="92" r="18"/><circle cx="227" cy="92" r="18"/><circle cx="227" cy="174" r="18"/><circle cx="340" cy="92" r="18"/><circle cx="340" cy="174" r="18"/><circle cx="436" cy="56" r="18"/><circle cx="437" cy="174" r="18"/>
+            </g>
+            <text x="60" y="276" fill="#171715" font-family="monospace" font-size="17" font-weight="700">WORK IN PROGRESS → SHARED HISTORY</text>
+          </svg>
+        </figure>
+        <article class="panel panel-pad half">
+          <div class="panel-label"><span data-es="Viñeta 06 · Diseño" data-en="Panel 06 · Design">Viñeta 06 · Diseño</span><span>01 / 03</span></div>
+          <h3 data-es="Cada persona conserva su ritmo." data-en="Everyone keeps their own pace.">Cada persona conserva su ritmo.</h3>
+          <p data-es="El trabajo puede prepararse localmente, compararse y revisarse antes de integrarse. El portafolio muestra el flujo como una red de decisiones, no como una línea de autor único." data-en="Work can be prepared locally, compared, and reviewed before integration. This portfolio shows a network of decisions, not a single-author line.">El trabajo puede prepararse localmente, compararse y revisarse antes de integrarse. El portafolio muestra el flujo como una red de decisiones, no como una línea de autor único.</p>
+        </article>
+        <article class="panel panel-pad half">
+          <div class="panel-label"><span data-es="Viñeta 07 · Principio" data-en="Panel 07 · Principle">Viñeta 07 · Principio</span><span>02 / 03</span></div>
+          <h3 data-es="La herramienta refleja una forma de colaborar." data-en="The tool reflects a way of collaborating.">La herramienta refleja una forma de colaborar.</h3>
+          <p data-es="Cambios pequeños, historial legible y ramas que se encuentran: una infraestructura para que otras personas aporten sin pedir permiso a una única máquina." data-en="Small changes, readable history, and branches that meet: infrastructure for people to contribute without depending on one machine.">Cambios pequeños, historial legible y ramas que se encuentran: una infraestructura para que otras personas aporten sin pedir permiso a una única máquina.</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="page" aria-labelledby="portfolio-title">
+      <div class="page-head">
+        <span class="chapter-no" aria-hidden="true">05</span>
+        <div><p class="chapter-kicker" data-es="Portafolio · impacto y práctica" data-en="Portfolio · impact and practice">Portafolio · impacto y práctica</p><h2 id="portfolio-title" data-es="Un trabajo se entiende mejor en contexto." data-en="Work makes more sense in context.">Un trabajo se entiende mejor en contexto.</h2></div>
+      </div>
+      <div class="folio">
+        <article class="panel folio-card">
+          <span class="folio-number">CASE 01 · LINUX</span>
+          <div><h3 data-es="Una base que sigue creciendo." data-en="A foundation that keeps growing.">Una base que sigue creciendo.</h3><p data-es="Sistema operativo de código abierto, desarrollado por una comunidad amplia y diversa." data-en="Open-source operating system, developed by a broad and diverse community.">Sistema operativo de código abierto, desarrollado por una comunidad amplia y diversa.</p></div>
+        </article>
+        <article class="panel folio-card">
+          <span class="folio-number">CASE 02 · GIT</span>
+          <div><h3 data-es="Herramientas para el trabajo distribuido." data-en="Tools for distributed work.">Herramientas para el trabajo distribuido.</h3><p data-es="Control de versiones que hizo más visible y manejable la colaboración entre ramas." data-en="Version control that made collaboration across branches easier to manage and see.">Control de versiones que hizo más visible y manejable la colaboración entre ramas.</p></div>
+        </article>
+      </div>
+      <div class="credits" id="credits">
+        <div>
+          <p class="chapter-kicker" data-es="Fuentes y créditos" data-en="Sources and credits">Fuentes y créditos</p>
+          <h2 data-es="La ficción visual no sustituye al archivo." data-en="Visual storytelling does not replace the archive.">La ficción visual no sustituye al archivo.</h2>
+          <p data-es="Los diálogos resumidos son recreaciones editoriales, no citas de Linus. Las ilustraciones son originales y estilizadas; no son retratos fotográficos ni material oficial." data-en="Summarized dialogue is editorial dramatization, not a quote from Linus. The illustrations are original and stylized; they are not photographic portraits or official material.">Los diálogos resumidos son recreaciones editoriales, no citas de Linus. Las ilustraciones son originales y estilizadas; no son retratos fotográficos ni material oficial.</p>
+        </div>
+        <div>
+          <ul class="source-list">
+            <li><a href="https://groups.google.com/g/comp.os.minix/c/dlNtH7RRrGA/m/SwRavCzVE7gJ" target="_blank" rel="noreferrer"><span data-es="Mensaje de agosto de 1991 · comp.os.minix" data-en="August 1991 message · comp.os.minix">Mensaje de agosto de 1991 · comp.os.minix</span> ↗</a></li>
+            <li><a href="https://lkml.iu.edu/hypermail/linux/kernel/2109.2/03485.html" target="_blank" rel="noreferrer"><span data-es="Aclaración sobre Linux 0.01 · LKML, 2021" data-en="Linux 0.01 clarification · LKML, 2021">Aclaración sobre Linux 0.01 · LKML, 2021</span> ↗</a></li>
+            <li><a href="https://kernel.googlesource.com/pub/scm/linux/kernel/git/nico/archive/%2B/v0.01" target="_blank" rel="noreferrer"><span data-es="Archivo histórico de Linux 0.01" data-en="Historical Linux 0.01 archive">Archivo histórico de Linux 0.01</span> ↗</a></li>
+            <li><a href="https://www.kernel.org/doc/html/latest/process/2.Process.html" target="_blank" rel="noreferrer"><span data-es="Cómo funciona el desarrollo del kernel" data-en="How kernel development works">Cómo funciona el desarrollo del kernel</span> ↗</a></li>
+            <li><a href="https://git-scm.com/book/en/v2/Getting-Started-A-Short-History-of-Git" target="_blank" rel="noreferrer"><span data-es="Breve historia de Git · libro oficial" data-en="A short history of Git · official book">Breve historia de Git · libro oficial</span> ↗</a></li>
+          </ul>
+        </div>
+      </div>
+      <p class="disclaimer" data-es="Este portafolio es un ejercicio editorial independiente con fines educativos. Linus Torvalds y las comunidades Linux/Git no lo patrocinan ni lo avalan." data-en="This portfolio is an independent editorial exercise for educational purposes. Linus Torvalds and the Linux/Git communities do not sponsor or endorse it.">Este portafolio es un ejercicio editorial independiente con fines educativos. Linus Torvalds y las comunidades Linux/Git no lo patrocinan ni lo avalan.</p>
+    </section>
+    <footer><span>ARCHIVO ABIERTO · 1991 — 2026</span><span data-es="Hecho para leer, revisar y compartir." data-en="Made to read, review, and share.">Hecho para leer, revisar y compartir.</span></footer>
+  </main>
+  <script>
+    (() => {
+      const button = document.getElementById("language");
+      const textNodes = document.querySelectorAll("[data-es][data-en]");
+      function setLanguage(language) {
+        document.documentElement.lang = language;
+        textNodes.forEach((node) => {
+          const text = node.getAttribute("data-" + language);
+          if (text !== null) node.textContent = text;
+        });
+        document.querySelectorAll("[data-aria-es][data-aria-en]").forEach((node) => {
+          node.setAttribute("aria-label", node.getAttribute("data-aria-" + language));
+        });
+        document.title = language === "es" ? "Linus Torvalds — Archivo en viñetas" : "Linus Torvalds — A panelled archive";
+        const description = document.querySelector('meta[name="description"]');
+        if (description) description.setAttribute("content", language === "es"
+          ? "Un portafolio narrado en viñetas: Linus Torvalds, Linux, Git y el trabajo compartido que los mantiene vivos."
+          : "A portfolio told in panels: Linus Torvalds, Linux, Git, and the shared work that keeps them moving.");
+        button.textContent = language === "es" ? "EN" : "ES";
+        button.setAttribute("aria-pressed", String(language === "en"));
+        button.setAttribute("aria-label", language === "es" ? "Switch to English" : "Cambiar a español");
+        try { localStorage.setItem("linus-portfolio-language", language); } catch {}
+      }
+      let saved = null;
+      try { saved = localStorage.getItem("linus-portfolio-language"); } catch {}
+      const preferred = saved === "es" || saved === "en" ? saved : (navigator.language.toLowerCase().startsWith("es") ? "es" : "en");
+      setLanguage(preferred);
+      button.addEventListener("click", () => setLanguage(document.documentElement.lang === "es" ? "en" : "es"));
+    })();
+  </script>
+</body>
+</html>

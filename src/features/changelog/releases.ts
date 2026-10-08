@@ -44,6 +44,27 @@ export const NEXT: Upcoming = { summary: { es: "", en: "" }, added: [], changed:
 
 export const RELEASES: Release[] = [
   {
+    version: "0.4.0",
+    date: "2026-10-08",
+    released: false,
+    kind: "feature",
+    summary: {
+      es: "Un portafolio público cuenta en viñetas la historia de Linux, la colaboración abierta y Git.",
+      en: "A public portfolio tells the story of Linux, open collaboration and Git in comic panels.",
+    },
+    added: [
+      {
+        title: { es: "Portafolio manga de Linus Torvalds", en: "Linus Torvalds manga portfolio" },
+        body: {
+          es: "Una página bilingüe de viñetas ilustradas recorre el primer anuncio de Linux, su desarrollo comunitario y Git como caso de estudio. Incluye cronología, fuentes enlazadas y una nota de independencia.",
+          en: "A bilingual illustrated comic follows Linux's first announcement, its community development and Git as a case study. It includes a timeline, linked sources and an independence notice.",
+        },
+      },
+    ],
+    changed: [],
+    fixed: [],
+  },
+  {
     version: "0.3.4",
     date: "2026-10-05",
     released: true,

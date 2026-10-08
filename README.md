@@ -8,7 +8,7 @@
 
 <!-- La placa de versión repite VERSION: la actualiza `npm run version:bump` (AGENTS.md, «Versiones»). -->
 <p align="center">
-  <a href="CHANGELOG.md"><img alt="version 0.3.4" src="https://img.shields.io/badge/version-0.3.4-0b7a5b"></a>
+  <a href="CHANGELOG.md"><img alt="version 0.4.0" src="https://img.shields.io/badge/version-0.4.0-0b7a5b"></a>
   <a href="https://react.dev"><img alt="React 19" src="https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=111827"></a>
   <a href="https://www.typescriptlang.org"><img alt="TypeScript 5" src="https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white"></a>
   <a href="https://vite.dev"><img alt="Vite 7" src="https://img.shields.io/badge/Vite-7-646CFF?logo=vite&logoColor=white"></a>
@@ -67,7 +67,12 @@ La portada presenta Cowork sin exponer información del equipo. Para crear o abr
 | Archivos en revisión | Crear o subir un archivo desde Cowork lo deja pendiente de revisión; quien puede escribir en el repositorio lo aprueba y se sube a GitHub con su cuenta, o lo rechaza con un motivo. |
 | Novedades | Cada versión, función por función, en [/novedades](https://cwspace.web.app/novedades): página pública en español e inglés, con temas del sistema, claro u oscuro, resplandor gris/negro a todo el ancho y pegado bajo la cabecera, rótulo en verde y logo fijo en negro con símbolo blanco, enlazada desde el pie de la portada. |
 | Novedades del proyecto en tareas | Configura una página pública de novedades: Cowork lee el tipo de cada versión (Major, Feature o Fix) con badges de distinto color y marca Unreleased en azul, además del grupo de cada tarjeta (Nuevo, Cambios o Arreglos), detecta estados y crea o actualiza tareas solo cuando aceptas cada propuesta. Si CORS bloquea el acceso, indica el origen que debe permitirse. |
+| Portafolio manga de Linus | Una página pública en español e inglés relata en viñetas la historia de Linux, la colaboración abierta y Git, con ilustraciones originales, cronología y fuentes enlazadas. [Abrir el portafolio](https://cwspace.web.app/linus-portfolio/). |
 | GitHub | Iniciar sesión o vincular GitHub, consultar ramas y commits del repositorio (también privados), y borrar ramas con confirmación. Quien es propietario del proyecto elige si pueden modificar ramas solo esa cuenta o todo el equipo. |
+
+### Portafolio manga de Linus Torvalds
+
+La página pública [cwspace.web.app/linus-portfolio](https://cwspace.web.app/linus-portfolio/) presenta en viñetas el primer anuncio de Linux, su desarrollo comunitario y Git como caso de estudio. Incluye ilustraciones SVG originales, cronología, fuentes enlazadas, selector español/inglés y una nota de independencia y no afiliación.
 
 ### Qué cuenta para la racha y los puntos
 
