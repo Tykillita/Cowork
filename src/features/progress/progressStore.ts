@@ -153,97 +153,141 @@ export function recordWork(uid: string, saved: SavedEvent | null) {
 
 // ─── Live summary ───────────────────────────────────────────────────────────
 
-export async function watchProgress(uid: string, onValue: (summary: ProgressSummary) => void, onError: (error: Error) => void) {
+export async function watchProgress(uidValue: string | readonly string[], onValue: (summary: ProgressSummary) => void, onError: (error: Error) => void) {
   const { db, api } = await database();
-  let days: number[] = [];
-  let activeDays = 0;
+  const uids = [...new Set(typeof uidValue === "string" ? [uidValue] : uidValue)].filter(Boolean);
+  const sources = new Map<string, { days: number[]; activeDays: number }>();
   const publish = () => {
+    const days = [...new Set([...sources.values()].flatMap((source) => source.days))].sort((a, b) => a - b);
+    const activeDays = Math.max(0, ...[...sources.values()].map((source) => source.activeDays));
     const { current, best } = streaks(days, utcDay(Date.now()));
     onValue({ activeDays: Math.max(activeDays, days.length), days, currentStreak: current, bestStreak: best });
   };
-  const stopDays = api.onSnapshot(api.collection(db, "users", uid, "activeDays"), (snapshot) => {
-    days = snapshot.docs.map((entry) => Number(entry.data().day)).filter(Number.isFinite);
-    publish();
-  }, onError);
-  const stopSummary = api.onSnapshot(api.doc(db, "users", uid, "progress", "summary"), (snapshot) => {
-    activeDays = snapshot.exists() && typeof snapshot.data().activeDays === "number" ? snapshot.data().activeDays : 0;
-    publish();
-  }, onError);
-  return () => { stopDays(); stopSummary(); };
+  const stops = uids.flatMap((uid) => [
+    api.onSnapshot(api.collection(db, "users", uid, "activeDays"), (snapshot) => {
+      sources.set(uid, { ...(sources.get(uid) ?? { activeDays: 0, days: [] }), days: snapshot.docs.map((entry) => Number(entry.data().day)).filter(Number.isFinite) });
+      publish();
+    }, onError),
+    api.onSnapshot(api.doc(db, "users", uid, "progress", "summary"), (snapshot) => {
+      sources.set(uid, { ...(sources.get(uid) ?? { activeDays: 0, days: [] }), activeDays: snapshot.exists() && typeof snapshot.data().activeDays === "number" ? snapshot.data().activeDays : 0 });
+      publish();
+    }, onError),
+  ]);
+  return () => stops.forEach((stop) => stop());
 }
 
 // ─── Points and shop ────────────────────────────────────────────────────────
 
+async function importMergedWallet(uid: string, sourceUids: readonly string[], mergeId: string, db: import("firebase/firestore").Firestore,
+  api: typeof import("firebase/firestore")) {
+  if (sourceUids.length !== 2 || !mergeId) return false;
+  const markerRef = api.doc(db, "accountMerges", mergeId, "imports", "wallet");
+  const existing = await api.getDocFromServer(markerRef);
+  if (existing.exists()) return true;
+  const walletRefs = sourceUids.map((sourceUid) => api.doc(db, "users", sourceUid, "progress", "wallet"));
+  await api.runTransaction(db, async (transaction) => {
+    const marker = await transaction.get(markerRef);
+    if (marker.exists()) return;
+    const wallets = await Promise.all(walletRefs.map((ref) => transaction.get(ref)));
+    const ownIndex = sourceUids.indexOf(uid);
+    if (ownIndex < 0) throw coded("El perfil principal no coincide con las cuentas fusionadas.", "cowork/merge-profile-mismatch");
+    const own = readWallet(wallets[ownIndex]?.data());
+    const totals = wallets.reduce((sum, wallet) => {
+      const value = readWallet(wallet.data());
+      sum.earned += value.earned; sum.spent += value.spent;
+      return sum;
+    }, { earned: 0, spent: 0 });
+    transaction.set(walletRefs[ownIndex], { ...own, balance: totals.earned - totals.spent,
+      earned: totals.earned, spent: totals.spent, updatedAt: api.serverTimestamp() });
+    transaction.set(markerRef, { earned: totals.earned, spent: totals.spent, importedAt: api.serverTimestamp() });
+  });
+  return true;
+}
+
 /** The wallet and the counters of the latest days; the caller decides which day is "today". */
-export async function watchWallet(uid: string, onValue: (wallet: WalletSnapshot) => void, onError: (error: Error) => void) {
+export async function watchWallet(uid: string, onValue: (wallet: WalletSnapshot) => void, onError: (error: Error) => void,
+  sourceUids: readonly string[] = [uid], mergeId = "") {
   const { db, api } = await database();
-  let wallet = EMPTY_WALLET;
-  let recent: { day: number; points: number }[] = [];
-  const publish = () => onValue({ balance: wallet.balance, earned: wallet.earned, spent: wallet.spent, recentDays: recent });
-  const stopWallet = api.onSnapshot(api.doc(db, "users", uid, "progress", "wallet"), (snapshot) => {
-    wallet = readWallet(snapshot.exists() ? snapshot.data() : undefined);
-    publish();
-  }, onError);
-  const recentDays = api.query(api.collection(db, "users", uid, "pointDays"), api.orderBy("day", "desc"), api.limit(2));
-  const stopDays = api.onSnapshot(recentDays, (snapshot) => {
-    recent = snapshot.docs.map((entry) => ({ day: Number(entry.data().day), points: Number(entry.data().points) || 0 }));
-    publish();
-  }, onError);
-  return () => { stopWallet(); stopDays(); };
+  const uids = [...new Set(sourceUids)].filter(Boolean);
+  let walletUids = uids;
+  if (mergeId && uids.length === 2) {
+    try { if (await importMergedWallet(uid, uids, mergeId, db, api)) walletUids = [uid]; }
+    catch (error) { onError(error as Error); }
+  }
+  const wallets = new Map<string, ReturnType<typeof readWallet>>();
+  const recentDays = new Map<string, { day: number; points: number }[]>();
+  const publish = () => {
+    const values = [...wallets.values()];
+    const totals = values.reduce((sum, value) => ({ balance: sum.balance + value.balance, earned: sum.earned + value.earned, spent: sum.spent + value.spent }), { balance: 0, earned: 0, spent: 0 });
+    const dayTotals = new Map<number, number>();
+    for (const entry of [...recentDays.values()].flat()) dayTotals.set(entry.day, (dayTotals.get(entry.day) ?? 0) + entry.points);
+    onValue({ ...totals, recentDays: [...dayTotals].map(([day, points]) => ({ day, points })).sort((a, b) => b.day - a.day).slice(0, 2) });
+  };
+  const stops = walletUids.flatMap((sourceUid) => [
+    api.onSnapshot(api.doc(db, "users", sourceUid, "progress", "wallet"), (snapshot) => {
+      wallets.set(sourceUid, readWallet(snapshot.exists() ? snapshot.data() : undefined)); publish();
+    }, onError),
+    api.onSnapshot(api.query(api.collection(db, "users", sourceUid, "pointDays"), api.orderBy("day", "desc"), api.limit(2)), (snapshot) => {
+      recentDays.set(sourceUid, snapshot.docs.map((entry) => ({ day: Number(entry.data().day), points: Number(entry.data().points) || 0 }))); publish();
+    }, onError),
+  ]);
+  return () => stops.forEach((stop) => stop());
 }
 
 /** The latest points earned and spent, newest first, to explain the balance. */
-export async function watchMovements(uid: string, onValue: (movements: PointMovement[]) => void, onError: (error: Error) => void, count = 8) {
+export async function watchMovements(uidValue: string | readonly string[], onValue: (movements: PointMovement[]) => void, onError: (error: Error) => void, count = 8) {
   const { db, api } = await database();
+  const uids = [...new Set(typeof uidValue === "string" ? [uidValue] : uidValue)].filter(Boolean);
   const millis = (value: unknown) => value && typeof (value as { toMillis?: unknown }).toMillis === "function" ? (value as { toMillis: () => number }).toMillis() : 0;
-  let earned: PointMovement[] = [];
-  let spent: PointMovement[] = [];
-  let protection: PointMovement[] = [];
-  const publish = () => onValue([...earned, ...spent, ...protection].sort((a, b) => (b.at || Infinity) - (a.at || Infinity)).slice(0, count));
-  const stopEarned = api.onSnapshot(api.query(api.collection(db, "users", uid, "pointEvents"), api.orderBy("recordedAt", "desc"), api.limit(count)), (snapshot) => {
-    earned = snapshot.docs.map((entry) => {
-      const eventId = String(entry.data().eventId ?? "");
-      const label = eventId.startsWith("branch-") ? "Rama registrada" : eventId.endsWith("-1") ? "Tarea creada" : "Estado de tarea cambiado";
-      return { id: entry.id, kind: "earn", points: 1, at: millis(entry.data().recordedAt), label };
-    });
-    publish();
-  }, onError);
-  const stopSpent = api.onSnapshot(api.query(api.collection(db, "users", uid, "inventory"), api.orderBy("acquiredAt", "desc"), api.limit(count)), (snapshot) => {
-    spent = snapshot.docs.map((entry) => ({
-      id: entry.id,
-      kind: "spend",
-      points: Number(entry.data().price) || 0,
-      at: millis(entry.data().acquiredAt),
-      label: findItem(entry.id)?.name ?? entry.id,
-    }));
-    publish();
-  }, onError);
-  const stopProtection = api.onSnapshot(api.query(api.collection(db, "users", uid, "protectionPurchases"), api.orderBy("acquiredAt", "desc"), api.limit(count)), (snapshot) => {
-    protection = snapshot.docs.map((entry) => ({ id: entry.id, kind: "spend", points: Number(entry.get("price")),
-      at: millis(entry.get("acquiredAt")), label: entry.get("product") === "shield" ? "Escudo de siete días" : "Protector individual" }));
-    publish();
-  }, onError);
-  return () => { stopEarned(); stopSpent(); stopProtection(); };
+  const earned = new Map<string, PointMovement[]>(), spent = new Map<string, PointMovement[]>(), protection = new Map<string, PointMovement[]>();
+  const publish = () => onValue([...earned.values(), ...spent.values(), ...protection.values()].flat()
+    .sort((a, b) => (b.at || Infinity) - (a.at || Infinity)).slice(0, count));
+  const stops = uids.flatMap((uid) => [
+    api.onSnapshot(api.query(api.collection(db, "users", uid, "pointEvents"), api.orderBy("recordedAt", "desc"), api.limit(count)), (snapshot) => {
+      earned.set(uid, snapshot.docs.map((entry) => {
+        const eventId = String(entry.data().eventId ?? "");
+        const label = eventId.startsWith("branch-") ? "Rama registrada" : eventId.endsWith("-1") ? "Tarea creada" : "Estado de tarea cambiado";
+        return { id: `${uid}:${entry.id}`, kind: "earn", points: 1, at: millis(entry.data().recordedAt), label };
+      }));
+      publish();
+    }, onError),
+    api.onSnapshot(api.query(api.collection(db, "users", uid, "inventory"), api.orderBy("acquiredAt", "desc"), api.limit(count)), (snapshot) => {
+      spent.set(uid, snapshot.docs.map((entry) => ({ id: `${uid}:${entry.id}`, kind: "spend",
+        points: Number(entry.data().price) || 0, at: millis(entry.data().acquiredAt), label: findItem(entry.id)?.name ?? entry.id })));
+      publish();
+    }, onError),
+    api.onSnapshot(api.query(api.collection(db, "users", uid, "protectionPurchases"), api.orderBy("acquiredAt", "desc"), api.limit(count)), (snapshot) => {
+      protection.set(uid, snapshot.docs.map((entry) => ({ id: `${uid}:${entry.id}`, kind: "spend", points: Number(entry.get("price")),
+        at: millis(entry.get("acquiredAt")), label: entry.get("product") === "shield" ? "Escudo de siete días" : "Protector individual" })));
+      publish();
+    }, onError),
+  ]);
+  return () => stops.forEach((stop) => stop());
 }
 
-export async function watchInventory(uid: string, onValue: (itemIds: string[]) => void, onError: (error: Error) => void) {
+export async function watchInventory(uidValue: string | readonly string[], onValue: (itemIds: string[]) => void, onError: (error: Error) => void) {
   const { db, api } = await database();
-  return api.onSnapshot(api.collection(db, "users", uid, "inventory"), (snapshot) => {
-    onValue(snapshot.docs.map((entry) => entry.id));
-  }, onError);
+  const uids = [...new Set(typeof uidValue === "string" ? [uidValue] : uidValue)].filter(Boolean);
+  const sources = new Map<string, string[]>();
+  const publish = () => onValue([...new Set([...sources.values()].flat())]);
+  const stops = uids.map((uid) => api.onSnapshot(api.collection(db, "users", uid, "inventory"), (snapshot) => {
+    sources.set(uid, snapshot.docs.map((entry) => entry.id)); publish();
+  }, onError));
+  return () => stops.forEach((stop) => stop());
 }
 
 /** Charges the price and adds the item in one transaction; an item is never bought twice. */
-export async function purchaseItem(uid: string, itemId: string) {
+export async function purchaseItem(uid: string, itemId: string, sourceUids: readonly string[] = [uid]) {
   const item = findItem(itemId);
   const price = item ? priceOf(item) : null;
   if (price === null) throw coded("Este objeto no está en la tienda.", "cowork/not-for-sale");
   const { db, api } = await database();
+  const uids = [...new Set(sourceUids)].filter(Boolean);
   const itemRef = api.doc(db, "users", uid, "inventory", itemId);
   const walletRef = api.doc(db, "users", uid, "progress", "wallet");
   await api.runTransaction(db, async (transaction) => {
-    const owned = await transaction.get(itemRef);
-    if (owned.exists()) throw coded("Ya tienes este objeto.", "cowork/already-owned");
+    const owned = await Promise.all(uids.map((sourceUid) => transaction.get(api.doc(db, "users", sourceUid, "inventory", itemId))));
+    if (owned.some((entry) => entry.exists())) throw coded("Ya tienes este objeto.", "cowork/already-owned");
     const wallet = await transaction.get(walletRef);
     const next = spendPoints(readWallet(wallet.exists() ? wallet.data() : undefined), itemId, price);
     transaction.set(itemRef, { itemId, price, acquiredAt: api.serverTimestamp() });

@@ -199,6 +199,8 @@
 .streakHeaderButton:hover { background:#f6cf8612; }.streakHeaderButton>span { color:var(--secondary); }.streakHeaderBalance { display:flex; gap:4px; align-items:center; }.streakHeaderBalance i { font-style:normal; font-size:9px; color:var(--mint); }
 /* ---- Friends tab: nudges → pending requests → pairs (+ free slots) → add friend → history ---- */
 .streakFriends { display:grid; gap:14px; }
+.friendDirectory { display:grid; gap:10px; padding-top:20px; border-top:1px solid var(--rule); }
+.friendDirectory .streakSectionHead { margin-bottom:0; }
 .streakFriends>.streakHint { margin:-6px 0 0; }
 /* Quiet buttons: secondary actions that should not compete with the main one. */
 .streakDialog button.streakQuiet { border-color:transparent; background:transparent; color:var(--secondary); }

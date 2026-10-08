@@ -1,7 +1,10 @@
 /** Shared, deterministic rules. Dates are UTC days since the Unix epoch. */
 export const DAY_MS = 86_400_000;
 export const POINT_LIMIT = 3;
-export const FRIEND_LIMIT = 5;
+export const SHARED_STREAK_LIMIT = 5;
+export const PENDING_REQUEST_LIMIT = 5;
+/** Kept for clients compiled before friendships and streaks became separate. */
+export const FRIEND_LIMIT = SHARED_STREAK_LIMIT;
 export const PROTECTION_PRICES = { single: 3, shield: 15 } as const;
 export type ProtectionProduct = keyof typeof PROTECTION_PRICES;
 export type DayKind = "active" | "protected" | "missed" | "pending" | "future" | "unknown";
@@ -17,11 +20,13 @@ export interface StreakSnapshot {
 }
 export interface FriendView {
   id: string; name: string; photoURL: string; current: number; best: number;
+  uid: string; friendshipId: string; streakActive: boolean;
   mine: "active" | "protected" | "pending"; theirs: "active" | "protected" | "pending";
   muted: boolean; nudged: boolean;
   /** Today's nudge in this pair, if any: who sent it, the phrase, whether it was seen and the reply. */
   nudge?: { fromMe: boolean; message: string; seen: boolean; reply: string | null };
 }
+export interface FriendPage { items: FriendView[]; next: string | null }
 export interface NudgeView { id: string; name: string; pairId: string; day: number; read: boolean; message: string }
 export interface Celebration { current: number; resumed: boolean; badges: string[] }
 export const dayOf = (millis: number) => Math.floor(millis / DAY_MS);

@@ -5,11 +5,12 @@ import { usePresence } from "./usePresence";
 import { Sk, SkImg } from "./Skeleton";
 import { useGitHubSession, syncGitHubSession } from "../features/github/githubSession";
 import { linkGitHubProvider, reconnectGitHub, unlinkGitHub } from "../features/auth/panelAuth";
+import { AccountMergeControl } from "../features/account-merge/AccountMergeControl";
 
 function describeLinkError(error: unknown, provider = "Google") {
   const code = error && typeof error === "object" && "code" in error ? String(error.code) : "";
   if (["auth/credential-already-in-use", "auth/account-exists-with-different-credential"].includes(code)) {
-    return `Ese ${provider} ya está vinculado a otra identidad de Firebase. Entra con la cuenta que contiene tus proyectos; Cowork no fusiona cuentas automáticamente.`;
+    return `Ese ${provider} ya se usa en otra cuenta Cowork. Para compartir el perfil, usa «Unir otra cuenta Cowork»; vincular un método por sí solo no combina las cuentas.`;
   }
   if (code === "auth/user-mismatch") return `Esa cuenta de ${provider} no es la que está vinculada a tu perfil. Vuelve a intentarlo con la misma cuenta.`;
   if (code === "auth/popup-closed-by-user") return `Se cerró la ventana de ${provider} antes de terminar.`;
@@ -29,7 +30,7 @@ const MOTION_OPTIONS: { value: MotionPreference; label: string }[] = [
   { value: "reduced", label: "Reducido" },
 ];
 
-export function AccountAccessPopover({ user, onLinkGoogle, children }: { user: PanelUser; onLinkGoogle: () => Promise<PanelUser | null>; children?: ReactNode }) {
+export function AccountAccessPopover({ user, onLinkGoogle, onUserUpdated, children }: { user: PanelUser; onLinkGoogle: () => Promise<PanelUser | null>; onUserUpdated: (user: PanelUser) => void; children?: ReactNode }) {
   const { preferences, savePreferences, streak } = usePersonal();
   const hasFrame = streak?.state.badges.some((badge) => badge.id === "streak-100") ?? false;
   const [open, setOpen] = useState(false);
@@ -150,6 +151,7 @@ export function AccountAccessPopover({ user, onLinkGoogle, children }: { user: P
           </button>}
         </div>}
         {github.canUnlink && github.status === "ready" && <button className="accountAccessUnlink" type="button" onClick={() => void disconnectGitHub()} disabled={busy}>Desvincular GitHub</button>}
+        <AccountMergeControl user={user} onUserUpdated={onUserUpdated} />
         <p className="accountAccessHelp">Conectar un método no cambia tu rol ni los proyectos a los que tienes acceso.</p>
         {message && <p className={`accountAccessMessage${isErrorMessage(message) ? " isError" : ""}`} role="status">{message}</p>}
       </section>}

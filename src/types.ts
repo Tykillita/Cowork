@@ -1,5 +1,11 @@
 export interface PanelUser {
+  /** Firebase identity currently signed in; records continue to use this UID. */
   id: string;
+  /** Selected Cowork profile UID. Defaults to `id` before an account merge. */
+  profileUid?: string;
+  mergeId?: string;
+  /** Both Firebase UIDs after a two-account merge; otherwise just `id`. */
+  mergedUids?: string[];
   name: string;
   email: string;
   photoURL: string;

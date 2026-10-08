@@ -1,7 +1,6 @@
 import { forwardRef, useEffect, useRef, useState } from "react";
 import type { FriendCodeView, FriendRequestView, RequestDirection } from "./friendCodes";
 import { watchRequestPage, type RequestCursor, type RequestPage } from "./friendRequestClient";
-import { FRIEND_LIMIT } from "./streakModel";
 import { streakCommand, streakError } from "./streakClient";
 import { repeat, Sk, SkGroup, SkImg } from "../../components/Skeleton";
 
@@ -17,7 +16,8 @@ function useRequestActions() {
     setBusy(kind); setError(""); setMessage("");
     try {
       await streakCommand(kind, { token: id });
-      setMessage(kind === "acceptInvite" ? "Solicitud aceptada. Ya comparten una racha." : kind === "rejectInvite" ? "Solicitud rechazada." : "Solicitud cancelada.");
+      window.dispatchEvent(new Event("cowork:social-change"));
+      setMessage(kind === "acceptInvite" ? "Solicitud aceptada." : kind === "rejectInvite" ? "Solicitud rechazada." : "Solicitud cancelada.");
     } catch (reason) { setError(streakError(reason)); }
     finally { setBusy(""); }
   }
@@ -33,7 +33,7 @@ function RequestRow({ entry, direction, now, busy, act }: { entry: FriendRequest
   const status = statusOf(entry, now);
   return <div className="friendRequestRow">
     <Avatar name={entry.name} photoURL={entry.photoURL} />
-    <span><strong>{entry.name}</strong><small>{labels[status]} · {status === "pending" ? "vence" : "vencimiento"} {shortDate.format(entry.expiresAt)}</small></span>
+    <span><strong>{entry.name}</strong><small>{entry.kind === "streak" ? "Racha compartida" : "Amistad"} · {labels[status]} · {status === "pending" ? "vence" : "vencimiento"} {shortDate.format(entry.expiresAt)}</small></span>
     {entry.status === "pending" && status === "pending" && (direction === "incoming" ? <div className="friendRequestActions">
       <button type="button" className="streakPrimary" disabled={busy} onClick={() => void act("acceptInvite", entry.id)}>Aceptar</button>
       <button type="button" className="streakQuiet" disabled={busy} onClick={() => void act("rejectInvite", entry.id)}>Rechazar</button>
@@ -52,7 +52,7 @@ function RequestRowsSkeleton() {
 }
 
 function RequestList({ uid, direction, busy, act, now }: {
-  uid: string; direction: RequestDirection; busy: boolean; now: number;
+  uid: string | readonly string[]; direction: RequestDirection; busy: boolean; now: number;
   act: (kind: string, id: string) => Promise<void>;
 }) {
   const [cursors, setCursors] = useState<(RequestCursor | null)[]>([null]), [page, setPage] = useState<RequestPage>({ items: [], next: null });
@@ -86,7 +86,7 @@ function useMinuteClock() {
 }
 
 /** Requests waiting for you, shown at the top of Amigos because they need an answer. */
-export function PendingIncoming({ uid }: { uid: string }) {
+export function PendingIncoming({ uid }: { uid: string | readonly string[] }) {
   const [items, setItems] = useState<FriendRequestView[]>([]);
   const now = useMinuteClock();
   const { busy, error, message, act } = useRequestActions();
@@ -99,7 +99,7 @@ export function PendingIncoming({ uid }: { uid: string }) {
   const pending = items.filter((entry) => statusOf(entry, now) === "pending");
   if (!pending.length && !message && !error) return null;
   return <section className="friendPendingBlock" aria-label="Solicitudes pendientes">
-    {pending.length > 0 && <div className="streakSectionHead"><h3>Te quieren sumar a su racha</h3><span>{pending.length}</span></div>}
+    {pending.length > 0 && <div className="streakSectionHead"><h3>Solicitudes para ti</h3><span>{pending.length}</span></div>}
     {pending.map((entry) => <RequestRow key={entry.id} entry={entry} direction="incoming" now={now} busy={busy} act={act} />)}
     {message && <p role="status" className="streakSuccess">{message}</p>}
     {error && <p role="alert" className="streakError">{error}</p>}
@@ -107,7 +107,7 @@ export function PendingIncoming({ uid }: { uid: string }) {
 }
 
 /** Received / sent history, one list at a time. */
-export function RequestHistory({ uid }: { uid: string }) {
+export function RequestHistory({ uid }: { uid: string | readonly string[] }) {
   const [direction, setDirection] = useState<RequestDirection>("incoming");
   const now = useMinuteClock();
   const { busy, error, message, act } = useRequestActions();
@@ -124,13 +124,12 @@ export function RequestHistory({ uid }: { uid: string }) {
 }
 
 /** Your code as a ticket (copy / share) and the add-by-code search with its preview. */
-export const AddFriendCard = forwardRef<HTMLInputElement, { uid: string; friendCount: number }>(function AddFriendCard({ uid, friendCount }, searchRef) {
+export const AddFriendCard = forwardRef<HTMLInputElement, { uid: string }>(function AddFriendCard({ uid }, searchRef) {
   const [mine, setMine] = useState(""), [input, setInput] = useState(""), [preview, setPreview] = useState<FriendCodeView | null>(null);
   const [busy, setBusy] = useState(""), [error, setError] = useState(""), [message, setMessage] = useState("");
   const [retry, setRetry] = useState(0), [copied, setCopied] = useState(false);
   const attempt = useRef<{ code: string; id: string } | null>(null), generation = useRef(0);
   const canShare = typeof navigator !== "undefined" && typeof navigator.share === "function";
-  const full = friendCount >= FRIEND_LIMIT;
   useEffect(() => {
     let alive = true;
     void streakCommand<FriendCodeView>("getFriendCode").then((value) => { if (alive) { setMine(value.code); setError(""); } })
@@ -153,7 +152,7 @@ export const AddFriendCard = forwardRef<HTMLInputElement, { uid: string; friendC
     try {
       const result = await streakCommand<{ id: string; direction: RequestDirection }>("sendFriendRequest", { code: preview.code, requestId: attempt.current.id });
       attempt.current = null; setPreview(null); setInput("");
-      setMessage(result.direction === "incoming" ? "Esta persona ya te envió una solicitud. Puedes aceptarla arriba." : "Solicitud enviada. La otra persona debe aceptar para iniciar la racha.");
+      setMessage(result.direction === "incoming" ? "Esta persona ya te envió una solicitud. Puedes aceptarla arriba." : "Solicitud de amistad enviada. Cuando acepte, podrán invitarse a una racha.");
     } catch (reason) { setError(streakError(reason)); }
     finally { setBusy(""); }
   }
@@ -190,8 +189,8 @@ export const AddFriendCard = forwardRef<HTMLInputElement, { uid: string; friendC
         {preview && <div className="friendRequestPreview">
           <Avatar name={preview.name} photoURL={preview.photoURL} />
           <strong>{preview.name}</strong>
-          <button type="button" className="streakPrimary" disabled={!!busy || full} onClick={() => void send()}>{busy === "send" ? "Enviando…" : "Enviar solicitud"}</button>
-          <p className="streakHint">{full ? "Ya tienes cinco parejas activas." : "Al aceptar compartirán nombre, avatar y progreso de la racha."}</p>
+          <button type="button" className="streakPrimary" disabled={!!busy} onClick={() => void send()}>{busy === "send" ? "Enviando…" : "Enviar solicitud"}</button>
+          <p className="streakHint">Al aceptar serán amigos. Una racha compartida requiere otra invitación.</p>
         </div>}
       </form>
     </div>

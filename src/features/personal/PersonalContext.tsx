@@ -15,8 +15,9 @@ type PersonalState = {
   refreshStreak: () => Promise<void>;
   /** Received nudges (latest 20), shared by the pill, the bell and the live notice. */
   nudges: NudgeView[];
-  /** Signed-in account, or "" when signed out. */
+  /** Selected shared profile UID, or "" when signed out. */
   userId: string;
+  sourceUids: readonly string[];
   preferences: PersonalPreferences;
   scene: SceneSelection;
   progress: ProgressSummary;
@@ -48,6 +49,7 @@ const PersonalContext = createContext<PersonalState>({
   refreshStreak: async () => undefined,
   nudges: [],
   userId: "",
+  sourceUids: [],
   preferences: DEFAULT_PREFERENCES,
   scene: DEFAULT_SCENE,
   progress: EMPTY_PROGRESS,
@@ -90,7 +92,10 @@ function useUtcDay() {
 }
 
 export function PersonalProvider({ user, onNotice, children }: { user: PanelUser | null; onNotice?: (message: string) => void; children: ReactNode }) {
-  const uid = user?.id ?? "";
+  const authUid = user?.id ?? "";
+  const uid = user?.profileUid || authUid;
+  const sourceUids = useMemo(() => [...new Set(user?.mergedUids?.length ? user.mergedUids : [authUid])].filter(Boolean), [authUid, user?.mergedUids]);
+  const accountKey = `${authUid}|${uid}|${sourceUids.slice().sort().join("|")}`;
   const [preferences, setPreferences] = useState<PersonalPreferences>(() => uid ? cachedPreferences(uid) : DEFAULT_PREFERENCES);
   const [scene, setScene] = useState<SceneSelection>(DEFAULT_SCENE);
   const [stored, setStored] = useState<{ activeDays: number; days: number[] }>({ activeDays: 0, days: [] });
@@ -103,31 +108,31 @@ export function PersonalProvider({ user, onNotice, children }: { user: PanelUser
   const [streak, setStreak] = useState<StreakSnapshot | null>(null);
   const [streakError, setStreakError] = useState("");
   const [nudges, setNudges] = useState<NudgeView[]>([]);
-  const currentUid = useRef(uid);
-  currentUid.current = uid;
+  const currentUid = useRef(accountKey);
+  currentUid.current = accountKey;
   const inFlight = useRef<{ uid: string; task: Promise<void>; again: boolean } | null>(null);
   const refreshStreak = useCallback((): Promise<void> => {
     if (!uid) return Promise.resolve();
-    if (inFlight.current?.uid === uid) {
+    if (inFlight.current?.uid === accountKey) {
       inFlight.current.again = true;
       return inFlight.current.task;
     }
-    const entry = { uid, again: false, task: Promise.resolve() };
+    const entry = { uid: accountKey, again: false, task: Promise.resolve() };
     inFlight.current = entry;
     entry.task = (async () => {
       do {
         entry.again = false;
         try {
           const value = await streakCommand<StreakSnapshot>("summary");
-          if (currentUid.current === uid) { setStreak(value); setStreakError(""); }
+          if (currentUid.current === accountKey) { setStreak(value); setStreakError(""); }
         } catch (error) {
-          if (currentUid.current === uid) setStreakError(describeStreakError(error));
+          if (currentUid.current === accountKey) setStreakError(describeStreakError(error));
           break;
         }
-      } while (entry.again && currentUid.current === uid);
+      } while (entry.again && currentUid.current === accountKey);
     })().finally(() => { if (inFlight.current === entry) inFlight.current = null; });
     return entry.task;
-  }, [uid]);
+  }, [accountKey]);
 
   useEffect(() => {
     setStreak(null); setStreakError("");
@@ -141,16 +146,16 @@ export function PersonalProvider({ user, onNotice, children }: { user: PanelUser
     window.addEventListener("focus", refresh);
     window.addEventListener("online", refresh);
     return () => { active = false; stop?.(); window.removeEventListener("focus", refresh); window.removeEventListener("online", refresh); };
-  }, [uid, refreshStreak]);
+  }, [accountKey, uid, refreshStreak]);
   useEffect(() => { if (uid) void refreshStreak(); }, [uid, today, walletSnapshot.earned, refreshStreak]);
   useEffect(() => {
     setNudges([]);
     if (!uid) return;
     let active = true, stop: (() => void) | undefined;
-    void watchNudges(uid, (value) => { if (active) setNudges(value); }, () => undefined)
+    void watchNudges(sourceUids, (value) => { if (active) setNudges(value); }, () => undefined)
       .then((unsubscribe) => { if (active) stop = unsubscribe; else unsubscribe(); }).catch(() => undefined);
     return () => { active = false; stop?.(); };
-  }, [uid]);
+  }, [accountKey]);
 
   useEffect(() => {
     setPreferences(uid ? cachedPreferences(uid) : DEFAULT_PREFERENCES);
@@ -160,28 +165,28 @@ export function PersonalProvider({ user, onNotice, children }: { user: PanelUser
     setWalletSnapshot(EMPTY_WALLET);
     setWalletReady(false);
     setOwned(NOTHING_OWNED);
-    if (!uid) return;
+    if (!uid || !authUid) return;
     let active = true;
     const stops: (() => void)[] = [];
     const keep = (stop: () => void) => { if (active) stops.push(stop); else stop(); };
     void Promise.all([import("./personalStore"), import("../progress/progressStore")]).then(async ([store, progressStore]) => {
       keep(await store.watchPreferences(uid, (value) => { if (active) setPreferences(value); }, () => undefined));
       keep(await store.watchScene(uid, (value) => { if (active) setScene(value); }, () => undefined));
-      keep(await progressStore.watchProgress(uid, (value) => {
+      keep(await progressStore.watchProgress(sourceUids, (value) => {
         if (!active) return;
         setStored({ activeDays: value.activeDays, days: value.days });
         setProgressReady(true);
       }, () => { if (active) setProgressReady(true); }));
-      keep(await progressStore.watchWallet(uid, (value) => { if (active) { setWalletSnapshot(value); setWalletReady(true); } }, () => { if (active) setWalletReady(true); }));
-      keep(await progressStore.watchInventory(uid, (value) => { if (active) setOwned(new Set(value)); }, () => undefined));
+      keep(await progressStore.watchWallet(uid, (value) => { if (active) { setWalletSnapshot(value); setWalletReady(true); } }, () => { if (active) setWalletReady(true); }, sourceUids, user?.mergeId ?? ""));
+      keep(await progressStore.watchInventory(sourceUids, (value) => { if (active) setOwned(new Set(value)); }, () => undefined));
       // Retry any active day that could not be recorded in a previous session.
-      void progressStore.flushProgressQueue(uid);
+      void progressStore.flushProgressQueue(authUid);
     }).catch(() => {
       // A failed load is an answer too: never leave the streak views on placeholders.
       if (active) { setProgressReady(true); setWalletReady(true); }
     });
 
-    const retry = () => { void import("../progress/progressStore").then(({ flushProgressQueue }) => flushProgressQueue(uid)); };
+    const retry = () => { void import("../progress/progressStore").then(({ flushProgressQueue }) => flushProgressQueue(authUid)); };
     window.addEventListener("focus", retry);
     window.addEventListener("online", retry);
     return () => {
@@ -190,7 +195,7 @@ export function PersonalProvider({ user, onNotice, children }: { user: PanelUser
       window.removeEventListener("focus", retry);
       window.removeEventListener("online", retry);
     };
-  }, [uid]);
+  }, [accountKey, uid, authUid, user?.mergeId]);
 
   // Streaks and today's points depend on the current UTC day, not only on the stored data:
   // a skipped day resets the current streak even before any new activity.
@@ -215,7 +220,7 @@ export function PersonalProvider({ user, onNotice, children }: { user: PanelUser
     previous.current = null;
     pending.current = [];
     window.clearTimeout(noticeTimer.current);
-  }, [uid]);
+  }, [accountKey]);
   useEffect(() => {
     if (!progressReady || !walletReady) return;
     const state: RewardState = { activeDays: progress.activeDays, days: progress.days, earned: wallet.earned, pointsToday: wallet.pointsToday, currentStreak: progress.currentStreak };
@@ -254,11 +259,11 @@ export function PersonalProvider({ user, onNotice, children }: { user: PanelUser
   const purchase = useCallback(async (itemId: string) => {
     if (!uid) return;
     const { purchaseItem } = await import("../progress/progressStore");
-    await purchaseItem(uid, itemId);
-  }, [uid]);
+    await purchaseItem(uid, itemId, sourceUids);
+  }, [uid, sourceUids]);
 
-  const value = useMemo(() => ({ streak, streakError, refreshStreak, nudges, userId: uid, preferences, scene, progress, progressReady, wallet, walletReady, owned, today, reducedMotion, savePreferences, saveScene, purchase }),
-    [streak, streakError, refreshStreak, nudges, uid, preferences, scene, progress, progressReady, wallet, walletReady, owned, today, reducedMotion, savePreferences, saveScene, purchase]);
+  const value = useMemo(() => ({ streak, streakError, refreshStreak, nudges, userId: uid, sourceUids, preferences, scene, progress, progressReady, wallet, walletReady, owned, today, reducedMotion, savePreferences, saveScene, purchase }),
+    [streak, streakError, refreshStreak, nudges, uid, sourceUids, preferences, scene, progress, progressReady, wallet, walletReady, owned, today, reducedMotion, savePreferences, saveScene, purchase]);
   return <PersonalContext.Provider value={value}>{children}</PersonalContext.Provider>;
 }
 

@@ -22,15 +22,16 @@ export function useProjectCatalog(user: PanelUser | null) {
       setReadyUserId(null);
       return;
     }
-    if (activeUserId.current !== user.id) {
-      activeUserId.current = user.id;
+    const userKey = [...new Set(user.mergedUids?.length ? user.mergedUids : [user.id])].sort().join("|");
+    if (activeUserId.current !== userKey) {
+      activeUserId.current = userKey;
       setProjects([]);
     }
     setLoading(true);
     setError("");
     setReadyUserId(null);
     void import("./projectCatalog").then(async ({ watchProjects }) => {
-      const stop = await watchProjects(user.id, (nextProjects, unavailableCount) => {
+      const stop = await watchProjects(user.mergedUids?.length ? user.mergedUids : [user.id], (nextProjects, unavailableCount) => {
         if (!active) return;
         setProjects(nextProjects);
         setLoading(false);

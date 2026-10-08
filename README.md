@@ -8,7 +8,7 @@
 
 <!-- La placa de versión repite VERSION: la actualiza `npm run version:bump` (AGENTS.md, «Versiones»). -->
 <p align="center">
-  <a href="CHANGELOG.md"><img alt="version 0.4.2" src="https://img.shields.io/badge/version-0.4.2-0b7a5b"></a>
+  <a href="CHANGELOG.md"><img alt="version 0.5.0" src="https://img.shields.io/badge/version-0.5.0-0b7a5b"></a>
   <a href="https://react.dev"><img alt="React 19" src="https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=111827"></a>
   <a href="https://www.typescriptlang.org"><img alt="TypeScript 5" src="https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white"></a>
   <a href="https://vite.dev"><img alt="Vite 7" src="https://img.shields.io/badge/Vite-7-646CFF?logo=vite&logoColor=white"></a>
@@ -54,13 +54,14 @@ La portada presenta Cowork sin exponer información del equipo. Para crear o abr
 |---|---|
 | Proyectos privados | Crear espacios y ver solo los proyectos a los que pertenece tu cuenta. |
 | Equipos por proyecto | Compartir un enlace o QR para solicitar acceso; el propietario aprueba, rechaza o permite un nuevo intento, con historial de cada decisión. La propiedad se puede transferir a un miembro activo. |
+| Unir cuentas Cowork | Verificar dos cuentas existentes, elegir el perfil principal y entrar al mismo espacio con cualquiera de las dos. Las identidades de Firebase siguen separadas. |
 | Resumen del proyecto | Tus tareas abiertas, el avance, el próximo hito, la actividad reciente, el repositorio y el código de un vistazo, con pasos pendientes para el propietario. |
 | Tablero de tareas | Tablero por estado (arrastrando, con el teclado o con el select) o lista por fases, con espacios uniformes entre el tablero, las propuestas de novedades y los hitos. Cada tarea tiene descripción, prioridad, fecha límite, lista de pasos y rama. Se filtra por texto, responsable, estado, hito, prioridad y fecha. Ver [docs/TASKS.md](docs/TASKS.md). |
 | Hitos | Dividir la entrega en hitos con fecha y zona horaria; su avance se calcula con las tareas vinculadas. |
 | Plazo de entrega | Cuenta regresiva hasta el final del último día en la zona horaria del proyecto, o una escena pixel art cuando no hay fecha. |
 | Actividad | Bandeja «Para ti» (solicitudes, decisiones, tus tareas y entregas próximas) y registro de cambios del equipo, con estado de lectura sincronizado entre dispositivos. |
 | Selector de proyectos | Búsqueda sin distinguir acentos, favoritos, orden personal, vistas previas rotativas y favicon detectados del sitio. «Activado» y «Reducido» prevalecen sobre el sistema; «Sistema» sigue la preferencia del dispositivo. |
-| Rachas y amigos | Calendario UTC, metas e insignias, protectores de un día y escudos de siete días, hasta cinco parejas con [códigos de amigo](docs/FRIEND-CODES.md) y toques con frases predefinidas. La celebración de cada nuevo día muestra una llama animada, el contador y el botón «Ver mi progreso» en una fila propia. |
+| Rachas y amigos | Calendario UTC, metas e insignias, protectores de un día y escudos de siete días. Puedes tener más de cinco amigos con [códigos de amigo](docs/FRIEND-CODES.md); hasta cinco rachas compartidas se activan con una invitación y aceptación independientes. Toques con frases predefinidas. La celebración de cada nuevo día muestra una llama animada, el contador y el botón «Ver mi progreso» en una fila propia. |
 | Mi colección | Personajes y paisajes pixel art: unos se desbloquean con días activos acumulados y otros se compran con puntos. |
 | Ramas y cambios | Una sola lista con las ramas del registro y las de GitHub: dónde existe cada una, su pull request, cuánto se ha separado de la principal, sus commits y sus tareas. Permite registrar, crear en GitHub, borrar y quitar del registro. |
 | Código | Explorador de archivos de cualquier rama o etiqueta, con los iconos de lenguajes de [Material Icon Theme](https://github.com/material-extensions/vscode-material-icon-theme) (MIT), resaltado de sintaxis, marcas de cambios y enlaces a líneas. Una barra como la de GitHub: selector de rama o etiqueta, «Ir a archivo» con la tecla `T`, clonar por HTTPS, SSH o GitHub CLI y descargar el ZIP. Las imágenes y los SVG tienen vista previa. Ver [docs/CODE-VIEWER.md](docs/CODE-VIEWER.md). |
@@ -97,6 +98,14 @@ Cada día cuenta una sola vez, aunque haya varias acciones. Los protectores de u
 <p align="center"><img src="docs/images/streak-week.svg" width="100%" alt="Semana de domingo a sábado: cinco días activos, el martes protegido y el sábado pendiente. La racha es de cinco días."></p>
 
 Al sumar un día, la tarjeta de celebración entra con la llama animada y mantiene un brillo suave cuando queda en reposo; el botón «Ver mi progreso» ocupa una fila propia bajo el contador. Los detalles están en [docs/STREAKS.md](docs/STREAKS.md).
+
+### Amigos y rachas compartidas
+
+Aceptar una amistad no inicia una racha. En **Rachas y puntos → Amigos** puedes consultar todos tus amigos por páginas de veinte e invitar a cualquiera a compartir una racha. Al aceptar, ambas personas ocupan una de sus cinco plazas. Puedes finalizarla sin eliminar la amistad: el récord se conserva y una nueva aceptación inicia otro periodo desde ese día. Eliminar una amistad cierra también su racha. Puedes tener cinco solicitudes de amistad y cinco de racha enviadas pendientes; caducan a los siete días.
+
+### Unir cuentas Cowork
+
+Desde el menú de perfil, en **Métodos de acceso**, puedes unir dos cuentas Cowork que ya existan. Verifica la cuenta actual y vuelve a entrar en la otra con su contraseña, Google o GitHub. Después eliges qué nombre, avatar, preferencias y escena conservar. Ambas cuentas siguen siendo inicios de sesión distintos, pero cualquiera abre el perfil compartido; sus proyectos y datos personales quedan accesibles desde ese perfil. Si entre las dos hay más de cinco rachas activas, eliges cinco para conservar: las demás se cierran, sin borrar amistades ni récords.
 
 ### Conectar GitHub
 

@@ -28,6 +28,7 @@ import type { AccessContext, EntryIntent, PanelUser } from "../../types";
 import { auth, firebaseConfigured } from "../../lib/firebase";
 import { accessContinueUrl, clearAuthActionUrl } from "./accessContext";
 import { clearGitHubToken, storeGitHubToken } from "../github/githubSession";
+import { readMergedIdentity } from "../account-merge/accountMerge";
 
 const EMAIL_STORAGE_KEY = "cowork.email-link-address";
 
@@ -41,6 +42,8 @@ export function panelProfileForAuthUser(user: User | null): PanelUser | null {
   const name = user.displayName?.trim() || email.split("@")[0] || "Miembro del equipo";
   return {
     id: user.uid,
+    profileUid: user.uid,
+    mergedUids: [user.uid],
     name,
     email,
     photoURL: user.photoURL || "",
@@ -49,10 +52,28 @@ export function panelProfileForAuthUser(user: User | null): PanelUser | null {
   };
 }
 
+async function resolvedPanelProfileForAuthUser(user: User | null): Promise<PanelUser | null> {
+  const basic = panelProfileForAuthUser(user);
+  if (!basic) return null;
+  try {
+    const merged = await readMergedIdentity(basic.id);
+    if (merged) return { ...basic, profileUid: merged.profileUid, mergeId: merged.mergeId, mergedUids: merged.memberUids,
+      name: merged.name, email: merged.email || basic.email, photoURL: merged.photoURL || basic.photoURL };
+  } catch {
+    // Sign-in still works while offline; the next auth refresh resolves the shared profile.
+  }
+  return basic;
+}
+
 export function observePanelAuth(onChange: (user: PanelUser | null) => void) {
   const authClient = auth;
   if (!authClient || !firebaseConfigured) return () => undefined;
-  return onAuthStateChanged(authClient, (firebaseUser) => onChange(panelProfileForAuthUser(firebaseUser)));
+  return onAuthStateChanged(authClient, (firebaseUser) => {
+    const uid = firebaseUser?.uid ?? "";
+    void resolvedPanelProfileForAuthUser(firebaseUser).then((profile) => {
+      if ((authClient.currentUser?.uid ?? "") === uid) onChange(profile);
+    });
+  });
 }
 
 export function isEmailLinkSignIn() {
@@ -90,7 +111,7 @@ export async function loginWithEmailPassword(emailValue: string, password: strin
   if (!password) throw Object.assign(new Error("Escribe tu contraseña."), { code: "cowork/invalid-password" });
   await setPersistence(auth, browserLocalPersistence);
   const credential = await signInWithEmailAndPassword(auth, email, password);
-  const profile = panelProfileForAuthUser(credential.user);
+  const profile = await resolvedPanelProfileForAuthUser(credential.user);
   if (!profile) throw Object.assign(new Error("Firebase no devolvió una cuenta con correo."), { code: "cowork/missing-email" });
   return profile;
 }
@@ -108,7 +129,7 @@ export async function refreshPanelAuthUser() {
   const currentUser = auth.currentUser;
   await currentUser.reload();
   await currentUser.getIdToken(true);
-  const profile = panelProfileForAuthUser(currentUser);
+  const profile = await resolvedPanelProfileForAuthUser(currentUser);
   if (!profile) throw Object.assign(new Error("Firebase no devolvió una cuenta con correo."), { code: "cowork/missing-email" });
   return profile;
 }
@@ -121,7 +142,7 @@ export async function registerWithEmailPassword(emailValue: string, password: st
   const credential = await createUserWithEmailAndPassword(auth, email, password);
   try {
     if (displayName.trim()) await updateProfile(credential.user, { displayName: displayName.trim() });
-    const profile = panelProfileForAuthUser(credential.user);
+    const profile = await resolvedPanelProfileForAuthUser(credential.user);
     if (!profile) throw Object.assign(new Error("Firebase no devolvió una cuenta con correo."), { code: "cowork/missing-email" });
     return profile;
   } catch (error) {
@@ -147,7 +168,7 @@ export async function completeEmailLinkSignIn(emailValue: string, context: Acces
   const credential = await signInWithEmailLink(auth, email, window.location.href);
   try { localStorage.removeItem(EMAIL_STORAGE_KEY); } catch { /* Ignore unavailable browser storage. */ }
   clearAuthActionUrl(context, intent);
-  const profile = panelProfileForAuthUser(credential.user);
+  const profile = await resolvedPanelProfileForAuthUser(credential.user);
   if (!profile) throw Object.assign(new Error("Firebase no devolvió una cuenta con correo."), { code: "cowork/missing-email" });
   return profile;
 }
@@ -188,9 +209,9 @@ function keepGitHubToken(result: UserCredential) {
   if (token) storeGitHubToken(result.user.uid, token);
 }
 
-function profileFromCredential(result: UserCredential, kind: OAuthKind) {
+async function profileFromCredential(result: UserCredential, kind: OAuthKind) {
   keepGitHubToken(result);
-  const profile = panelProfileForAuthUser(result.user);
+  const profile = await resolvedPanelProfileForAuthUser(result.user);
   if (!profile) throw Object.assign(new Error(`La cuenta de ${PROVIDER_NAME[kind]} no compartió un correo.`), { code: "cowork/missing-email" });
   return profile;
 }
@@ -223,7 +244,7 @@ export function loginWithGitHub() {
 async function linkProvider(kind: OAuthKind) {
   if (!auth?.currentUser || !firebaseConfigured) throw authUnavailable();
   if (auth.currentUser.providerData.some((provider) => provider.providerId === PROVIDER_ID[kind])) {
-    const current = panelProfileForAuthUser(auth.currentUser);
+    const current = await resolvedPanelProfileForAuthUser(auth.currentUser);
     if (current) return current;
   }
   const provider = oauthProvider(kind);
@@ -273,7 +294,7 @@ export async function unlinkGitHub() {
   }
   const user = await unlink(auth.currentUser, PROVIDER_ID.github);
   clearGitHubToken(user.uid);
-  return panelProfileForAuthUser(user);
+  return resolvedPanelProfileForAuthUser(user);
 }
 
 let redirectResultPromise: ReturnType<typeof getRedirectResult> | null = null;
@@ -285,7 +306,7 @@ export async function getAuthRedirectResult() {
   const result = await redirectResultPromise;
   if (!result) return null;
   const kind: OAuthKind = result.providerId === PROVIDER_ID.github ? "github" : "google";
-  return { operationType: result.operationType, provider: kind, profile: profileFromCredential(result, kind) };
+  return { operationType: result.operationType, provider: kind, profile: await profileFromCredential(result, kind) };
 }
 
 export async function endSession() {

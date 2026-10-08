@@ -27,12 +27,18 @@ export function coverage(state: ProtectionState, today: number, active: boolean,
 export class SparkRewards {
   db: Firestore;
   uid: string;
+  identityUids: string[];
   serverAt = 0;
   monotonicAt = 0;
-  constructor(db: Firestore, uid: string) { this.db = db; this.uid = uid; }
+  constructor(db: Firestore, uid: string, identityUids: readonly string[] = [uid]) {
+    this.db = db; this.uid = uid; this.identityUids = [...new Set(identityUids)].filter(Boolean);
+    if (!this.identityUids.includes(uid)) this.identityUids.unshift(uid);
+  }
   ref(path: string) { return doc(this.db, "users", this.uid, ...path.split("/")); }
   presenceRef() { return doc(this.db, "streakPresence", this.uid); }
+  presenceRefFor(uid: string) { return doc(this.db, "streakPresence", uid); }
   visibleRef(day: number) { return doc(this.db, "streakPresence", this.uid, "days", String(day)); }
+  visibleRefFor(uid: string, day: number) { return doc(this.db, "streakPresence", uid, "days", String(day)); }
   now() { return this.serverAt ? this.serverAt + performance.now() - this.monotonicAt : Date.now(); }
   async syncClock(force = false) {
     if (!force && this.serverAt && performance.now() - this.monotonicAt < 300_000) return;
@@ -61,7 +67,7 @@ export class SparkRewards {
     await ledgerTransaction(this.db, async (tx) => {
       const eventDoc = await tx.get(doc(this.db, "projects", projectId, "events", eventId)), event = eventDoc.data();
       if (!event) return;
-      if (event.actorUid !== this.uid) fail("Esta actividad no pertenece a tu cuenta.");
+      if (!this.identityUids.includes(String(event.actorUid))) fail("Esta actividad no pertenece a tu cuenta.");
       const eligible = event.kind === "created" && ["task", "branch", "project"].includes(event.targetType)
         || event.kind === "updated" && event.targetType === "task" && event.changes?.status && event.changes.status.from !== event.changes.status.to;
       if (!eligible) return;
@@ -72,9 +78,10 @@ export class SparkRewards {
       const day = dayOf(at!), key = workKey(projectId, eventId, event);
       const receiptRef = this.ref(`workReceipts/${key}`);
       if ((await tx.get(receiptRef)).exists()) return;
+      const dailyRefs = this.identityUids.filter((uid) => uid !== this.uid).map((uid) => doc(this.db, "users", uid, "pointDays", String(day)));
       const refs = [this.ref("streak/state"), this.ref(`activeDays/${day}`), this.ref("progress/summary"),
         this.ref(`pointEvents/${key}`), this.ref(`pointDays/${day}`), this.ref("progress/wallet"), receiptRef];
-      const [stored, active, summary, point, daily, wallet, receipt] = await Promise.all(refs.map((ref) => tx.get(ref)));
+      const [stored, active, summary, point, daily, wallet, receipt, ...identityDaily] = await Promise.all([...refs, ...dailyRefs].map((ref) => tx.get(ref)));
       const state = stored.data() as ProtectionState;
       if (day < state.managedFrom || day <= state.lastSettledDay || receipt.exists()) return;
       if (event.targetType === "branch" && point.exists() && point.get("eventId") !== eventId) return;
@@ -87,8 +94,10 @@ export class SparkRewards {
         tx.set(refs[1], { day, projectId, eventId, recordedAt: event.createdAt, key });
       }
       tx.set(this.visibleRef(day), { day, kind: "active" });
+      for (const uid of this.identityUids) if (uid !== this.uid) tx.set(this.visibleRefFor(uid, day), { day, kind: "active" });
       if (day === dayOf(this.now())) tx.set(this.presenceRef(), coverage(state, day, true, true));
-      if (paysPoints && !point.exists() && (daily.get("points") ?? 0) < POINT_LIMIT) {
+      const totalPointsToday = (daily.get("points") ?? 0) + identityDaily.reduce((sum, entry) => sum + (entry.get("points") ?? 0), 0);
+      if (paysPoints && !point.exists() && totalPointsToday < POINT_LIMIT) {
         const old = walletData(wallet.data());
         tx.set(refs[3], { projectId, eventId, day, recordedAt: serverTimestamp() });
         tx.set(refs[4], { day, points: (daily.get("points") ?? 0) + 1, lastAward: key, updatedAt: serverTimestamp() });
@@ -100,9 +109,10 @@ export class SparkRewards {
   async catchUp(state: ProtectionState, includeToday = false) {
     const today = dayOf(this.now()), end = today + (includeToday ? 1 : 0), start = Math.max(state.managedFrom, state.lastSettledDay + 1);
     if (start >= end) return;
-    const events = await getDocs(query(collectionGroup(this.db, "events"), where("actorUid", "==", this.uid),
-      where("createdAt", ">=", Timestamp.fromMillis(start * DAY_MS)), where("createdAt", "<", Timestamp.fromMillis(end * DAY_MS))));
-    for (const event of events.docs) {
+    const batches = await Promise.all(this.identityUids.map((uid) => getDocs(query(collectionGroup(this.db, "events"), where("actorUid", "==", uid),
+      where("createdAt", ">=", Timestamp.fromMillis(start * DAY_MS)), where("createdAt", "<", Timestamp.fromMillis(end * DAY_MS))))));
+    const events = new Map(batches.flatMap((batch) => batch.docs.map((event) => [event.ref.path, event] as const)));
+    for (const event of events.values()) {
       const projectId = event.ref.parent.parent?.id;
       if (projectId) await this.credit(projectId, event.id);
     }
@@ -127,7 +137,10 @@ export class SparkRewards {
         const end = !alive && !active.exists() && (summary.get("lastRecordedDay") ?? -1) < day ? today - 1 : day;
         tx.update(ref, { lastSettledDay: end, protectors: before.protectors - (protect && !shield ? 1 : 0) });
         if (protect) tx.set(this.ref(`protectedDays/${day}`), { day, source: shield ? "shield" : "single" });
-        if (protect || active.exists()) tx.set(this.visibleRef(day), { day, kind: active.exists() ? "active" : "protected" });
+        if (protect || active.exists()) {
+          const kind = active.exists() ? "active" : "protected";
+          for (const uid of this.identityUids) tx.set(this.visibleRefFor(uid, day), { day, kind });
+        }
         return end >= today - 1;
       });
       if (finished) return;
@@ -143,29 +156,54 @@ export class SparkRewards {
   }
   async publishPresence() {
     await ledgerTransaction(this.db, async (tx) => {
-      const value = await this.presenceInputs(tx), previous = await tx.get(this.presenceRef());
+      const value = await this.presenceInputs(tx), previous = await Promise.all(this.identityUids.map((uid) => tx.get(this.presenceRefFor(uid))));
       const next = coverage(value.state, value.today, value.active, value.previous);
-      if (!previous.exists() || previous.get("asOf") !== next.asOf || previous.get("from") !== next.from || previous.get("through") !== next.through) tx.set(this.presenceRef(), next);
+      previous.forEach((entry, index) => {
+        if (!entry.exists() || entry.get("asOf") !== next.asOf || entry.get("from") !== next.from || entry.get("through") !== next.through)
+          tx.set(this.presenceRefFor(this.identityUids[index]), next);
+      });
     });
   }
   async summary(): Promise<StreakSnapshot> {
     await this.initialize(); await this.closeDays();
     await this.catchUp((await getDocFromServer(this.ref("streak/state"))).data() as ProtectionState, true);
     await this.publishPresence();
-    const [stored, active, protectedDocs, points, summary] = await Promise.all([
-      getDocFromServer(this.ref("streak/state")), getDocs(collection(this.db, "users", this.uid, "activeDays")),
-      getDocs(collection(this.db, "users", this.uid, "protectedDays")), getDocs(collection(this.db, "users", this.uid, "pointDays")),
-      getDocFromServer(this.ref("progress/summary")),
-    ]);
-    const today = dayOf(this.now()), days = active.docs.map((entry) => entry.get("day") as number);
+    const all = await Promise.all(this.identityUids.map(async (uid) => {
+      const [state, active, protectedDays, points, progress] = await Promise.all([
+        getDocFromServer(this.refFor(uid, "streak/state")), getDocs(collection(this.db, "users", uid, "activeDays")),
+        getDocs(collection(this.db, "users", uid, "protectedDays")), getDocs(collection(this.db, "users", uid, "pointDays")),
+        getDocFromServer(this.refFor(uid, "progress/summary")),
+      ]);
+      return { state, active, protectedDays, points, progress };
+    }));
+    const stored = all[this.identityUids.indexOf(this.uid)]?.state;
+    const activeByDay = new Map<number, number | null>();
+    for (const source of all) for (const entry of source.active.docs) {
+      const day = Number(entry.get("day")), at = millis(entry.get("recordedAt"));
+      const prior = activeByDay.get(day);
+      if (!activeByDay.has(day) || (at !== null && (prior == null || at < prior))) activeByDay.set(day, at);
+    }
+    const days = [...activeByDay.keys()];
+    const protectedByDay = new Map<number, ProtectionProduct>();
+    for (const source of all) for (const entry of source.protectedDays.docs) {
+      const day = Number(entry.get("day"));
+      if (!activeByDay.has(day)) protectedByDay.set(day, entry.get("source") as ProtectionProduct);
+    }
+    const pointByDay = new Map<number, number>();
+    for (const source of all) for (const entry of source.points.docs) {
+      const day = Number(entry.get("day")); pointByDay.set(day, (pointByDay.get(day) ?? 0) + Number(entry.get("points") || 0));
+    }
+    const today = dayOf(this.now());
     const result = reconcile(stored.data() as ProtectionState, days,
-      protectedDocs.docs.map((entry) => ({ day: entry.get("day") as number, source: entry.get("source") as ProtectionProduct })), today);
-    const pointMap = new Map(points.docs.map((entry) => [entry.get("day"), entry.get("points")]));
-    const calendar: CalendarDay[] = active.docs.map((entry) => ({ day: entry.get("day"), kind: "active",
-      points: pointMap.get(entry.get("day")) ?? 0, firstAt: millis(entry.get("recordedAt")) }));
+      [...protectedByDay].map(([day, source]) => ({ day, source })), today);
+    result.state.best = Math.max(result.state.best, ...all.map((source) => Number(source.state.get("best") ?? 0)));
+    result.state.badges = [...new Map(all.flatMap((source) => {
+      const badges = source.state.get("badges"); return Array.isArray(badges) ? badges as { id: string; day: number; label: string }[] : [];
+    }).map((badge) => [badge.id, badge])).values()];
+    const calendar: CalendarDay[] = days.map((day) => ({ day, kind: "active", points: pointByDay.get(day) ?? 0, firstAt: activeByDay.get(day) ?? null }));
     for (const entry of result.protectedDays) if (!days.includes(entry.day)) calendar.push({ day: entry.day, kind: "protected", points: 0, firstAt: null });
     calendar.sort((a, b) => a.day - b.day);
-    return { state: result.state, calendar, activeDays: Math.max(summary.get("activeDays") ?? 0, days.length), today };
+    return { state: result.state, calendar, activeDays: Math.max(...all.map((source) => Number(source.progress.get("activeDays") ?? 0)), days.length), today };
   }
   async purchase(product: ProtectionProduct, requestId: string) {
     if ((product !== "single" && product !== "shield") || !/^[a-zA-Z0-9_-]{1,80}$/.test(requestId)) fail("Compra no válida.");
@@ -197,4 +235,5 @@ export class SparkRewards {
         badges: value.state.badges.filter((entry) => entry.day === day).map((entry) => entry.label) };
     });
   }
+  refFor(uid: string, path: string) { return doc(this.db, "users", uid, ...path.split("/")); }
 }

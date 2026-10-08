@@ -35,7 +35,7 @@ function purchaseError(error: unknown) {
 
 export function CollectionDialog({ onClose }: { onClose: () => void }) {
   const dialogRef = useRef<HTMLDialogElement>(null);
-  const { userId, progress, progressReady, wallet, walletReady, owned, scene, today, saveScene, purchase } = usePersonal();
+  const { userId, sourceUids, progress, progressReady, wallet, walletReady, owned, scene, today, saveScene, purchase } = usePersonal();
   const [movements, setMovements] = useState<PointMovement[]>([]);
   const activeToday = progress.days.includes(today);
   const [draft, setDraft] = useState<SceneSelection>(scene);
@@ -67,11 +67,11 @@ export function CollectionDialog({ onClose }: { onClose: () => void }) {
     let stop: (() => void) | null = null;
     let active = true;
     void import("../progress/progressStore")
-      .then(({ watchMovements }) => watchMovements(userId, (value) => { if (active) setMovements(value); }, () => undefined))
+      .then(({ watchMovements }) => watchMovements(sourceUids, (value) => { if (active) setMovements(value); }, () => undefined))
       .then((unsubscribe) => { if (active) stop = unsubscribe; else unsubscribe(); })
       .catch(() => undefined);
     return () => { active = false; stop?.(); };
-  }, [userId]);
+  }, [userId, sourceUids]);
 
   function close() {
     if (dialogRef.current?.open) dialogRef.current.close();

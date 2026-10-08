@@ -44,6 +44,37 @@ export const NEXT: Upcoming = { summary: { es: "", en: "" }, added: [], changed:
 
 export const RELEASES: Release[] = [
   {
+    version: "0.5.0",
+    date: "2026-10-08",
+    released: false,
+    kind: "feature",
+    summary: {
+      es: "Une dos cuentas y amplía tu lista de amigos, con un máximo de cinco rachas activas.",
+      en: "Join two accounts and grow your friends list while keeping at most five active streaks.",
+    },
+    added: [{
+      title: { es: "Unir dos cuentas Cowork", en: "Merge two Cowork accounts" },
+      body: {
+        es: "Confirma el acceso a ambas cuentas y elige qué perfil conservar. Cualquiera de los dos inicios de sesión abre el perfil compartido; los UID de Firebase permanecen separados.",
+        en: "Verify access to both accounts and choose the profile to keep. Either sign-in opens the shared profile, while the Firebase UIDs remain separate.",
+      },
+    }, {
+      title: { es: "Más amigos, sin tope de cinco", en: "More than five friends" },
+      body: {
+        es: "Las amistades se consultan por páginas de veinte y ya no ocupan una plaza de racha por sí solas.",
+        en: "Browse friendships in pages of twenty; a friendship alone no longer takes an active-streak slot.",
+      },
+    }],
+    changed: [{
+      title: { es: "Elige qué rachas conservar", en: "Choose which streaks to keep" },
+      body: {
+        es: "Al unir perfiles puedes mantener cinco rachas activas. Las demás se cierran y guardan su amistad e historial; las reglas también bloquean una fusión que supere ese límite.",
+        en: "A merged profile can keep five active streaks. The others end with their friendships and history intact, and Firestore rules enforce the shared cap.",
+      },
+    }],
+    fixed: [],
+  },
+  {
     version: "0.4.2",
     date: "2026-10-08",
     released: false,

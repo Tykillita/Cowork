@@ -3,18 +3,24 @@ import { SparkRewards, fail } from "./sparkRewards";
 import { SparkSocial } from "./sparkSocial";
 import type { ProtectionProduct } from "./streakModel";
 import { DEFAULT_NUDGE, isNudgeMessage, isNudgeReply, type NudgeMessage, type NudgeReply } from "./nudgeCatalog";
+import { readMergedIdentity } from "../account-merge/accountMerge";
 
-let session: { uid: string; rewards: SparkRewards; social: SparkSocial } | null = null;
+let session: { key: string; rewards: SparkRewards; social: SparkSocial } | null = null;
 export async function backend() {
   const user = auth?.currentUser, db = await getCoworkFirestore();
   if (!user?.email || !db) fail("Inicia sesión para acceder a tus recompensas.");
   const current = user!, database = db!;
-  if (!session || session.uid !== current.uid) {
-    const rewards = new SparkRewards(database, current.uid);
+  let merged = null;
+  try { merged = await readMergedIdentity(current.uid); } catch { /* Fall back to the signed-in UID while offline. */ }
+  const uid = merged?.profileUid ?? current.uid;
+  const key = `${current.uid}:${merged?.mergeId ?? ""}:${uid}`;
+  if (!session || session.key !== key) {
+    const identityUids = merged?.memberUids ?? [current.uid];
+    const rewards = new SparkRewards(database, uid, identityUids);
     const token = await current.getIdTokenResult();
-    const name = typeof token.claims.name === "string" && token.claims.name ? token.claims.name : "Persona de Cowork";
-    const photoURL = typeof token.claims.picture === "string" && token.claims.picture.startsWith("https://") ? token.claims.picture : "";
-    session = { uid: current.uid, rewards, social: new SparkSocial(rewards, { uid: current.uid, name: name.slice(0, 100), photoURL: photoURL.slice(0, 1500) }) };
+    const name = merged?.name || (typeof token.claims.name === "string" && token.claims.name ? token.claims.name : "Persona de Cowork");
+    const photoURL = merged?.photoURL || (typeof token.claims.picture === "string" && token.claims.picture.startsWith("https://") ? token.claims.picture : "");
+    session = { key, rewards, social: new SparkSocial(rewards, { uid, name: name.slice(0, 100), photoURL: photoURL.slice(0, 1500) }) };
   }
   return session;
 }
@@ -31,6 +37,10 @@ async function dispatch(action: string, data: Record<string, unknown>) {
     case "buyProtection": return rewards.purchase(data.product as ProtectionProduct, identifier(data, "requestId"));
     case "claimCelebration": return rewards.claimCelebration();
     case "friends": return social.friends();
+    case "friendPage": return social.friendPage(typeof data.cursor === "string" ? data.cursor : "");
+    case "activeStreaks": return social.activeStreaks();
+    case "requestStreak": return social.requestStreak(identifier(data, "friendshipId"), identifier(data, "requestId"));
+    case "removeFriend": return social.removeFriend(identifier(data, "friendshipId"));
     case "getFriendCode": return social.getFriendCode();
     case "lookupFriendCode": return social.lookupFriendCode(typeof data.code === "string" ? data.code : "");
     case "sendFriendRequest": return social.sendFriendRequest(typeof data.code === "string" ? data.code : "", identifier(data, "requestId"));

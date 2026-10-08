@@ -22,6 +22,14 @@ const app = firebaseConfigured
 
 export const auth = app ? getAuth(app) : null;
 
+// A second Auth instance lets the user prove the other Firebase identity
+// without signing out of the account whose data they are currently using.
+const mergeApp = app
+  ? getApps().find((candidate) => candidate.name === "cowork-account-merge")
+    ?? initializeApp(app.options, "cowork-account-merge")
+  : null;
+export const accountMergeAuth = mergeApp ? getAuth(mergeApp) : null;
+
 const emulatorRequested = import.meta.env.VITE_USE_FIREBASE_EMULATORS === "true"
   || (import.meta.env.DEV && import.meta.env.VITE_USE_FIREBASE_EMULATORS !== "false");
 const hostname = typeof window === "undefined" ? "" : window.location.hostname.toLowerCase();
@@ -49,6 +57,10 @@ if (auth && useEmulators) {
   const host = import.meta.env.VITE_FIREBASE_EMULATOR_HOST || "127.0.0.1";
   connectAuthEmulator(auth, `http://${host}:9099`, { disableWarnings: true });
 }
+if (accountMergeAuth && useEmulators) {
+  const host = import.meta.env.VITE_FIREBASE_EMULATOR_HOST || "127.0.0.1";
+  connectAuthEmulator(accountMergeAuth, `http://${host}:9099`, { disableWarnings: true });
+}
 
 let firestorePromise: Promise<Firestore | null> | null = null;
 
@@ -63,4 +75,19 @@ export function getCoworkFirestore(): Promise<Firestore | null> {
     return db;
   });
   return firestorePromise;
+}
+
+let accountMergeFirestorePromise: Promise<Firestore | null> | null = null;
+
+export function getAccountMergeFirestore(): Promise<Firestore | null> {
+  if (!mergeApp) return Promise.resolve(null);
+  accountMergeFirestorePromise ??= import("firebase/firestore").then(({ connectFirestoreEmulator, getFirestore }) => {
+    const db = getFirestore(mergeApp);
+    if (useEmulators) {
+      const host = import.meta.env.VITE_FIREBASE_EMULATOR_HOST || "127.0.0.1";
+      connectFirestoreEmulator(db, host, 8080);
+    }
+    return db;
+  });
+  return accountMergeFirestorePromise;
 }

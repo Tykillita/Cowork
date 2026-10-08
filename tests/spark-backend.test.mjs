@@ -8,6 +8,7 @@ import { SparkSocial } from "../src/features/streaks/sparkSocial.ts";
 import { DAY_MS, dayOf, initialProtection } from "../src/features/streaks/streakModel.ts";
 
 if (!process.env.FIRESTORE_EMULATOR_HOST || !process.env.GCLOUD_PROJECT?.startsWith("demo-")) throw new Error("These tests require a demo Firestore emulator.");
+const emulatorUrl = new URL(`http://${process.env.FIRESTORE_EMULATOR_HOST}`);
 let env;
 const today = () => dayOf(Date.now());
 const context = (uid) => env.authenticatedContext(uid, { email: uid + "@test.invalid", name: uid, email_verified: true }).firestore();
@@ -31,12 +32,154 @@ async function prepared(uid, options = {}) {
 async function connect(a, b) {
   const left = social(a), right = social(b), invite = await left.sendFriendRequest((await right.getFriendCode()).code, crypto.randomUUID());
   await right.decideInvite(invite.id, "accept");
-  return { left, right, id: invite.id };
+  const streak = await left.requestStreak(invite.id, crypto.randomUUID());
+  await right.decideInvite(streak.id, "accept");
+  return { left, right, id: streak.id, friendshipId: invite.id };
+}
+async function mergeAccounts(ownerUid, otherUid, mergeId = "f".repeat(48), profileUid = ownerUid) {
+  const owner = context(ownerUid), other = context(otherUid), memberUids = [ownerUid, otherUid].sort();
+  await setDoc(doc(owner, "accountMerges", mergeId), { version: 1, status: "pending", requestedByUid: ownerUid,
+    memberUids, profileUid, profileName: ownerUid, profileEmail: `${ownerUid}@test.invalid`, profilePhotoURL: "", otherName: otherUid, createdAt: serverTimestamp() });
+  await assertSucceeds(setDoc(doc(other, "accountMergeMembers", otherUid), { mergeId, createdAt: serverTimestamp() }));
+  const batch = writeBatch(owner);
+  batch.set(doc(owner, "accountMergeMembers", ownerUid), { mergeId, createdAt: serverTimestamp() });
+  batch.update(doc(owner, "accountMerges", mergeId), { status: "active", activatedAt: serverTimestamp() });
+  await assertSucceeds(batch.commit());
+  return { owner, other, mergeId, memberUids };
 }
 before(async () => { env = await initializeTestEnvironment({ projectId: process.env.GCLOUD_PROJECT,
-  firestore: { host: "127.0.0.1", port: 8080, rules: readFileSync("firestore.rules", "utf8") } }); });
+  firestore: { host: emulatorUrl.hostname, port: Number(emulatorUrl.port || 8080), rules: readFileSync("firestore.rules", "utf8") } }); });
 beforeEach(async () => env.clearFirestore());
 after(async () => env?.cleanup());
+
+test("legacy accepted pairs migrate once without changing their streak or capacity", async () => {
+  const id = "e".repeat(48), d = today();
+  for (const uid of ["ana", "bob"]) {
+    await social(uid).initialize();
+    await seed(`streakSocial/${uid}`, { activeCount: 1, pendingCount: 0, lastPair: id, lastInvite: "" });
+  }
+  const pair = { memberUids: ["ana", "bob"], people: { ana: { uid: "ana", name: "ana", photoURL: "" }, bob: { uid: "bob", name: "bob", photoURL: "" } },
+    status: "active", muted: [], since: d - 4, createdAt: Timestamp.now(), token: id };
+  await seed(`streakPairs/${id}`, pair);
+  // Old v2 invitations exist in production, but the migration must also cope with older retained pairs without their invite.
+  await social("ana").initialize(); await social("bob").initialize(); await social("ana").initialize();
+  assert.deepEqual(await stored(`streakPairs/${id}`), { ...pair, friendshipId: id });
+  assert.equal((await stored("streakSocial/ana")).activeCount, 1);
+  assert.equal((await stored(`streakFriendships/${id}`)).pairId, id);
+  await assertFails(updateDoc(doc(context("eve"), "streakFriendships", id), { status: "ended" }));
+});
+
+test("closing and reactivating a shared streak keeps the friendship and starts a fresh period", async () => {
+  const { left, right, id, friendshipId } = await connect("ana", "bob");
+  for (const member of [left, right]) { await proof(member.uid, member.uid + "-today"); await member.rewards.recordEvent("project", member.uid + "-today"); }
+  await left.manageFriend(id, "end");
+  const historical = await stored(`streakPairs/${id}`);
+  assert.equal(historical.best, 1); assert.equal(historical.closedCurrent, 1);
+  assert.equal((await left.friends())[0].best, 1);
+  const next = await right.requestStreak(friendshipId, "again");
+  await left.decideInvite(next.id, "accept");
+  assert.notEqual(next.id, id); assert.equal((await stored(`streakPairs/${next.id}`)).since, today());
+  assert.equal((await stored(`streakPairs/${id}`)).status, "ended");
+  await right.removeFriend(friendshipId);
+  assert.equal((await left.friends()).length, 0);
+  assert.equal((await stored(`streakPairs/${next.id}`)).status, "ended");
+  assert.equal((await stored("streakSocial/ana")).activeCount, 0);
+});
+
+test("more than twenty friends paginate without loss or duplicates", async () => {
+  const a = social("ana");
+  for (let i = 0; i < 23; i++) {
+    const b = social("peer" + i), request = await a.sendFriendRequest((await b.getFriendCode()).code, "friend" + i);
+    await b.decideInvite(request.id, "accept");
+  }
+  const first = await a.friendPage(), second = await a.friendPage(first.next);
+  assert.equal(first.items.length, 20); assert.equal(second.items.length, 3); assert.equal(second.next, null);
+  assert.equal(new Set([...first.items, ...second.items].map((friend) => friend.friendshipId)).size, 23);
+  assert.equal((await a.activeStreaks()).length, 0);
+});
+
+test("account fusion requires two authenticated approvals and grants only the chosen pair union access", async () => {
+  const id = "a".repeat(48), owner = context("ana"), other = context("bob"), outsider = context("eve");
+  await seed("users/ana/preferences/main", { motion: "full" });
+  await seed("projects/merge-project", { id: "merge-project", name: "Ana project", ownerUid: "ana" });
+  await seed("projects/merge-project/members/ana", { uid: "ana", role: "owner", status: "active" });
+  await assertSucceeds(setDoc(doc(owner, "accountMerges", id), { version: 1, status: "pending", requestedByUid: "ana",
+    memberUids: ["ana", "bob"], profileUid: "ana", profileName: "ana", profileEmail: "ana@test.invalid", profilePhotoURL: "", otherName: "bob", createdAt: serverTimestamp() }));
+  await assertFails(getDoc(doc(other, "users", "ana", "preferences", "main")));
+  await assertFails(setDoc(doc(owner, "accountMergeMembers", "bob"), { mergeId: id, createdAt: serverTimestamp() }));
+  await assertSucceeds(setDoc(doc(other, "accountMergeMembers", "bob"), { mergeId: id, createdAt: serverTimestamp() }));
+  await assertFails(getDoc(doc(other, "users", "ana", "preferences", "main")));
+  const batch = writeBatch(owner);
+  batch.set(doc(owner, "accountMergeMembers", "ana"), { mergeId: id, createdAt: serverTimestamp() });
+  batch.update(doc(owner, "accountMerges", id), { status: "active", activatedAt: serverTimestamp() });
+  await assertSucceeds(batch.commit());
+  assert.equal((await getDoc(doc(other, "accountMerges", id))).get("profileUid"), "ana");
+  assert.equal((await getDoc(doc(other, "users", "ana", "preferences", "main"))).get("motion"), "full");
+  assert.equal((await getDoc(doc(other, "projects", "merge-project"))).get("ownerUid"), "ana");
+  await assertFails(getDoc(doc(outsider, "users", "ana", "preferences", "main")));
+  await assertFails(getDocs(collection(outsider, "accountMergeMembers")));
+});
+
+test("account fusion cannot activate until the combined active streak count is at most five", async () => {
+  const id = "9".repeat(48), owner = context("ana"), other = context("bob"), memberUids = ["ana", "bob"];
+  await seed("streakSocial/ana", { activeCount: 3, pendingCount: 0, streakPendingCount: 0, lastPair: "", lastInvite: "" });
+  await seed("streakSocial/bob", { activeCount: 3, pendingCount: 0, streakPendingCount: 0, lastPair: "", lastInvite: "" });
+  await assertSucceeds(setDoc(doc(owner, "accountMerges", id), { version: 1, status: "pending", requestedByUid: "ana",
+    memberUids, profileUid: "ana", profileName: "ana", profileEmail: "ana@test.invalid", profilePhotoURL: "", otherName: "bob", createdAt: serverTimestamp() }));
+  await assertSucceeds(setDoc(doc(other, "accountMergeMembers", "bob"), { mergeId: id, createdAt: serverTimestamp() }));
+  const activate = () => {
+    const batch = writeBatch(owner);
+    batch.set(doc(owner, "accountMergeMembers", "ana"), { mergeId: id, createdAt: serverTimestamp() });
+    batch.update(doc(owner, "accountMerges", id), { status: "active", activatedAt: serverTimestamp() });
+    return batch.commit();
+  };
+  await assertFails(activate());
+  assert.equal((await stored(`accountMerges/${id}`)).status, "pending");
+  await seed("streakSocial/bob", { activeCount: 2, pendingCount: 0, streakPendingCount: 0, lastPair: "", lastInvite: "" });
+  await assertSucceeds(activate());
+});
+
+test("merged wallets import both balances once and merged inventories stay unique", async () => {
+  const { owner, other, mergeId } = await mergeAccounts("ana", "bob", "b".repeat(48));
+  await seed("users/ana/progress/wallet", { balance: 7, earned: 9, spent: 2, lastAward: "a", lastPurchase: "", updatedAt: Timestamp.now() });
+  await seed("users/bob/progress/wallet", { balance: 2, earned: 5, spent: 3, lastAward: "b", lastPurchase: "", updatedAt: Timestamp.now() });
+  await seed("users/bob/inventory/farolero", { itemId: "farolero", price: 0, acquiredAt: Timestamp.now() });
+  const batch = writeBatch(owner);
+  batch.set(doc(owner, "users", "ana", "progress", "wallet"), { balance: 9, earned: 14, spent: 5, lastAward: "a", lastPurchase: "", updatedAt: serverTimestamp() });
+  batch.set(doc(owner, "accountMerges", mergeId, "imports", "wallet"), { earned: 14, spent: 5, importedAt: serverTimestamp() });
+  await assertSucceeds(batch.commit());
+  assert.equal((await stored("users/ana/progress/wallet")).balance, 9);
+  await assertFails(setDoc(doc(owner, "accountMerges", mergeId, "imports", "wallet"), { earned: 14, spent: 5, importedAt: serverTimestamp() }));
+  const itemBatch = writeBatch(owner);
+  itemBatch.set(doc(owner, "users", "ana", "inventory", "farolero"), { itemId: "farolero", price: 0, acquiredAt: serverTimestamp() });
+  itemBatch.update(doc(owner, "users", "ana", "progress", "wallet"), { balance: 9, earned: 14, spent: 5, lastAward: "a", lastPurchase: "farolero", updatedAt: serverTimestamp() });
+  await assertFails(itemBatch.commit());
+  assert.equal((await getDoc(doc(other, "users", "bob", "inventory", "farolero"))).exists(), true);
+});
+
+test("a merged social profile reads friendships and active streaks from both Firebase identities", async () => {
+  await connect("ana", "peer-a");
+  await connect("bob", "peer-b");
+  await mergeAccounts("ana", "bob", "c".repeat(48));
+  const merged = new SparkSocial(new SparkRewards(context("ana"), "ana", ["ana", "bob"]), { uid: "ana", name: "ana", photoURL: "" });
+  const page = await merged.friendPage();
+  const activePairs = await merged.activeStreaks();
+  assert.deepEqual(page.items.map((friend) => friend.name).sort(), ["peer-a", "peer-b"]);
+  assert.equal(activePairs.length, 2);
+});
+
+test("the five-pair cap is shared across merged identities while friends remain uncapped", async () => {
+  for (let i = 0; i < 3; i++) await connect("ana", `ana-peer-${i}`);
+  for (let i = 0; i < 2; i++) await connect("bob", `bob-peer-${i}`);
+  const third = social("ana"), friend = social("new-peer"), request = await third.sendFriendRequest((await friend.getFriendCode()).code, "merged-cap-friend");
+  await friend.decideInvite(request.id, "accept");
+  await mergeAccounts("ana", "bob", "d".repeat(48));
+  const merged = new SparkSocial(new SparkRewards(context("ana"), "ana", ["ana", "bob"]), { uid: "ana", name: "ana", photoURL: "" });
+  await assert.rejects(merged.requestStreak(request.id, "merged-cap-streak"), /cinco rachas/);
+  assert.equal((await merged.friendPage()).items.length, 6);
+  assert.equal((await merged.activeStreaks()).length, 5);
+  assert.equal((await stored("streakSocial/ana")).activeCount + (await stored("streakSocial/bob")).activeCount, 5);
+});
 
 test("Spark credits real proofs, caps points at three and deduplicates across clients", async () => {
   const a = rewards("ana"), b = rewards("ana");
@@ -191,7 +334,7 @@ test("celebration is claimed once across devices and only after actual activity"
   assert.equal(results.filter(Boolean).length, 1);
   assert.equal(await a.claimCelebration(), null);
 });
-test("explicit invitations enforce five pairs, pending limits and private projections", async () => {
+test("friendships are uncapped and do not grant presence access or start a streak", async () => {
   const ana = social("ana");
   const bob = social("bob"), code = (await bob.getFriendCode()).code;
   const invite = await ana.sendFriendRequest(code, "request");
@@ -204,11 +347,14 @@ test("explicit invitations enforce five pairs, pending limits and private projec
   await assertFails(getDocs(collection(bob.db, "users/ana/activeDays")));
   await assertFails(getDoc(doc(context("other"), "streakPresence", "ana")));
   await assertFails(getDocs(collection(bob.db, "streakInvites")));
+  await assertFails(getDoc(doc(bob.db, "streakPresence", "ana")));
+  for (let i = 0; i < 6; i++) { const friend = social("friend" + i), next = await ana.sendFriendRequest((await friend.getFriendCode()).code, "invite-" + i); await friend.decideInvite(next.id, "accept"); }
+  assert.equal((await ana.friends()).length, 7);
+  assert.equal((await stored("streakSocial/ana")).activeCount, 0);
+  const streak = await ana.requestStreak(invite.id, "streak");
+  await bob.decideInvite(streak.id, "accept");
+  assert.equal((await stored("streakSocial/ana")).activeCount, 1);
   await assertSucceeds(getDoc(doc(bob.db, "streakPresence", "ana")));
-  for (let i = 0; i < 4; i++) { const friend = social("friend" + i), next = await ana.sendFriendRequest((await friend.getFriendCode()).code, "invite-" + i); await friend.decideInvite(next.id, "accept"); }
-  assert.equal((await ana.friends()).length, 5);
-  await assert.rejects(ana.sendFriendRequest((await social("sixth").getFriendCode()).code, "sixth"), /cinco parejas/);
-  assert.equal((await stored("streakSocial/ana")).activeCount, 5);
 });
 test("nudges are one per pair/day, respect mute, and ending revokes access", async () => {
   const { left, right, id } = await connect("ana", "bob");
@@ -222,7 +368,8 @@ test("nudges are one per pair/day, respect mute, and ending revokes access", asy
   await right.readNudge(nid); assert.equal((await stored("users/bob/streakNudges/" + nid)).read, true);
   await assertFails(updateDoc(doc(right.db, "users/bob/streakNudges/" + nid), { name: "forged", read: true }));
   await right.manageFriend(id, "end");
-  assert.equal((await left.friends()).length, 0); assert.equal((await stored("streakSocial/ana")).activeCount, 0);
+  assert.equal((await left.friends()).length, 1); assert.equal((await left.friends())[0].streakActive, false);
+  assert.equal((await stored("streakSocial/ana")).activeCount, 0);
   await assertFails(getDoc(doc(right.db, "streakPresence", "ana")));
 });
 test("nudges carry a preset phrase; only the recipient marks them seen and replies, once", async () => {
@@ -313,8 +460,8 @@ test("pending invitations are bounded, can be rejected/cancelled, and cannot be 
   await assert.rejects(social("peer1").decideInvite(invites[1].id, "accept"), /no está disponible/);
   const next = await a.sendFriendRequest((await b.getFriendCode()).code, "new");
   await Promise.all([b.decideInvite(next.id, "accept"), b.decideInvite(next.id, "accept")]);
-  assert.equal((await stored("streakSocial/ana")).activeCount, 1);
-  assert.equal((await stored("streakSocial/bob")).activeCount, 1);
+  assert.equal((await stored("streakSocial/ana")).activeCount, 0);
+  assert.equal((await stored("streakSocial/bob")).activeCount, 0);
   assert.equal((await a.friends()).length, 1);
 });
 
@@ -393,7 +540,7 @@ test("crossed and duplicate requests reserve one pair without automatic acceptan
   const fresh = await sender.sendFriendRequest(targetCode, "fresh");
   assert.notEqual(fresh.id, one.id);
   await recipient.decideInvite(fresh.id, "accept");
-  await assert.rejects(sender.sendFriendRequest(targetCode, "already-active"), /Ya compartes/);
+  await assert.rejects(sender.sendFriendRequest(targetCode, "already-active"), /ya está en tus amigos/);
 });
 
 test("expired requests release outgoing capacity and reservations without background jobs", async () => {
@@ -431,17 +578,22 @@ test("simultaneous acceptances cannot exceed five active pairs", async () => {
   const a = social("ana"), code = (await a.getFriendCode()).code;
   const b = social("bob"), c = social("carla");
   const first = await b.sendFriendRequest(code, "b"), second = await c.sendFriendRequest(code, "c");
-  const results = await Promise.allSettled([a.decideInvite(first.id, "accept"), social("ana").decideInvite(second.id, "accept")]);
+  await a.decideInvite(first.id, "accept"); await a.decideInvite(second.id, "accept");
+  const bs = await b.requestStreak(first.id, "bs"), cs = await c.requestStreak(second.id, "cs");
+  const results = await Promise.allSettled([a.decideInvite(bs.id, "accept"), social("ana").decideInvite(cs.id, "accept")]);
   assert.equal(results.filter((r) => r.status === "fulfilled").length, 1);
   assert.equal((await stored("streakSocial/ana")).activeCount, 5);
-  assert.equal((await a.friends()).length, 5);
+  assert.equal((await a.friends()).length, 6);
+  assert.equal((await a.activeStreaks()).length, 5);
 });
 
 test("acceptance respects the sender's five-pair limit after sending", async () => {
   const a = social("ana"), b = social("bob");
-  const request = await a.sendFriendRequest((await b.getFriendCode()).code, "before-capacity");
+  const friend = await a.sendFriendRequest((await b.getFriendCode()).code, "friend");
+  await b.decideInvite(friend.id, "accept");
+  const request = await a.requestStreak(friend.id, "before-capacity");
   for (let i = 0; i < 5; i++) await connect("ana", "peer" + i);
-  await assert.rejects(b.decideInvite(request.id, "accept"), { code: "permission-denied" });
+  await assert.rejects(b.decideInvite(request.id, "accept"), /cinco rachas/);
   assert.equal((await stored(`streakInvites/${request.id}`)).status, "pending");
   assert.equal((await stored("streakSocial/ana")).activeCount, 5);
 });

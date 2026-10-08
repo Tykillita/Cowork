@@ -4,6 +4,7 @@ export type RequestDirection = "incoming" | "outgoing";
 export type RequestStatus = "pending" | "accepted" | "rejected" | "cancelled" | "expired";
 export interface FriendRequestView {
   id: string; name: string; photoURL: string; direction: RequestDirection;
+  kind: "friend" | "streak";
   status: RequestStatus; expiresAt: number; createdAt: number;
 }
 export const CODE_ALPHABET = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ";

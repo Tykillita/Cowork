@@ -3,10 +3,10 @@ import { expect, test } from "@playwright/test";
 test("release cards fit both languages, themes and target widths", async ({ page }) => {
   const widths = [375, 768, 1280];
   const variants = [
-    { lang: "es", theme: "light", title: "De novedades a tareas", latestTitle: "Aviso CORS más preciso", progressTitle: "Progreso de racha a mano", syncTitle: "Novedades importadas por versión", syncKind: "Major, Feature o Fix", syncGroups: "Nuevo, Cambios o Arreglos", state: "En desarrollo" },
-    { lang: "es", theme: "dark", title: "De novedades a tareas", latestTitle: "Aviso CORS más preciso", progressTitle: "Progreso de racha a mano", syncTitle: "Novedades importadas por versión", syncKind: "Major, Feature o Fix", syncGroups: "Nuevo, Cambios o Arreglos", state: "En desarrollo" },
-    { lang: "en", theme: "light", title: "From release notes to tasks", latestTitle: "Clearer CORS guidance", progressTitle: "Streak progress within easy reach", syncTitle: "Release notes imported by version", syncKind: "Major, Feature or Fix", syncGroups: "New, Changed or Fixed", state: "In development" },
-    { lang: "en", theme: "dark", title: "From release notes to tasks", latestTitle: "Clearer CORS guidance", progressTitle: "Streak progress within easy reach", syncTitle: "Release notes imported by version", syncKind: "Major, Feature or Fix", syncGroups: "New, Changed or Fixed", state: "In development" },
+    { lang: "es", theme: "light", summary: "Une dos cuentas y amplía tu lista de amigos", accountTitle: "Unir dos cuentas Cowork", friendsTitle: "Más amigos, sin tope de cinco", streaksTitle: "Elige qué rachas conservar", state: "En desarrollo" },
+    { lang: "es", theme: "dark", summary: "Une dos cuentas y amplía tu lista de amigos", accountTitle: "Unir dos cuentas Cowork", friendsTitle: "Más amigos, sin tope de cinco", streaksTitle: "Elige qué rachas conservar", state: "En desarrollo" },
+    { lang: "en", theme: "light", summary: "Join two accounts and grow your friends list", accountTitle: "Merge two Cowork accounts", friendsTitle: "More than five friends", streaksTitle: "Choose which streaks to keep", state: "In development" },
+    { lang: "en", theme: "dark", summary: "Join two accounts and grow your friends list", accountTitle: "Merge two Cowork accounts", friendsTitle: "More than five friends", streaksTitle: "Choose which streaks to keep", state: "In development" },
   ] as const;
 
   for (const width of widths) {
@@ -19,18 +19,14 @@ test("release cards fit both languages, themes and target widths", async ({ page
       }, variant);
       await page.reload();
 
-      const release = page.locator("#v0-3-0");
-      const latestRelease = page.locator("#v0-3-1");
+      const latestRelease = page.locator("#v0-5-0");
       await expect(page.locator("html")).toHaveAttribute("lang", variant.lang);
       await expect(page.locator(".site")).toHaveAttribute("data-theme", variant.theme);
-      await expect(release).toContainText(variant.state);
-      await expect(release).toContainText(variant.title);
       await expect(latestRelease).toContainText(variant.state);
-      await expect(latestRelease).toContainText(variant.latestTitle);
-      await expect(latestRelease).toContainText(variant.progressTitle);
-      await expect(latestRelease).toContainText(variant.syncTitle);
-      await expect(latestRelease).toContainText(variant.syncKind);
-      await expect(latestRelease).toContainText(variant.syncGroups);
+      await expect(latestRelease).toContainText(variant.summary);
+      await expect(latestRelease).toContainText(variant.accountTitle);
+      await expect(latestRelease).toContainText(variant.friendsTitle);
+      await expect(latestRelease).toContainText(variant.streaksTitle);
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
     }
   }

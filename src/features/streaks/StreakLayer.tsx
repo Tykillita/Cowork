@@ -31,7 +31,7 @@ function RollingCount({ value }: { value: number }) {
 }
 
 export function StreakButton() {
-  const { progress, wallet, progressReady, walletReady, userId, today, streak, reducedMotion, nudges } = usePersonal();
+  const { progress, wallet, progressReady, walletReady, userId, sourceUids, today, streak, reducedMotion, nudges } = usePersonal();
   const [requests, setRequests] = useState(0);
   const unread = nudges.filter((entry) => !entry.read && entry.day >= today - 7).length;
   const active = progress.days.includes(today);
@@ -48,10 +48,10 @@ export function StreakButton() {
   useEffect(() => {
     let alive = true, stop: (() => void) | undefined;
     setRequests(0);
-    if (userId) void watchPendingRequests(userId, (count) => { if (alive) setRequests(count); }, () => undefined)
+    if (userId) void watchPendingRequests(sourceUids, (count) => { if (alive) setRequests(count); }, () => undefined)
       .then((fn) => { if (alive) stop = fn; else fn(); }).catch(() => undefined);
     return () => { alive = false; stop?.(); };
-  }, [userId]);
+  }, [userId, sourceUids]);
   return <button type="button" className="streakHeaderButton" onPointerEnter={() => { void loadStreakPanel(); }} onFocus={() => { void loadStreakPanel(); }} onClick={openStreaks} aria-label={`Abrir rachas y puntos: ${progress.currentStreak} días, ${wallet.balance} puntos${unread ? `, ${unread} toques pendientes` : ""}${requests ? `, ${requests} solicitudes recibidas` : ""}`} title="Rachas y puntos">
     {/* Nudges are counted by the notifications bell; the flame only flags friend requests. */}
     {requests > 0 && <span className="streakUnread" aria-hidden="true">{requests}</span>}

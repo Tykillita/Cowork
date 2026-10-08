@@ -234,7 +234,7 @@ export function ProjectPicker({
         </a>
         <div className="projectPickerHeaderActions">
           <span className="projectPrivacy"><i aria-hidden="true" /> Espacio privado</span>
-          {user && <HeaderDock user={user} activity={headerActions} profileMenu={profileMenu} onLinkGoogle={onLinkGoogle} onSignOut={onSignOut} />}
+          {user && <HeaderDock user={user} activity={headerActions} profileMenu={profileMenu} onLinkGoogle={onLinkGoogle} onUserUpdated={onUserUpdated} onSignOut={onSignOut} />}
         </div>
       </header>
 

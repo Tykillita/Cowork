@@ -47,6 +47,8 @@
   //   },
   // ]
   "indexes": [
+    { "collectionGroup": "streakFriendships", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "memberUids", "arrayConfig": "CONTAINS" }, { "fieldPath": "status", "order": "ASCENDING" }, { "fieldPath": "createdAt", "order": "DESCENDING" }] },
+    { "collectionGroup": "streakPairs", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "memberUids", "arrayConfig": "CONTAINS" }, { "fieldPath": "status", "order": "ASCENDING" }] },
     { "collectionGroup": "events", "queryScope": "COLLECTION_GROUP", "fields": [{ "fieldPath": "actorUid", "order": "ASCENDING" }, { "fieldPath": "createdAt", "order": "ASCENDING" }] },
     { "collectionGroup": "streakInvites", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "ownerUid", "order": "ASCENDING" }, { "fieldPath": "createdAt", "order": "DESCENDING" }] },
     { "collectionGroup": "streakInvites", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "recipientUid", "order": "ASCENDING" }, { "fieldPath": "createdAt", "order": "DESCENDING" }] }

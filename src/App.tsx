@@ -377,7 +377,7 @@ export default function App() {
   </>;
 
   const project = selectedProject;
-  const isOwner = project.ownerUid === user.id;
+  const isOwner = (user.mergedUids ?? [user.id]).includes(project.ownerUid);
   const pages: Record<PageId, ReactNode> = {
     home: <HomePage
       project={project}
@@ -421,7 +421,7 @@ export default function App() {
   };
 
   return <>
-    <AppShell page={page} project={project} user={user} mode={workboard.mode} onLock={() => void logout()} onSwitchProject={backToProjects} onLinkGoogle={linkGoogle} headerActions={activityButton} profileMenu={profileMenu}>
+    <AppShell page={page} project={project} user={user} mode={workboard.mode} onLock={() => void logout()} onSwitchProject={backToProjects} onLinkGoogle={linkGoogle} onUserUpdated={setUser} headerActions={activityButton} profileMenu={profileMenu}>
       <Suspense fallback={pageSkeletons[page]}>{pages[page]}</Suspense>
     </AppShell>
     {collection}

@@ -37,28 +37,31 @@ function readProject(id: string, value: Record<string, unknown>): Project | null
 }
 
 export async function watchProjects(
-  userUid: string,
+  userUidsValue: string | readonly string[],
   onValue: (projects: Project[], unavailableCount: number) => void,
   onError: (error: Error) => void,
 ) {
   const { db, api } = await database();
+  const userUids = [...new Set(typeof userUidsValue === "string" ? [userUidsValue] : userUidsValue)].filter(Boolean);
   const projects = new Map<string, Project>();
   const subscriptions = new Map<string, () => void>();
+  const accessByUid = new Map<string, Set<string>>();
+  const pendingAccess = new Set(userUids);
   const settledProjects = new Set<string>();
   const unavailableProjects = new Set<string>();
-  let accessLoaded = false;
   const publish = () => {
-    if (!accessLoaded || [...subscriptions.keys()].some((id) => !settledProjects.has(id))) return;
+    if (pendingAccess.size || [...subscriptions.keys()].some((id) => !settledProjects.has(id))) return;
     onValue(
       [...projects.values()].sort((a, b) => b.createdAt.localeCompare(a.createdAt) || a.name.localeCompare(b.name)),
       unavailableProjects.size,
     );
   };
-  const accessUnsubscribe = api.onSnapshot(api.collection(db, "users", userUid, "projectAccess"), { includeMetadataChanges: true }, (snapshot) => {
-    accessLoaded = true;
+  const accessUnsubscribes = userUids.map((userUid) => api.onSnapshot(api.collection(db, "users", userUid, "projectAccess"), { includeMetadataChanges: true }, (snapshot) => {
+    pendingAccess.delete(userUid);
     // A project created on this device is readable only once its batch reaches the
     // server; subscribing earlier is denied and would hide it until a reload.
-    const ids = new Set(snapshot.docs.filter((entry) => !entry.metadata.hasPendingWrites).map((entry) => entry.id));
+    accessByUid.set(userUid, new Set(snapshot.docs.filter((entry) => !entry.metadata.hasPendingWrites).map((entry) => entry.id)));
+    const ids = new Set([...accessByUid.values()].flatMap((entries) => [...entries]));
     for (const [id, unsubscribe] of subscriptions) {
       if (ids.has(id)) continue;
       unsubscribe();
@@ -94,9 +97,9 @@ export async function watchProjects(
       subscriptions.set(id, unsubscribe);
     }
     publish();
-  }, onError);
+  }, onError));
   return () => {
-    accessUnsubscribe();
+    accessUnsubscribes.forEach((unsubscribe) => unsubscribe());
     subscriptions.forEach((unsubscribe) => unsubscribe());
     subscriptions.clear();
   };

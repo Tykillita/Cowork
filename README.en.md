@@ -8,7 +8,7 @@
 
 <!-- The version badge mirrors VERSION: `npm run version:bump` updates it (AGENTS.md, «Versiones»). -->
 <p align="center">
-  <a href="CHANGELOG.md"><img alt="version 0.4.2" src="https://img.shields.io/badge/version-0.4.2-0b7a5b"></a>
+  <a href="CHANGELOG.md"><img alt="version 0.5.0" src="https://img.shields.io/badge/version-0.5.0-0b7a5b"></a>
   <a href="https://react.dev"><img alt="React 19" src="https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=111827"></a>
   <a href="https://www.typescriptlang.org"><img alt="TypeScript 5" src="https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white"></a>
   <a href="https://vite.dev"><img alt="Vite 7" src="https://img.shields.io/badge/Vite-7-646CFF?logo=vite&logoColor=white"></a>
@@ -47,10 +47,11 @@
 
 - Private project list scoped to the signed-in account, with accent-insensitive search, favourites, a personal order, detected site favicons and animated project previews. On and Reduced override the system setting; System follows the device preference.
 - Shareable access links and QR codes: people request access and the owner approves, rejects or allows another attempt, with a history of every decision. Ownership can be transferred.
+- Merge Cowork accounts: verify two existing accounts, choose the primary profile and open the same workspace with either sign-in. The Firebase identities remain separate.
 - Kanban board (drag and drop or keyboard) or list by phase, with even spacing between the board, release proposals and milestones; every task has a description, priority, due date, checklist and branch, and the board filters by text, assignee, status, milestone, priority and date ([docs/TASKS.md](docs/TASKS.md)). Milestones have a date and time zone, and their progress comes from linked tasks.
 - Optional delivery window with a live countdown, or an ambient pixel-art scene when there is no deadline.
 - Activity center: a "For you" inbox and the team's change log, with read state synced across devices.
-- Streaks and friends: UTC calendar, goals and badges, one-day protectors and seven-day shields, up to five friend pairs through [friend codes](docs/FRIEND-CODES.md) and preset nudges. Each new day gets a celebration card with an animated flame, a clear counter and a dedicated row for the "View my progress" button.
+- Streaks and friends: UTC calendar, goals and badges, one-day protectors and seven-day shields. You can have more than five friends through [friend codes](docs/FRIEND-CODES.md), and up to five shared streaks activated through a separate invitation and acceptance. Preset nudges. Each new day gets a celebration card with an animated flame, a clear counter and a dedicated row for the "View my progress" button.
 - Pixel-art collection unlocked with active days or bought with points.
 - Branches and changes: one list with the registered branches and GitHub's, with each one's pull request, how far it drifted from the main branch, its commits and its tasks; register, create on GitHub, delete and remove from the register.
 - Code: browse any branch or tag with [Material Icon Theme](https://github.com/material-extensions/vscode-material-icon-theme) icons (MIT), syntax highlighting, change marks and line links, under a GitHub-like bar (branch and tag picker, "Go to file" with the `T` key, clone over HTTPS, SSH or GitHub CLI, ZIP download). Images and SVGs get a preview ([docs/CODE-VIEWER.md](docs/CODE-VIEWER.md)).
@@ -74,6 +75,14 @@ The public [cwspace.web.app/linus-portfolio](https://cwspace.web.app/linus-portf
 | Create a project | ✓ | — |
 
 At most 3 points per UTC day across all projects and devices; each day counts once. Creating the branch in GitHub as well gives no extra points: it counts as registering it. When a day is added, the celebration card brings in the animated flame and keeps a soft glow at rest, with the "View my progress" button on its own row below the counter.
+
+### Friends and shared streaks
+
+Accepting a friendship does not start a streak. Under **Streaks and points → Friends**, browse friends in pages of twenty and invite any of them to a shared streak. Acceptance occupies one of each person's five slots. Ending the streak keeps the friendship and its record; a new acceptance starts another period on that day. Removing a friend also closes their streak. You can have five outgoing friendship requests and five outgoing streak requests pending; they expire after seven days.
+
+### Merge Cowork accounts
+
+From the profile menu, open **Access methods** to merge two existing Cowork accounts. Verify the current account and sign in to the other with its password, Google or GitHub. Then choose which name, avatar, preferences and scene to keep. The accounts remain separate sign-ins, but either opens the shared profile, including both accounts' projects and personal data. If they have more than five active streaks between them, choose five to keep; the others end while their friendships and records remain.
 
 ### Connecting GitHub
 

@@ -48,6 +48,7 @@ export function AppShell({
   onLock,
   onSwitchProject,
   onLinkGoogle,
+  onUserUpdated,
   headerActions,
   profileMenu,
   children,
@@ -59,6 +60,7 @@ export function AppShell({
   onLock: () => void;
   onSwitchProject: () => void;
   onLinkGoogle: () => Promise<PanelUser | null>;
+  onUserUpdated: (user: PanelUser) => void;
   headerActions?: ReactNode;
   profileMenu?: ReactNode;
   children: ReactNode;
@@ -103,7 +105,7 @@ export function AppShell({
             <span className={`pill${mode === "remote" ? "" : " local"}`} id="sync">{connectionLabel(mode)}</span>
           </div>
           <div className="topActions">
-            <HeaderDock user={user} activity={headerActions} profileMenu={profileMenu} onLinkGoogle={onLinkGoogle} onSignOut={onLock} />
+            <HeaderDock user={user} activity={headerActions} profileMenu={profileMenu} onLinkGoogle={onLinkGoogle} onUserUpdated={onUserUpdated} onSignOut={onLock} />
           </div>
         </div>
         <div data-page={page}>{children}</div>

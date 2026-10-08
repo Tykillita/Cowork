@@ -7,6 +7,15 @@ subirla están en [AGENTS.md](AGENTS.md#versiones). La versión pública de esto
 
 ## [Unreleased]
 
+## [0.5.0] — 2026-10-08
+
+### Added
+- **Amigos y rachas independientes**: amistades sin límite de cinco y paginadas de veinte en veinte. Las rachas requieren una invitación y aceptación separadas, ocupan una de cinco plazas por persona y conservan amistad y récord al finalizar. Migración repetible de las parejas anteriores.
+- **Unir cuentas Cowork**: confirma el acceso a las dos cuentas, elige qué perfil conservar y usa cualquiera de los dos inicios de sesión para compartir proyectos y datos personales. Los UID de Firebase siguen separados; saldos e inventarios se combinan una sola vez.
+
+### Changed
+- **Límite de rachas al unir cuentas**: puedes tener más de cinco amistades; al fusionar perfiles eliges hasta cinco rachas activas y las demás se cierran sin borrar la amistad ni su historial. Las reglas impiden activar la fusión si el total sigue por encima de cinco.
+
 ## [0.4.2] — 2026-10-08
 
 ### Fixed
@@ -137,7 +146,8 @@ subirla están en [AGENTS.md](AGENTS.md#versiones). La versión pública de esto
 - Registro de ramas y conexión con GitHub: repositorios privados, crear y borrar ramas según la política del proyecto.
 - Pruebas unitarias, de reglas, del backend Spark y e2e con Playwright contra los emuladores.
 
-[Unreleased]: https://github.com/Tykillita/Cowork/compare/v0.4.2...HEAD
+[Unreleased]: https://github.com/Tykillita/Cowork/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/Tykillita/Cowork/compare/v0.4.2...v0.5.0
 [0.4.2]: https://github.com/Tykillita/Cowork/compare/v0.4.1...v0.4.2
 [0.4.1]: https://github.com/Tykillita/Cowork/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/Tykillita/Cowork/compare/v0.3.4...v0.4.0

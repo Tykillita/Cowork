@@ -4,6 +4,7 @@ import { usePersonal } from "../personal/PersonalContext";
 import { streakCommand, streakError, watchSocial } from "./streakClient";
 import { PixelFlame, type FlameState } from "./PixelFlame";
 import { AddFriendCard, PendingIncoming, RequestHistory } from "./FriendRequests";
+import { FriendDirectory } from "./FriendDirectory";
 import { ReceivedNudge } from "./NudgeUI";
 import { nudgeText, randomNudge, replyText } from "./nudgeCatalog";
 import { Sk, SkGroup, SkImg } from "../../components/Skeleton";
@@ -60,7 +61,7 @@ function NudgeLoop({ friend, firstName }: { friend: FriendView; firstName: strin
 }
 
 export function StreakFriends() {
-  const { userId, today } = usePersonal();
+  const { userId, sourceUids, today } = usePersonal();
   const [friends, setFriendsState] = useState<FriendView[]>(() => lastKnown.get(userId) ?? []), [nudges, setNudges] = useState<NudgeView[]>([]);
   // "Loaded" only once the server has answered (or the live feed has pairs): the listener's first
   // snapshot can be an empty local cache, which would flash "no friends" before the real list.
@@ -80,20 +81,22 @@ export function StreakFriends() {
     let active = true, stop: (() => void) | undefined;
     sent.current.clear();
     setFriendsState(lastKnown.get(userId) ?? []); setLoaded(lastKnown.has(userId));
-    void watchSocial(userId, (value) => { if (active && (value.length || lastKnown.has(userId))) { setFriends(value.map((entry) => ({ ...entry, nudged: entry.nudged || sent.current.has(entry.id) }))); setLoaded(true); } },
+    void watchSocial(sourceUids, (value) => { if (active && (value.length || lastKnown.has(userId))) { setFriends(value.map((entry) => ({ ...entry, nudged: entry.nudged || sent.current.has(entry.id) }))); setLoaded(true); } },
       (value) => { if (active) setNudges(value); },
       (reason) => { if (active) { setError(streakError(reason)); setLoaded(true); } }).then((fn) => { if (active) stop = fn; else fn(); }).catch((reason) => { if (active) { setError(streakError(reason)); setLoaded(true); } });
-    const refresh = () => { void streakCommand<FriendView[]>("friends").then((value) => { if (active) { value.filter((f) => f.nudged).forEach((f) => sent.current.add(f.id)); setFriends(value); setLoaded(true); } }).catch((reason) => { if (active) { setError(streakError(reason)); setLoaded(true); } }); };
+    const refresh = () => { void streakCommand<FriendView[]>("activeStreaks").then((value) => { if (active) { value.filter((f) => f.nudged).forEach((f) => sent.current.add(f.id)); setFriends(value); setLoaded(true); } }).catch((reason) => { if (active) { setError(streakError(reason)); setLoaded(true); } }); };
     refresh();
     window.addEventListener("focus", refresh);
-    return () => { active = false; stop?.(); window.removeEventListener("focus", refresh); };
-  }, [userId, today]);
+    window.addEventListener("cowork:social-change", refresh);
+    return () => { active = false; stop?.(); window.removeEventListener("focus", refresh); window.removeEventListener("cowork:social-change", refresh); };
+  }, [userId, sourceUids, today]);
 
   async function action(kind: string, target: string, data: Record<string, unknown> = {}, label = "") {
     if (busy) return;
     setBusy(kind); setFeedback(null);
     try {
       await streakCommand(kind, data);
+      window.dispatchEvent(new Event("cowork:social-change"));
       if (kind === "nudge") {
         sent.current.add(String(data.pairId));
         setFriends((value) => value.map((f) => f.id === data.pairId ? { ...f, nudged: true, nudge: { fromMe: true, message: String(data.message), seen: false, reply: null } } : f));
@@ -111,7 +114,7 @@ export function StreakFriends() {
 
   return <section className="streakFriends">
     {unreadNudges.map((entry) => <ReceivedNudge key={entry.id} nudge={entry} />)}
-    <PendingIncoming key={`pending-${userId}`} uid={userId} />
+    <PendingIncoming key={`pending-${userId}`} uid={sourceUids} />
 
     <div className="streakSectionHead"><h3>Constancia compartida</h3><span>{loaded ? friends.length : <Sk inline w="1ch" />}/{FRIEND_LIMIT} parejas</span></div>
     <p className="streakHint">La racha crece cuando ambos actúan en el mismo día UTC. La protección conserva el contador, sin aumentarlo.</p>
@@ -139,7 +142,7 @@ export function StreakFriends() {
             </span>
           </div>
           <NudgeLoop friend={friend} firstName={firstName} />
-          {ending === friend.id && <div className="protectionConfirm isDanger"><p>Se cerrará la racha compartida con {friend.name}. Tu racha personal se conserva.</p>
+          {ending === friend.id && <div className="protectionConfirm isDanger"><p>Se cerrará la racha compartida con {friend.name}. Seguirán siendo amigos y conservarán su récord. Si la reactivan, comenzará una nueva racha.</p>
             <button type="button" disabled={!!busy} onClick={() => void action("end", friend.id, { pairId: friend.id }, "Racha compartida finalizada.")}>Finalizar racha compartida</button>
             <button type="button" className="streakQuiet" disabled={!!busy} onClick={() => setEnding("")}>Cancelar</button></div>}
           {note(friend.id)}
@@ -152,7 +155,8 @@ export function StreakFriends() {
     {feedback && !friends.some((friend) => friend.id === feedback.target) && feedback.target !== "nudges" && note(feedback.target)}
     {error && <p role="alert" className="streakError">{error}</p>}
 
-    <AddFriendCard key={`add-${userId}`} ref={search} uid={userId} friendCount={friends.length} />
-    <RequestHistory key={`history-${userId}`} uid={userId} />
+    <FriendDirectory key={`directory-${userId}`} uids={sourceUids} full={loaded && freeSlots === 0} />
+    <AddFriendCard key={`add-${userId}`} ref={search} uid={userId} />
+    <RequestHistory key={`history-${userId}`} uid={sourceUids} />
   </section>;
 }
