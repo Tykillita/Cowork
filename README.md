@@ -8,7 +8,7 @@
 
 <!-- La placa de versión repite VERSION: la actualiza `npm run version:bump` (AGENTS.md, «Versiones»). -->
 <p align="center">
-  <a href="CHANGELOG.md"><img alt="version 0.4.1" src="https://img.shields.io/badge/version-0.4.1-0b7a5b"></a>
+  <a href="CHANGELOG.md"><img alt="version 0.4.2" src="https://img.shields.io/badge/version-0.4.2-0b7a5b"></a>
   <a href="https://react.dev"><img alt="React 19" src="https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=111827"></a>
   <a href="https://www.typescriptlang.org"><img alt="TypeScript 5" src="https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white"></a>
   <a href="https://vite.dev"><img alt="Vite 7" src="https://img.shields.io/badge/Vite-7-646CFF?logo=vite&logoColor=white"></a>

@@ -7,6 +7,11 @@ subirla están en [AGENTS.md](AGENTS.md#versiones). La versión pública de esto
 
 ## [Unreleased]
 
+## [0.4.2] — 2026-10-08
+
+### Fixed
+- **Página de novedades actualizada**: `/novedades` ya no conserva la versión anterior en la caché del navegador después de un despliegue.
+
 ## [0.4.1] — 2026-10-08
 
 ### Fixed
@@ -132,7 +137,8 @@ subirla están en [AGENTS.md](AGENTS.md#versiones). La versión pública de esto
 - Registro de ramas y conexión con GitHub: repositorios privados, crear y borrar ramas según la política del proyecto.
 - Pruebas unitarias, de reglas, del backend Spark y e2e con Playwright contra los emuladores.
 
-[Unreleased]: https://github.com/Tykillita/Cowork/compare/v0.4.1...HEAD
+[Unreleased]: https://github.com/Tykillita/Cowork/compare/v0.4.2...HEAD
+[0.4.2]: https://github.com/Tykillita/Cowork/compare/v0.4.1...v0.4.2
 [0.4.1]: https://github.com/Tykillita/Cowork/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/Tykillita/Cowork/compare/v0.3.4...v0.4.0
 [0.3.4]: https://github.com/Tykillita/Cowork/compare/v0.3.3...v0.3.4

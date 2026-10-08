@@ -44,6 +44,27 @@ export const NEXT: Upcoming = { summary: { es: "", en: "" }, added: [], changed:
 
 export const RELEASES: Release[] = [
   {
+    version: "0.4.2",
+    date: "2026-10-08",
+    released: false,
+    kind: "arreglo",
+    summary: {
+      es: "La página de novedades deja de mostrar una versión anterior guardada en caché.",
+      en: "The changelog page no longer shows an older version from cache.",
+    },
+    added: [],
+    changed: [],
+    fixed: [
+      {
+        title: { es: "Novedades siempre actualizadas", en: "What's new stays current" },
+        body: {
+          es: "El navegador vuelve a consultar la página después de cada despliegue, para que el degradado y el contenido nuevos aparezcan al actualizar.",
+          en: "The browser now checks the page after each deployment, so the updated glow and content appear on refresh.",
+        },
+      },
+    ],
+  },
+  {
     version: "0.4.1",
     date: "2026-10-08",
     released: false,
