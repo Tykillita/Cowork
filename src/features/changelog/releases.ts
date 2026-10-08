@@ -44,6 +44,27 @@ export const NEXT: Upcoming = { summary: { es: "", en: "" }, added: [], changed:
 
 export const RELEASES: Release[] = [
   {
+    version: "0.4.1",
+    date: "2026-10-08",
+    released: false,
+    kind: "arreglo",
+    summary: {
+      es: "El portafolio manga mantiene el ancho correcto en tableta y escritorio.",
+      en: "The manga portfolio keeps its width on tablet and desktop.",
+    },
+    added: [],
+    changed: [],
+    fixed: [
+      {
+        title: { es: "Ancho del portafolio corregido", en: "Portfolio width stays in view" },
+        body: {
+          es: "El resplandor del hero se ajusta al ancho visible y ya no causa desplazamiento horizontal en tabletas y escritorios.",
+          en: "The hero glow now matches the visible width and no longer causes horizontal scrolling on tablets and desktops.",
+        },
+      },
+    ],
+  },
+  {
     version: "0.4.0",
     date: "2026-10-08",
     released: false,
