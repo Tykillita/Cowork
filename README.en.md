@@ -35,7 +35,7 @@
 
 <a id="video"></a>
 
-<p align="center"><a href="docs/video/cowork-tour-en.mp4"><img src="docs/images/video-poster-en.jpg" width="100%" alt="Cowork video tour: the summary, the board, branches, the code and files under review"></a></p>
+https://github.com/user-attachments/assets/75b3ee6b-1617-4cff-ba4f-72f45c59f239
 
 <p align="center"><sub>The 77-second tour, with sound · <a href="docs/video/cowork-tour-es.mp4">en español</a> · <a href="docs/video/cowork-tour-en.mp4">download the MP4</a></sub></p>
 

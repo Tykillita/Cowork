@@ -38,7 +38,7 @@
 
 <a id="video"></a>
 
-<p align="center"><a href="docs/video/cowork-tour-es.mp4"><img src="docs/images/video-poster-es.jpg" width="100%" alt="Recorrido de Cowork en video: el resumen, el tablero, las ramas, el código y los archivos en revisión"></a></p>
+https://github.com/user-attachments/assets/4ad515cb-573f-4b6b-8515-bd7b0c0d9537
 
 <p align="center"><sub>El recorrido de 77 segundos, con sonido · <a href="docs/video/cowork-tour-en.mp4">in English</a> · <a href="docs/video/cowork-tour-es.mp4">descargar el MP4</a></sub></p>
 

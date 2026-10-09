@@ -5,7 +5,7 @@
 - 1920 × 1080, a 30 fps, en H.264;
 - banda sonora original en AAC.
 
-Los README lo enlazan con un póster (`docs/images/video-poster-es.jpg` y `-en.jpg`).
+Los README muestran el reproductor de GitHub con una URL de adjunto por idioma y conservan el enlace al MP4 del repositorio para descargarlo. Los pósteres (`docs/images/video-poster-es.jpg` y `-en.jpg`) siguen disponibles como recursos del recorrido.
 
 Todo se genera desde este repositorio. No hace falta editar video a mano.
 
@@ -50,12 +50,12 @@ python docs/video/source/poster.py docs/video/source/out/en-4.6.png en docs/imag
 
 ## En los README
 
-GitHub no reproduce dentro de la página un `.mp4` guardado en el repositorio: el enlace lo abre o lo descarga. Por eso los README muestran el póster enlazado al MP4.
+GitHub no reproduce dentro de la página un `.mp4` guardado en el repositorio: ese enlace lo abre o lo descarga. Para mostrar el reproductor inline, los README usan la URL de adjunto que GitHub genera al subir el video a un issue.
 
 Para tener el reproductor incrustado:
 
 1. Arrastra el MP4 a un comentario de un issue en GitHub.
 2. Copia la URL `https://github.com/user-attachments/assets/…` que genera.
-3. Pégala sola en una línea del README, en lugar del póster: la del video en español en `README.md` y la del video en inglés en `README.en.md`.
+3. Pégala sola en su propio párrafo del README: la del video en español en `README.md` y la del video en inglés en `README.en.md`. Conserva también los enlaces al MP4 del repositorio como alternativa de descarga.
 
 Lo hace quien tenga la sesión de GitHub abierta. Ver [AGENTS.md](../AGENTS.md#video-de-presentación).
